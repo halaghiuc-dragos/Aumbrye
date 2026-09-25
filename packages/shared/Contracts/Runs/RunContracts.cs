@@ -5,6 +5,8 @@ public sealed record CreateRunRequest(string BiomeId, int? Seed, int Tier = 1);
 public sealed record CreateRunResponse(
     Guid RunId,
     int Seed,
+    int PlayerLevel,
+    string ClientVersion,
     string BiomeId,
     string DefinitionJson);
 

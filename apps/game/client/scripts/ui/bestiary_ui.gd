@@ -136,7 +136,7 @@ func _build_ui_if_needed() -> void:
 
 	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	content_vbox.add_child(close_btn)
-	MenuShellScript.add_hint(content_vbox, "Esc to close")
+	MenuShellScript.add_hint(content_vbox, tr("UI_HINT_CLOSE"))
 
 
 func _refresh() -> void:

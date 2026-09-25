@@ -37,23 +37,39 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  * never a session.
  */
 function markSessionPresent(present: boolean) {
-  if (present) {
-    localStorage.setItem(SESSION_MARKER_KEY, "1");
-  } else {
-    localStorage.removeItem(SESSION_MARKER_KEY);
+  try {
+    if (present) {
+      localStorage.setItem(SESSION_MARKER_KEY, "1");
+    } else {
+      localStorage.removeItem(SESSION_MARKER_KEY);
+    }
+  } catch {
+    // Authentication still works for this page when browser storage is disabled.
   }
 }
 
 function hasSessionMarker(): boolean {
-  return localStorage.getItem(SESSION_MARKER_KEY) === "1";
+  try {
+    return localStorage.getItem(SESSION_MARKER_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function clearTokens() {
   markSessionPresent(false);
   // Remove credentials written by earlier builds, which kept the refresh token where any XSS
   // payload could read it.
-  sessionStorage.removeItem(LEGACY_REFRESH_KEY);
-  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  try {
+    sessionStorage.removeItem(LEGACY_REFRESH_KEY);
+  } catch {
+    // Private browsing and embedded webviews may deny session storage.
+  }
+  try {
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  } catch {
+    // The in-memory session is still cleared even if persistent storage is unavailable.
+  }
 }
 
 function scheduleRefresh(expiresAt: string, refreshFn: () => Promise<void>) {
@@ -203,8 +219,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   useEffect(() => {
-    localStorage.removeItem(LEGACY_TOKEN_KEY);
-    sessionStorage.removeItem(LEGACY_REFRESH_KEY);
+    try {
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+    } catch {
+      // Ignore unavailable legacy token storage.
+    }
+    try {
+      sessionStorage.removeItem(LEGACY_REFRESH_KEY);
+    } catch {
+      // Ignore unavailable legacy refresh-token storage.
+    }
     if (!hasSessionMarker()) return;
     void refreshSession();
     return () => {

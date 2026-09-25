@@ -99,6 +99,7 @@ varying vec3 v_world_pos;
 varying vec3 v_world_normal;
 varying vec3 v_local_pos;
 varying vec3 v_local_normal;
+varying float v_specular_sheen;
 
 void vertex() {
 	v_local_pos = VERTEX;
@@ -303,14 +304,15 @@ void fragment() {
 	// cells that already vary the surface pick out where the water sits, so the sheen collects in
 	// patches rather than glazing the whole floor evenly.
 	float wet = wetness_amount();
+	float pooled_here = 0.0;
 	if (wet > 0.001) {
-		float pooled = puddle_mask(uv) * wet;
+		pooled_here = puddle_mask(uv) * wet;
 		// Damp stone all over, and standing water in the hollows. Both had to go further than they
 		// did: at the old strengths a soaked plaza was a barely perceptible half-stop darker, and
 		// rain that changes nothing about the ground is rain that reads as a particle effect
 		// happening in front of the scene rather than weather landing on it.
 		col = mix(col, col * 0.52, wet * 0.72);
-		col = mix(col, col * 0.26 + vec3(0.024, 0.036, 0.055), pooled * 0.9);
+		col = mix(col, col * 0.26 + vec3(0.024, 0.036, 0.055), pooled_here * 0.9);
 	}
 
 	ALBEDO = quantize_color(col, max(2.0, color_levels));
@@ -318,12 +320,12 @@ void fragment() {
 	// the roughness far enough for the sky, the reflection probes and the screen-space reflection
 	// pass to land on it, which is where "wet" actually comes from — the darkening above only says
 	// "damp".
-	float pooled_here = puddle_mask(uv) * wet;
 	// Damp stone is a little glossy everywhere; standing water is near-mirror, which is what gives
 	// the screen-space reflection pass something smooth enough to trace against.
 	ROUGHNESS = mix(mix(roughness_base, 0.55, wet * 0.5), puddle_roughness, pooled_here);
 	METALLIC = metallic_base;
 	SPECULAR = max(specular_base, max(pooled_here, wet * 0.35) * 0.7);
+	v_specular_sheen = max(specular_base, pooled_here);
 }
 
 void light() {
@@ -340,7 +342,9 @@ void light() {
 	// quantisation steps the difference between the two is invisible, and the cheap one leaves the
 	// budget for the screen-space reflection pass that does the actual work on wet ground.
 	float rough = clamp(ROUGHNESS, 0.03, 1.0);
-	float sheen = max(specular_base, wetness_amount() * puddle_mask(pattern_coords()));
+	// `fragment()` has already evaluated the rain/puddle mask for roughness and specular response.
+	// Reuse its varying rather than repeating the hash/atan/sine puddle mask once per light.
+	float sheen = v_specular_sheen;
 	if (sheen > 0.001) {
 		float shininess = mix(96.0, 6.0, rough);
 		float lobe = pow(clamp(dot(NORMAL, normalize(LIGHT + VIEW)), 0.0, 1.0), shininess);

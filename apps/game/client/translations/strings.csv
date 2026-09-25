@@ -1,4 +1,194 @@
 keys,en,ro
+CONTENT_BOSS_SIGIL_NAME,Boss Sigil,Sigiliul Șefului
+CONTENT_BOSS_SIGIL_DESCRIPTION,A sealed mark. The doors that want one will not argue once you hold it.,Un semn sigilat. Ușile care îl cer nu se vor împotrivi când îl porți.
+CONTENT_BERSERKER_NAME,Berserker,Berserker
+CONTENT_BERSERKER_DESCRIPTION,Heavy hitter who trades defense for raw damage.,Luptător puternic care renunță la apărare pentru daune brute.
+CONTENT_HERALD_NAME,Herald,Crainic
+CONTENT_HERALD_DESCRIPTION,"Carries what the deep places carry, and lets it spread.",Poartă darurile adâncurilor și le lasă să se răspândească.
+CONTENT_HUNTER_NAME,Hunter,Vânător
+CONTENT_HUNTER_DESCRIPTION,Keeps the distance a bow was made for, and makes every opening count.,Păstrează distanța pentru care a fost făurit arcul și valorifică fiecare deschidere.
+CONTENT_KNIGHT_NAME,Knight,Cavaler
+CONTENT_KNIGHT_DESCRIPTION,Balanced frontline fighter with sturdy armor.,Luptător echilibrat de pe linia întâi, protejat de o armură trainică.
+CONTENT_ROGUE_NAME,Rogue,Nelegiuit
+CONTENT_ROGUE_DESCRIPTION,Fast striker favoring daggers and critical hits.,Atacator rapid, priceput la pumnale și lovituri critice.
+CONTENT_SCHOLAR_NAME,Scholar,Arcanist
+CONTENT_SCHOLAR_DESCRIPTION,Arcane caster wielding staves and ranged focus.,Vrăjitor arcanic care mânuiește toiaguri și puteri de la distanță.
+CONTENT_SENTINEL_NAME,Sentinel,Santinela
+CONTENT_SENTINEL_DESCRIPTION,Defensive spearman with high poise and block skill.,Luptător defensiv cu suliță, echilibru de nezdruncinat și măiestrie la blocaj.
+CONTENT_ALCHEMISTS_FIRE_NAME,Alchemist's Fire,Focul Alchimistului
+CONTENT_ALCHEMISTS_FIRE_DESCRIPTION,The recipe was kept in one head and that head is not available for questions.,Rețeta a rămas într-un singur cap, iar acel cap nu mai poate răspunde la întrebări.
+CONTENT_ANTIDOTE_NAME,Antidote,Antidot
+CONTENT_ANTIDOTE_DESCRIPTION,"Bitter, and worth it. Clears whatever is currently working on you.",Amar, dar merită. Înlătură orice efect care te macină acum.
+CONTENT_BLOODSTAUNCH_NAME,Bloodstaunch,Opritor de Sânge
+CONTENT_BLOODSTAUNCH_DESCRIPTION,"Moss packed in a twist of linen. Field medicine, from a field that lost.",Mușchi învelit într-o fâșie de in. Leac de pe câmpul unei bătălii pierdute.
+CONTENT_CALTROPS_NAME,Caltrops,Țepușe
+CONTENT_CALTROPS_DESCRIPTION,"Scattered behind you, and remembered too late by whoever follows.",Împrăștiate în urmă, sunt zărite prea târziu de cei care te urmăresc.
+CONTENT_ELIXIR_CLARITY_NAME,Elixir of Clarity,Elixirul Clarității
+CONTENT_ELIXIR_CLARITY_DESCRIPTION,"Distilled in the cathedral cellars, for readers who worked past the last candle.",Distilat în pivnițele catedralei pentru cei care au citit până s-a stins ultima lumânare.
+CONTENT_ELIXIR_FOCUS_NAME,Elixir of Focus,Elixirul Concentrării
+CONTENT_ELIXIR_FOCUS_DESCRIPTION,"Narrows the world to the width of an arm's reach. Everything outside that stops mattering.",Îngustează lumea până la bătaia brațului. Tot ce rămâne în afară nu mai contează.
+CONTENT_ELIXIR_IRON_SKIN_NAME,Elixir of Iron Skin,Elixirul Pielii de Fier
+CONTENT_ELIXIR_IRON_SKIN_DESCRIPTION,"Thick and grey and difficult to swallow, which is said to be the point.",Gros, cenușiu și greu de înghițit — tocmai acesta ar fi rostul.
+CONTENT_ELIXIR_MIGHT_NAME,Elixir Might,Elixirul Puterii
+CONTENT_ELIXIR_MIGHT_DESCRIPTION,"A burning draught — muscles answer before the mind protests.",O băutură arzătoare — mușchii răspund înainte ca mintea să se împotrivească.
+CONTENT_ELIXIR_SWIFTNESS_NAME,Elixir of Swiftness,Elixirul Iuțelii
+CONTENT_ELIXIR_SWIFTNESS_DESCRIPTION,"The taste does not last. Neither does the effect. Both are remembered fondly.",Nici gustul, nici efectul nu dăinuie. Amândouă sunt totuși amintite cu drag.
+CONTENT_ELIXIR_VIGOR_NAME,Elixir Vigor,Elixirul Vigorii
+CONTENT_ELIXIR_VIGOR_DESCRIPTION,"Thick red elixir that knits fatigue faster than reason allows.",Elixir roșu și dens, care alungă oboseala mai repede decât ar îngădui rațiunea.
+CONTENT_ELIXIR_WARDING_NAME,Elixir of Warding,Elixirul Protecției
+CONTENT_ELIXIR_WARDING_DESCRIPTION,"Poured over the tongue rather than drunk. The distinction was insisted upon.",Se toarnă pe limbă, nu se bea. S-a ținut să se facă această deosebire.
+CONTENT_ESCAPE_STONE_NAME,Escape Stone,Piatra Evadării
+CONTENT_ESCAPE_STONE_DESCRIPTION,"Ends the descent on your terms. Whatever you are carrying comes back with you.",Încheie coborârea după voia ta. Tot ce porți se întoarce împreună cu tine.
+CONTENT_EVERBURNING_TORCH_NAME,Everburning Torch,Torța Veșnic Aprinsă
+CONTENT_EVERBURNING_TORCH_DESCRIPTION,"It has never gone out. That is the whole of what is known about it.",Nu s-a stins niciodată. Atât se știe despre ea.
+CONTENT_FIREBOMB_NAME,Firebomb,Bombă Incendiară
+CONTENT_FIREBOMB_DESCRIPTION,"Pitch in a clay shell. Lobbed at range, not underfoot -- an answer to whoever is shooting back.",Gudron într-o carcasă de lut. Se aruncă de la distanță, nu la picioare — răspuns pentru cei care trag înapoi.
+CONTENT_FLASK_ASHEN_MEASURE_NAME,Ashen Measure,Măsura Cenușie
+CONTENT_FLASK_ASHEN_MEASURE_DESCRIPTION,"Measured out by the spoonful, by someone who expected to need it later.",Dozată cu lingurița de cineva care se aștepta să aibă nevoie de ea mai târziu.
+CONTENT_FLASK_DEEP_DRAUGHT_NAME,Deep Draught,Băutura Adâncului
+CONTENT_FLASK_DEEP_DRAUGHT_DESCRIPTION,"Drawn from the well beneath the chapel, where the rope runs out before the water does.",Scoasă din fântâna de sub capelă, unde frânghia se termină înaintea apei.
+CONTENT_FLASK_DREGS_NAME,Flask Dregs,Drojdia Ploscii
+CONTENT_FLASK_DREGS_DESCRIPTION,What settles at the bottom of somebody else's flask. It still counts.,Ce se așază pe fundul ploscii altcuiva. Tot își face efectul.
+CONTENT_FROST_FLASK_NAME,Frost Flask,Plosca Înghețului
+CONTENT_FROST_FLASK_DESCRIPTION,"Cold enough that the glass is the part you have to be careful with.",Atât de rece încât sticla e partea de care trebuie să te ferești.
+CONTENT_GREATER_HEALTH_POTION_NAME,Greater Health Potion,Poțiune Superioară de Viață
+CONTENT_GREATER_HEALTH_POTION_DESCRIPTION,"Twice the measure, at rather more than twice the price.",Porție dublă, la un preț ceva mai mult decât dublu.
+CONTENT_GREATER_MANA_POTION_NAME,Greater Mana Potion,Poțiune Superioară de Mană
+CONTENT_GREATER_MANA_POTION_DESCRIPTION,"Kept in a leaded bottle, because the ordinary kind does not hold it.",Păstrată într-o sticlă căptușită cu plumb, fiindcă una obișnuită n-ar ține-o.
+CONTENT_GREATER_STAMINA_POTION_NAME,Greater Stamina Potion,Poțiune Superioară de Anduranță
+CONTENT_GREATER_STAMINA_POTION_DESCRIPTION,"Drunk between rooms, by people who have learned to count doors.",Băută între încăperi de cei care au învățat să numere ușile.
+CONTENT_HEALTH_POTION_NAME,Health Potion,Poțiune de Viață
+CONTENT_HEALTH_POTION_DESCRIPTION,Restores a small amount of health.,Redă o cantitate mică de viață.
+CONTENT_HOMEWARD_BONE_NAME,Homeward Bone,Osul Întoarcerii
+CONTENT_HOMEWARD_BONE_DESCRIPTION,"A finger bone, filed smooth by the thumb of whoever carried it last.",Un os de deget, netezit de degetul mare al celui care l-a purtat ultima oară.
+CONTENT_HUNTERS_LURE_NAME,Hunter's Lure,Momeala Vânătorului
+CONTENT_HUNTERS_LURE_DESCRIPTION,"A knuckle-bone whistle. Thrown past a line, it pulls attention to wherever it lands.",Un fluier din os de deget. Aruncat dincolo de linie, atrage atenția spre locul unde cade.
+CONTENT_MANA_POTION_NAME,Mana Potion,Poțiune de Mană
+CONTENT_MANA_POTION_DESCRIPTION,"Azure distillate that quickens thought, if not courage.",Distilat azuriu care iuțește gândul, dacă nu și curajul.
+CONTENT_SEEKERS_LANTERN_NAME,Seeker's Lantern,Felinarul Căutătorului
+CONTENT_SEEKERS_LANTERN_DESCRIPTION,"The flame leans toward whatever is hidden, and away from whoever is holding it.",Flacăra se apleacă spre ceea ce e ascuns și se ferește de cel care o ține.
+CONTENT_SKIP_100_FLOORS_NAME,Umbral Skip (100),Salt Umbral (100)
+CONTENT_SKIP_100_FLOORS_DESCRIPTION,Start an Umbral Endless run at floor 101.,Începe o coborâre nesfârșită umbrală de la etajul 101.
+CONTENT_SKIP_10_FLOORS_NAME,Umbral Skip (10),Salt Umbral (10)
+CONTENT_SKIP_10_FLOORS_DESCRIPTION,Start an Umbral Endless run at floor 11.,Începe o coborâre nesfârșită umbrală de la etajul 11.
+CONTENT_SKIP_250_FLOORS_NAME,Umbral Skip (250),Salt Umbral (250)
+CONTENT_SKIP_250_FLOORS_DESCRIPTION,Start an Umbral Endless run at floor 251.,Începe o coborâre nesfârșită umbrală de la etajul 251.
+CONTENT_SKIP_500_FLOORS_NAME,Umbral Skip (500),Salt Umbral (500)
+CONTENT_SKIP_500_FLOORS_DESCRIPTION,Start an Umbral Endless run at floor 501.,Începe o coborâre nesfârșită umbrală de la etajul 501.
+CONTENT_SKIP_50_FLOORS_NAME,Umbral Skip (50),Salt Umbral (50)
+CONTENT_SKIP_50_FLOORS_DESCRIPTION,Start an Umbral Endless run at floor 51.,Începe o coborâre nesfârșită umbrală de la etajul 51.
+CONTENT_STAMINA_POTION_NAME,Stamina Potion,Poțiune de Anduranță
+CONTENT_STAMINA_POTION_DESCRIPTION,"Bitter tonic that loans strength the body was about to refuse.",Tonic amar care împrumută puterea la care trupul era gata să renunțe.
+CONTENT_THUNDER_STONE_NAME,Thunder Stone,Piatra Tunetului
+CONTENT_THUNDER_STONE_DESCRIPTION,"Struck against the floor. The noise arrives before the decision to use it does.",Izbită de podea. Zgomotul ajunge înaintea hotărârii de a o folosi.
+CONTENT_VENOM_POT_NAME,Venom Pot,Vasul cu Venin
+CONTENT_VENOM_POT_DESCRIPTION,"Fen-brewed. The seal is wax and the wax is not reliable -- thrown before it lets go on its own.",Fiert în mlaștină. Sigiliul e din ceară și nu-i de încredere — aruncă vasul înainte să cedeze singur.
+CONTENT_WHETSTONE_ARCANE_NAME,Arcane Whetstone,Piatra de Ascuțit Arcană
+CONTENT_WHETSTONE_ARCANE_DESCRIPTION,"It sharpens nothing. The blade cuts better regardless, which nobody has explained.",Nu ascute nimic. Lama taie totuși mai bine, iar nimeni n-a lămurit de ce.
+CONTENT_WHETSTONE_EMBER_NAME,Ember Whetstone,Piatra de Ascuțit Jăratică
+CONTENT_WHETSTONE_EMBER_DESCRIPTION,"Draw it once along the edge. The heat stays in the steel longer than in the stone.",Treci o dată cu ea de-a lungul tăișului. Oțelul păstrează căldura mai mult decât piatra.
+CONTENT_WHETSTONE_RIME_NAME,Rime Whetstone,Piatra de Ascuțit Brumată
+CONTENT_WHETSTONE_RIME_DESCRIPTION,"Cold to hold. The edge frosts over between strokes.",Rece la atingere. Tăișul prinde brumă între lovituri.
+CONTENT_WHETSTONE_VENOM_NAME,Venom Whetstone,Piatra de Ascuțit cu Venin
+CONTENT_WHETSTONE_VENOM_DESCRIPTION,"Handled with a rag. The rag is thrown away afterward.",Se mânuiește cu o cârpă. Cârpa se aruncă după aceea.
+CONTENT_ARCANE_CATALYST_NAME,Arcane Catalyst,Catalizator Arcan
+CONTENT_ARCANE_CATALYST_DESCRIPTION,The jar is unmarked. The contents object to being described.,Borcanul nu are niciun semn. Conținutul nu vrea să fie descris.
+CONTENT_ARCANE_DUST_NAME,Arcane Dust,Praf Arcan
+CONTENT_ARCANE_DUST_DESCRIPTION,Residual arcane powder.,Pulbere arcană rămasă.
+CONTENT_AUMBRAL_TEAR_NAME,Aumbral Tear,Lacrima Umbrală
+CONTENT_AUMBRAL_TEAR_DESCRIPTION,"It does not evaporate and it does not freeze. It waits.",Nu se evaporă și nu îngheață. Așteaptă.
+CONTENT_BINDING_THREAD_NAME,Binding Thread,Fir de Legare
+CONTENT_BINDING_THREAD_DESCRIPTION,Spun from something that was already spun once.,Tors din ceva ce fusese deja tors o dată.
+CONTENT_BLOOD_RELIC_STONE_NAME,Blood Relic Stone,Piatra Relicvei Sângelui
+CONTENT_BLOOD_RELIC_STONE_DESCRIPTION,A bloodstone that awakens a run relic.,O piatră însângerată care trezește o relicvă de coborâre.
+CONTENT_BLOODLUST_CHARM_NAME,Bloodlust Charm,Amuletă a Setei de Sânge
+CONTENT_BLOODLUST_CHARM_DESCRIPTION,A crimson charm that awakens Bloodlust.,O amuletă stacojie care trezește Setea de Sânge.
+CONTENT_BOG_RESIN_NAME,Bog Resin,Rășină de Mlaștină
+CONTENT_BOG_RESIN_DESCRIPTION,"Amber-dark and slow. Something small is suspended in the middle of it.",Întunecată ca chihlimbarul și vâscoasă. Ceva mic plutește în mijlocul ei.
+CONTENT_CHAPEL_WAX_NAME,Chapel Wax,Ceară de Capelă
+CONTENT_CHAPEL_WAX_DESCRIPTION,Poured off the candle stubs at the end of a service that ran late.,Scursă din mucurile lumânărilor după o slujbă care s-a prelungit.
+CONTENT_CINDER_DUST_NAME,Cinder Dust,Praf de Jăratic
+CONTENT_CINDER_DUST_DESCRIPTION,What a common thing becomes when the forge takes it back.,În asta se preschimbă un lucru obișnuit când îl revendică forja.
+CONTENT_CRACKED_LODESTONE_NAME,Cracked Lodestone,Magnetită Crăpată
+CONTENT_CRACKED_LODESTONE_DESCRIPTION,"It still points. It points at the floor.",Încă arată o direcție. Arată spre podea.
+CONTENT_DUNGEON_KEY_NAME,Dungeon Key,Cheie de Temniță
+CONTENT_DUNGEON_KEY_DESCRIPTION,Opens a locked door on this floor. Use near the door (E).,Deschide o ușă încuiată de pe acest etaj. Folosește-o lângă ușă (E).
+CONTENT_EMBER_CATALYST_NAME,Ember Catalyst,Catalizator de Jăratic
+CONTENT_EMBER_CATALYST_DESCRIPTION,Fire that has been persuaded to stay in one place.,Foc înduplecat să rămână într-un singur loc.
+CONTENT_FLAME_RELIC_CORE_NAME,Flame Relic Core,Nucleu de Relicvă a Flăcării
+CONTENT_FLAME_RELIC_CORE_DESCRIPTION,Warm embers that awaken a run relic.,Jăratic cald care trezește o relicvă de coborâre.
+CONTENT_FROST_CRYSTAL_NAME,Frost Crystal,Cristal de Ger
+CONTENT_FROST_CRYSTAL_DESCRIPTION,A shard of eternal ice.,O așchie de gheață veșnică.
+CONTENT_FROST_RELIC_SHARD_NAME,Frost Relic Shard,Așchie de Relicvă Înghețată
+CONTENT_FROST_RELIC_SHARD_DESCRIPTION,A frozen shard that awakens a run relic.,O așchie înghețată care trezește o relicvă de coborâre.
+CONTENT_GLIMMER_ASH_NAME,Glimmer Ash,Cenușă Sclipitoare
+CONTENT_GLIMMER_ASH_DESCRIPTION,It catches light that is not in the room.,Prinde o lumină care nu se află în încăpere.
+CONTENT_GRAYSTEEL_INGOT_NAME,Graysteel Ingot,Lingou de Oțel-Cenușiu
+CONTENT_GRAYSTEEL_INGOT_DESCRIPTION,Stamped with a vault mark and a number nobody kept the ledger for.,Marcat cu sigiliul seifului și un număr pe care nimeni nu l-a trecut în registru.
+CONTENT_HARDENING_QUENCH_NAME,Hardening Quench,Baie de Călire
+CONTENT_HARDENING_QUENCH_DESCRIPTION,Water from under the fortress. It has been cold for a very long time.,Apă de sub fortăreață. E rece de foarte multă vreme.
+CONTENT_HOARFROST_SHARD_NAME,Hoarfrost Shard,Așchie de Chiciură
+CONTENT_HOARFROST_SHARD_DESCRIPTION,"It does not melt in the hand. It does not warm, either.",Nu se topește în palmă. Nici nu se încălzește.
+CONTENT_IRON_SCRAP_NAME,Iron Scrap,Fier Recuperat
+CONTENT_IRON_SCRAP_DESCRIPTION,Salvaged iron from the courtyard.,Fier recuperat din curtea castelului.
+CONTENT_KNIGHT_RELIC_NAME,Knight's Relic,Relicva Cavalerului
+CONTENT_KNIGHT_RELIC_DESCRIPTION,A rare relic from the secret vault.,O relicvă rară din seiful ascuns.
+CONTENT_MIREBRASS_DROSS_NAME,Mirebrass Dross,Zgură de Alamă a Mlaștinii
+CONTENT_MIREBRASS_DROSS_DESCRIPTION,"Green residue, scraped from the crucible with a flat blade.",Reziduu verzui, răzuit din creuzet cu o lamă lată.
+CONTENT_PITIRON_SLAG_NAME,Pit-Iron Slag,Zgură de Fier de Mină
+CONTENT_PITIRON_SLAG_DESCRIPTION,Skimmed off the top and never thrown away.,Culeasă de la suprafață și niciodată aruncată.
+CONTENT_POISON_RELIC_VIAL_NAME,Poison Relic Vial,Fiolă de Relicvă Otrăvită
+CONTENT_POISON_RELIC_VIAL_DESCRIPTION,A toxic vial that awakens a run relic.,O fiolă toxică ce trezește o relicvă de coborâre.
+CONTENT_REFORGING_STONE_NAME,Reforging Stone,Piatra Reforjării
+CONTENT_REFORGING_STONE_DESCRIPTION,Worn concave by use. Every stroke takes something out and puts nothing back.,Scobită de atâta folosire. Fiecare trecere ia ceva și nu pune nimic înapoi.
+CONTENT_RELIQUARY_GILT_NAME,Reliquary Gilt,Foiță de Aur din Relicvariu
+CONTENT_RELIQUARY_GILT_DESCRIPTION,Gold leaf lifted from a case that held something else.,Foiță de aur desprinsă dintr-o casetă care păstra cândva altceva.
+CONTENT_RIME_CATALYST_NAME,Rime Catalyst,Catalizator de Brumă
+CONTENT_RIME_CATALYST_DESCRIPTION,Cold that has been persuaded of the same thing.,Frig convins să facă același lucru.
+CONTENT_SABLE_GRAIN_NAME,Sable Grain,Granule Negre
+CONTENT_SABLE_GRAIN_DESCRIPTION,"Coarse and black, and heavier than it looks by a noticeable margin.",Aspru și negru, mult mai greu decât pare.
+CONTENT_SHADOW_ESSENCE_NAME,Umbral Essence,Esență Umbrală
+CONTENT_SHADOW_ESSENCE_DESCRIPTION,Umbral drawn out of the cathedral depths and pressed until it held a shape.,Umbră scoasă din adâncurile catedralei și presată până a prins formă.
+CONTENT_SHADOW_RELIC_VEIL_NAME,Umbral Relic Veil,Văl de Relicvă Umbrală
+CONTENT_SHADOW_RELIC_VEIL_DESCRIPTION,A dark veil that awakens a run relic.,Un văl întunecat care trezește o relicvă de coborâre.
+CONTENT_SPELLGLASS_SLIVER_NAME,Spellglass Sliver,Așchie de Sticlă Vrăjită
+CONTENT_SPELLGLASS_SLIVER_DESCRIPTION,"Sharp on every plane. There is no safe way to hold it.",Ascuțită în toate direcțiile. Nu există un fel sigur de a o ține.
+CONTENT_STONE_RELIC_HEART_NAME,Stone Relic Heart,Inimă de Relicvă din Piatră
+CONTENT_STONE_RELIC_HEART_DESCRIPTION,A stone heart that awakens a run relic.,O inimă de piatră care trezește o relicvă de coborâre.
+CONTENT_STORM_CATALYST_NAME,Storm Catalyst,Catalizator de Furtună
+CONTENT_STORM_CATALYST_DESCRIPTION,It stands the hair up on the arm holding it.,Ridică părul de pe brațul care o ține.
+CONTENT_STORM_SALT_NAME,Storm Salt,Sare de Furtună
+CONTENT_STORM_SALT_DESCRIPTION,"Gathered where lightning met stone. It hums against the jar.",Adunată acolo unde fulgerul a lovit piatra. Zumzăie în borcan.
+CONTENT_SUN_RELIC_MEDALLION_NAME,Sun Relic Medallion,Medalion de Relicvă Solară
+CONTENT_SUN_RELIC_MEDALLION_DESCRIPTION,A radiant medallion that awakens a run relic.,Un medalion strălucitor care trezește o relicvă de coborâre.
+CONTENT_SWIFT_STEP_CHARM_NAME,Swift Step Charm,Amuletă a Pasului Iute
+CONTENT_SWIFT_STEP_CHARM_DESCRIPTION,A light charm that awakens Swift Step.,O amuletă ușoară care trezește Pasul Iute.
+CONTENT_TRANSMUTATION_SEAL_NAME,Transmutation Seal,Sigiliu de Transmutație
+CONTENT_TRANSMUTATION_SEAL_DESCRIPTION,"Pressed into wax, once, by a hand that then broke the die.",Apăsat o singură dată în ceară de o mână care apoi a sfărâmat matrița.
+CONTENT_VAULT_SEALING_WAX_NAME,Vault Sealing Wax,Ceară de Sigilat Seiful
+CONTENT_VAULT_SEALING_WAX_DESCRIPTION,"Red, brittle, and stamped with an office that no longer exists.",Roșie, casantă și ștampilată cu pecetea unei dregătorii care nu mai există.
+CONTENT_VENOM_CATALYST_NAME,Venom Catalyst,Catalizator de Venin
+CONTENT_VENOM_CATALYST_DESCRIPTION,"Sealed twice, because once was found to be optimistic.",Sigilat de două ori, fiindcă o singură pecete s-a dovedit prea optimistă.
+CONTENT_WAVES_TORCH_NAME,Pitch Torch,Torță cu Smoală
+CONTENT_WAVES_TORCH_DESCRIPTION,"Bound in oiled rag and still heavy with pitch. The Outskirts hold nothing back once it is burning, and nothing comes at all until it is.",Înfășurată în cârpă unsă și încă grea de smoală. Odată aprinsă, Ținuturile de Margine nu se zgârcesc cu nimic — iar până atunci nu vine nimic.
+CONTENT_WHETTING_OIL_NAME,Whetting Oil,Ulei de Ascuțire
+CONTENT_WHETTING_OIL_DESCRIPTION,"Pressed from swamp seed. It keeps rust off and keeps nothing else.",Stors din semințe de mlaștină. Ține rugina la distanță și atât.
+CONTENT_WIND_RELIC_CHARM_NAME,Wind Relic Charm,Amuletă de Relicvă a Vântului
+CONTENT_WIND_RELIC_CHARM_DESCRIPTION,A wind charm that awakens a run relic.,O amuletă a vântului care trezește o relicvă de coborâre.
+CONTENT_AUDIT_STACK_ONE,{count} sigil,{count} sigiliu
+CONTENT_AUDIT_STACK_OTHER,{count} sigils,{count} sigilii
+BOSS_DOOR_ENTER_ARENA,Enter the arena,Intră în arenă
+BOSS_DOOR_RETURN_SEALED,The way back is sealed,Calea înapoi este sigilată
+BOSS_DOOR_FIND_SIGIL,Sealed — find the Boss Sigil,Sigilat — găsește Sigiliul Șefului
+BOSS_DOOR_OPEN_LOCKS,Sealed — open every lock on this floor,Sigilat — deschide fiecare încuietoare de pe acest etaj
+BOSS_CANNON_FIRED,Cannon fired!,Tunul a tras!
+BOSS_CANNON_LOAD,Load crystals ({loaded}/{required}),Încarcă cristale ({loaded}/{required})
+BOSS_CANNON_FIRE,Fire cannon,Trage cu tunul
+XP_SHARD_XP_GOLD,Umbral shard (+{xp} XP, {gold} gold),Fragment umbral (+{xp} XP, {gold} aur)
+XP_SHARD_XP,Umbral shard (+{xp} XP),Fragment umbral (+{xp} XP)
+COMBAT_TWO_HANDED,Two-handed,Cu două mâini
+LORE_JOURNAL_EMPTY,No inscriptions have been recorded.,Nu a fost consemnată nicio inscripție.
+STAIR_RISK_COMPARISON,Current {current_hp}x HP / {current_damage}x damage · Next {next_hp}x HP / {next_damage}x damage,Acum {current_hp}x viață / {current_damage}x daune · Următorul {next_hp}x viață / {next_damage}x daune
 INV_TITLE_STASH,Stash,Depozit
 INV_TITLE_WAVES_STASH,Waves Stash,Depozit valuri
 INV_TITLE_CHARACTER,Character,Personaj
@@ -22,7 +212,7 @@ INV_HINT_USE,Use,Folosește
 INV_HINT_MOVE,Move,Mută
 INV_VS_EQUIPPED,vs equipped: %s,vs echipat: %s
 MAP_TITLE,Map,Hartă
-MAP_HINT,Scroll to zoom · Middle-drag to pan · Esc to close,Rotiți pentru zoom · Trageți cu mijlocul pentru panoramare · Esc pentru închidere
+MAP_HINT,Click a visited room to pin or unpin · Scroll to zoom · Middle-drag to pan · Esc to close,Atinge o cameră vizitată pentru a fixa sau elimina marcajul · Rotește pentru zoom · Trage cu mijlocul pentru panoramare · Esc pentru închidere
 MAP_LEGEND_COMBAT,Combat,Luptă
 MAP_LEGEND_TREASURE,Treasure,Comoară
 MAP_LEGEND_SHOP,Shop,Magazin
@@ -58,6 +248,7 @@ HUD_PARRY,PARRY,PARARE
 HUD_RIPOSTE_READY,RIPOSTE,RIPOSTĂ
 HUD_LEVEL,Lv %d,Nv %d
 HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
+HUD_BRANCH_UNCLASSIFIED,%d unmarked route(s),%d rută(rute) nemarcată(e)
 HUD_BRANCH_REWARD,%d reward path(s),%d cale(i) recompensă
 HUD_BRANCH_DANGER,%d danger path(s),%d cale(i) pericol
 HUD_BOSS_FALLBACK,Boss,Șef
@@ -161,6 +352,7 @@ PAUSE_WAVE_FMT,Wave %d,Val %d
 PAUSE_OBJECTIVE_HUB,Explore the tower,Explorează turnul
 PAUSE_OBJECTIVE_WAVES,Survive wave %d,Supraviețuiește valului %d
 PAUSE_OBJECTIVE_STAIRS,Reach the stairs,Urcă scările
+PAUSE_OBJECTIVE_FINAL_PORTAL,Enter the portal and bring your loot home.,Intră în portal și du prada acasă.
 PAUSE_OBJECTIVE_BOSS,Defeat the boss,Învinge șeful
 PAUSE_OBJECTIVE_EXPLORE,Explore the floor,Explorează etajul
 PAUSE_CONFIRM_ABANDON_TITLE,Abandon Run,Renunță la run
@@ -406,6 +598,8 @@ SETTINGS_PIXEL_ADVANCED,Advanced Pixel Options,Optiuni pixel avansate
 SETTINGS_PIXEL_HIDE,Hide Pixel Options,Ascunde optiunile pixel
 SETTINGS_PIXEL_RESTORE,Restore Recommended Look,Revino la aspectul recomandat
 SETTINGS_RENDER_RESOLUTION,Render Resolution,Rezolutie de randare
+SETTINGS_INTEGER_PIXEL_SCALING_NAME,Integer Pixel Upscaling,Mărire pixel cu scalare întreagă
+SETTINGS_INTEGER_PIXEL_SCALING_DESC,Use whole-number pixel scaling where the display can fit it; smaller screens use a fitted fractional downscale.,Folosește scalare întreagă a pixelilor când ecranul permite; ecranele mai mici folosesc o micșorare fracționară adaptată.
 SETTINGS_LOW_RES_VIEWPORT,Low-Resolution Pixel Viewport,Viewport pixel la rezolutie mica
 SETTINGS_PIXEL_SCALE_NAME,Pixel Size,Dimensiune pixel
 SETTINGS_COLOR_LEVELS_NAME,Colour Levels,Niveluri de culoare
@@ -557,11 +751,36 @@ MENU_QUIT,Quit Game,Iesi din joc
 MENU_TODAY_CHALLENGE,This week: {name} -- {remaining},Saptamana aceasta: {name} -- {remaining}
 MENU_TODAY_BOUNTIES,"{count} bounties open · daily {dailyReset} · weekly {weeklyReset}","{count} recompense deschise · zilnic {dailyReset} · săptămânal {weeklyReset}"
 HUD_BOUNTY_COMPLETE,Bounty complete: {name},Recompensa indeplinita: {name}
-TUTORIAL_TELEGRAPH_AMBER,Amber: this can be blocked.,Chihlimbar: acest atac poate fi blocat.
-TUTORIAL_TELEGRAPH_BLUE,Blue: this can be parried. Raise your guard as it lands.,Albastru: acest atac poate fi parat. Ridica garda cand loveste.
-TUTORIAL_TELEGRAPH_RED,Red: this cannot be blocked. Move.,Rosu: acest atac nu poate fi blocat. Misca-te.
+TUTORIAL_TELEGRAPH_AMBER,Amber solid ring: blockable. Face it and hold guard as it lands.,Inelul plin chihlimbar: atac blocabil. Întoarce-te spre el și ține garda când lovește.
+TUTORIAL_TELEGRAPH_BLUE,Blue dashed ring: parryable. Face it and tap guard as the strike arrives.,Inelul întrerupt albastru: atac parabil. Întoarce-te spre el și apasă garda când lovește.
+TUTORIAL_TELEGRAPH_RED,Red double ring: unblockable. The shape/pattern matters as well as color; dodge through it as it lands.,Inelul dublu roșu: atac de neoprit. Forma și modelul contează la fel ca nuanța; eschivează prin el când lovește.
 TUTORIAL_POISE_BREAK,Broken. Attack now for an execution.,Echilibru frant. Ataca acum pentru o executie.
 TUTORIAL_STAMINA_EXHAUSTED,Out of stamina. You cannot dodge.,Fara rezistenta. Nu poti eschiva.
+HUB_COMBAT_NOTE_PREFIX,Combat note for next time:,Notă de luptă pentru data viitoare:
+PRACTICE_TITLE,Combat practice,Exercițiu de luptă
+PRACTICE_CHOOSE,Choose an exercise. Your progress is not saved.,Alege un exercițiu. Progresul nu este salvat.
+PRACTICE_PARRY,Parry,Parare
+PRACTICE_DODGE,Dodge through,Eschivă prin atac
+PRACTICE_POISE_BREAK,Poise break,Ruperea echilibrului
+PRACTICE_GUARD_BREAK,Guard break,Ruperea gărzii
+PRACTICE_RECOVERY,Recover stamina,Recuperarea rezistenței
+PRACTICE_RETRY,Reset practice,Reia exercițiul
+PRACTICE_PARRY_DESC,Face the red wedge-shaped windup. Raise guard as the strike arrives to parry; color is supplementary.,Înfruntă pregătirea în formă de pană roșie. Ridică garda când vine lovitura pentru a para; culoarea este secundară.
+PRACTICE_DODGE_DESC,Move through the red wedge as the strike arrives. A successful dodge avoids the hit; moving away is not enough.,Eschivează prin pana roșie când vine lovitura. Eschiva reușită evită atacul; simpla retragere nu este suficientă.
+PRACTICE_POISE_BREAK_DESC,Attack the dummy until its poise breaks, then observe the stagger and recovery opening.,Atacă manechinul până i se rupe echilibrul, apoi observă amețeala și fereastra de ripostă.
+PRACTICE_GUARD_BREAK_DESC,Hold guard with the shown action into the red double-ring cone to see why this unblockable attack breaks your guard. Practice protection prevents health and poise damage.,Ține garda cu acțiunea afișată în fața conului roșu cu inel dublu pentru a vedea de ce acest atac de neoprit îți rupe garda. Protecția exercițiului previne daunele la viață și echilibru.
+PRACTICE_RECOVERY_DESC,Stamina is depleted for this practice. Wait without spending stamina until it recovers.,Rezistența este epuizată pentru acest exercițiu. Așteaptă fără să o consumi până se reface.
+PRACTICE_RECOVERY_WAIT,Recovery begins after a short delay; the exhausted state clears at 15% stamina.,Refacerea începe după o scurtă întârziere; epuizarea dispare la 15% rezistență.
+PRACTICE_TELEGRAPH_SHAPE,Read the wedge shape and approach direction; the red color is not the only cue.,Citește forma de pană și direcția atacului; culoarea roșie nu este singurul indiciu.
+PRACTICE_PARRY_DONE,Parry successful. Retry or choose another exercise.,Parare reușită. Reia sau alege alt exercițiu.
+PRACTICE_DODGE_DONE,Dodge-through successful. Retry or choose another exercise.,Eschivă prin atac reușită. Reia sau alege alt exercițiu.
+PRACTICE_POISE_BREAK_DONE,Poise broken. Punish the stagger, then retry or choose another exercise.,Echilibru rupt. Pedepsește amețeala, apoi reia sau alege alt exercițiu.
+PRACTICE_GUARD_BREAK_DONE,Guard broken. The unblockable strike cannot be blocked; retry to restore your guard.,Gardă ruptă. Lovitura de neoprit nu poate fi blocată; reia pentru a-ți reface garda.
+PRACTICE_RECOVERY_DONE,Stamina recovered. Retry or choose another exercise.,Rezistență refăcută. Reia sau alege alt exercițiu.
+PRACTICE_ACTION_BLOCK,Guard with %s as the hit lands.,Apără-te cu %s când lovește.
+PRACTICE_ACTION_DODGE,Dodge with %s as the hit lands.,Eschivează cu %s când lovește.
+PRACTICE_ACTION_ATTACK,Attack with %s to break poise.,Atacă cu %s pentru a rupe echilibrul.
+TOWER_PRIMARY_GOAL,Your character's next tower milestone: {name} — {requirement}. The tower will change: {change},Următorul obiectiv al personajului în turn: {name} — {requirement}. Turnul se va schimba astfel: {change}
 SETTINGS_FULLSCREEN_TITLE,Keep Fullscreen?,Pastrezi ecranul complet?
 SETTINGS_FULLSCREEN_BODY,Keep this display mode? It reverts automatically in %d seconds.,Pastrezi acest mod de afisare? Revine automat in %d secunde.
 SETTINGS_FULLSCREEN_KEEP,Keep,Pastreaza
@@ -744,6 +963,79 @@ LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} che
 LOCK_NEEDS_KEY,You need the {key}.,Ai nevoie de {key}.
 LOCK_UNLOCK_ACTION,Unlock ({key}),Descuie ({key})
 STAIR_PACT_LABEL,Descend to floor {floor} -- {pact} ({desc}),Coboara la etajul {floor} -- {pact} ({desc})
+STAIR_MENU_TITLE,Stair Lever,Maneta scării
+UI_HINT_CLOSE,Esc to close,Esc pentru închidere
+UI_ACTION,Action,Acțiune
+PACT_DELTA_ADDED,+ {modifier},+ {modifier}
+PACT_DELTA_REMOVED,− {modifier},− {modifier}
+PACT_FLOOR_REWARD,Reward this floor: {rewards},Recompensă în acest etaj: {rewards}
+MODIFIER_DESC_ELITE_PACKS,Elite packs — some rooms keep a stronger one.,Grupuri de elită — unele încăperi păstrează un adversar mai puternic.
+MODIFIER_DESC_ELITE_VIGIL,Vigil — a warden walks every floor.,Veghe — un străjer cutreieră fiecare etaj.
+MODIFIER_DESC_ARMOURED_FOES,Armoured — tougher and slower to swing.,Înarmați — mai rezistenți și mai lenți la atac.
+MODIFIER_DESC_FRENZIED_FOES,Frenzied — they recover between blows far quicker.,Frenetici — își revin mult mai repede între lovituri.
+MODIFIER_DESC_VOLATILE_FOES,Volatile — thinner and they hit far harder.,Instabili — au mai puțină viață și lovesc mult mai tare.
+MODIFIER_DESC_RELENTLESS_FOES,Relentless — they close the distance and do not stop.,Necruțători — se apropie și nu se opresc.
+MODIFIER_DESC_NO_REST,No rest — the hearths have gone out.,Fără odihnă — vetrele s-au stins.
+MODIFIER_DESC_STARVED_HEARTH,Starved hearth — what rest remains gives little back.,Vatră sărăcită — puțina odihnă rămasă oferă foarte puțin.
+MODIFIER_DESC_SEALED_DOORS,Sealed doors — every lock takes two keys.,Uși pecetluite — fiecare lacăt cere două chei.
+MODIFIER_DESC_BARRED_WAYS,Barred ways — more of the floor is locked away.,Căi zăvorâte — mai mult din etaj este inaccesibil.
+MODIFIER_DESC_FOG_OF_WAR,Unlit — the map learns nothing you have not walked.,Neluminat — harta nu dezvăluie locurile pe care nu le-ai străbătut.
+MODIFIER_DESC_HOSTILE_HALLS,Hostile halls — the quiet rooms are gone.,Coridoare ostile — încăperile liniștite au dispărut.
+MODIFIER_DESC_THICK_TRAPS,Old malice — the floor is laid with traps.,Răutate veche — etajul este plin de capcane.
+MODIFIER_DESC_NO_MERCHANT,No market — nobody trades this deep.,Fără negoț — nimeni nu mai face comerț atât de adânc.
+MODIFIER_DESC_RICH_VEINS,Rich veins — the vaults hold more.,Vene bogate — bolțile ascund mai multe bogății.
+MODIFIER_DESC_BOSS_HOARD,Hoard — the floor boss keeps something worth taking.,Comoară — șeful etajului păstrează ceva ce merită luat.
+CONTENT_QUIET_HALLS_NAME,Quiet Halls,Săli Liniștite
+CONTENT_QUIET_HALLS_DESCRIPTION,Fewer things awake below. The floor keeps its treasure.,Mai puține făpturi se trezesc dedesubt. Etajul își păstrează comoara.
+CONTENT_QUIET_HALLS_GAIN,Thinner ranks.,Rânduri mai rare.
+CONTENT_QUIET_HALLS_COST,No pact reward.,Fără recompensă de pact.
+CONTENT_CURSED_DEPTHS_NAME,Cursed Depths,Adâncuri Blestemate
+CONTENT_CURSED_DEPTHS_DESCRIPTION,Wardens walk the floor below; they are worth opening.,Străjerii patrulează etajul următor și merită înfruntați.
+CONTENT_CURSED_DEPTHS_GAIN,Richer vaults.,Bolți mai bogate.
+CONTENT_CURSED_DEPTHS_COST,A warden on every floor.,Un străjer la fiecare etaj.
+CONTENT_STARVED_ROAD_NAME,The Starved Road,Drumul Înfometat
+CONTENT_STARVED_ROAD_DESCRIPTION,No hearth will take below. What you carry, you carry.,Nicio vatră nu te va primi mai jos. Ce porți cu tine, rămâne cu tine.
+CONTENT_STARVED_ROAD_GAIN,The floor boss keeps a hoard.,Șeful etajului păstrează o comoară.
+CONTENT_STARVED_ROAD_COST,No rest.,Fără odihnă.
+CONTENT_BARRED_DESCENT_NAME,Barred Descent,Coborâre Zăvorâtă
+CONTENT_BARRED_DESCENT_DESCRIPTION,The doors below have been kept shut a long time.,Ușile de dedesubt au rămas închise de multă vreme.
+CONTENT_BARRED_DESCENT_GAIN,More sealed vaults and more within.,Mai multe bolți pecetluite și mai multe bogății în ele.
+CONTENT_BARRED_DESCENT_COST,More locks between you and the stair.,Mai multe lacăte între tine și scară.
+CONTENT_UNLIT_WAY_NAME,The Unlit Way,Calea Neluminată
+CONTENT_UNLIT_WAY_DESCRIPTION,You will not be given a map of what is below.,Nu vei primi o hartă a locurilor de dedesubt.
+CONTENT_UNLIT_WAY_GAIN,The boss keeps a hoard.,Șeful păstrează o comoară.
+CONTENT_UNLIT_WAY_COST,The floor stays dark on the map.,Etajul rămâne întunecat pe hartă.
+CONTENT_HUNTED_NAME,Hunted,Vânat
+CONTENT_HUNTED_DESCRIPTION,Whatever is below has already started moving toward you.,Orice se află dedesubt a pornit deja în căutarea ta.
+CONTENT_HUNTED_GAIN,Richer vaults and the hearths stay lit.,Bolți mai bogate și vetre care rămân aprinse.
+CONTENT_HUNTED_COST,They are faster and they do not stop.,Sunt mai iuți și nu se opresc.
+CONTENT_IRON_PENANCE_NAME,Iron Penance,Pocăință de Fier
+CONTENT_IRON_PENANCE_DESCRIPTION,Everything below is armoured; slow and patient.,Tot ce se află dedesubt este înarmat, lent și răbdător.
+CONTENT_IRON_PENANCE_GAIN,They are slower. The boss keeps a hoard.,Sunt mai lenți. Șeful păstrează o comoară.
+CONTENT_IRON_PENANCE_COST,Armour and old malice underfoot.,Armură și răutate veche sub picioare.
+RELIC_OFFER_FUTURE_BUILD,Future build: needs {statuses},Viitoarea construcție are nevoie de: {statuses}
+RELIC_OFFER_READY_NOW,Ready now,Gata acum
+WAVES_STARTER_TITLE,Choose a starting weapon,Alege o armă de început
+CONTENT_BLEED_NAME,Bleed,Sângerare
+CONTENT_BLEED_DESCRIPTION,Wounds that will not close. Pressure them until the body gives.,Răni care nu se închid. Apasă până când trupul cedează.
+CONTENT_BURN_NAME,Burn,Arsură
+CONTENT_BURN_DESCRIPTION,It feeds on what it finds. The longer it holds, the hungrier it grows.,Se hrănește cu ce găsește. Cu cât persistă, cu atât devine mai înfometată.
+CONTENT_FOCUS_NAME,Clarity,Claritate
+CONTENT_FOCUS_DESCRIPTION,Everything is where you left it, for a while.,Pentru o vreme, totul rămâne așa cum l-ai lăsat.
+CONTENT_FREEZE_NAME,Frostbite,Degerătură
+CONTENT_FREEZE_DESCRIPTION,The cold settles in the joints, then breaks them when it leaves.,Frigul se așază în încheieturi, apoi le sfărâmă când pleacă.
+CONTENT_POISON_NAME,Poison,Venin
+CONTENT_POISON_DESCRIPTION,Slow to take, slower to leave. It sheds one hold at a time.,Se instalează încet și pleacă și mai greu. Slăbește câte o treaptă pe rând.
+CONTENT_RESOLVE_NAME,Resolve,Hotărâre
+CONTENT_RESOLVE_DESCRIPTION,Not healing. Only the refusal to worsen.,Nu vindecă. Doar refuză să te lase să te înrăutățești.
+CONTENT_STONESKIN_NAME,Stillness,Nemișcare
+CONTENT_STONESKIN_DESCRIPTION,You are harder to move than you were.,Ești mai greu de clintit decât înainte.
+CONTENT_STUN_NAME,Stun,Năucire
+CONTENT_STUN_DESCRIPTION,A moment taken from you, and given to whoever took it.,O clipă smulsă de la tine și dăruită celui care ți-a luat-o.
+CONTENT_SWIFTNESS_NAME,Quickening,Iuțire
+CONTENT_SWIFTNESS_DESCRIPTION,The floor gives back a little of what it takes.,Etajul îți înapoiază puțin din ceea ce îți ia.
+CONTENT_TORPOR_NAME,Torpor,Amorțeală
+CONTENT_TORPOR_DESCRIPTION,The limbs answer late, then not at all, then late again.,Membrele răspund târziu, apoi deloc, apoi iar târziu.
 STAIR_ASCEND_LABEL,Ascend to floor {floor},Urca la etajul {floor}
 STAIR_DESCEND_LABEL,Descend to floor {floor},Coboara la etajul {floor}
 STAIR_RETREAT_LABEL,Retreat to the hub,Retrage-te in oras
@@ -834,6 +1126,10 @@ RESULTS_DESCEND_AGAIN,Descend again,Coboară din nou
 RESULTS_VIGIL_AGAIN,Stand the Vigil again,Stai din nou de Veghe
 RESULTS_LONG_DARK_AGAIN,Back into the Long Dark,Înapoi în Bezna Lungă
 RESULTS_VAULT_HEADER,Added to the vault:,Adăugat în seif:
+RESULTS_VAULT_IMPACT_RELIC,Added to future relic offers.,Adăugată în ofertele viitoare de relicve.
+RESULTS_VAULT_IMPACT_ITEM,Added to future item drops.,Adăugat la recompensele viitoare cu obiecte.
+RESULTS_VAULT_IMPACT_PACT,Added to future pact choices.,Adăugat la alegerile viitoare de pact.
+RESULTS_VAULT_IMPACT_GENERIC,Added to future run content.,Adăugat în conținutul viitoarelor expediții.
 VAULT_PROGRESS,Vault %d/%d,Seif %d/%d
 INV_STATS_TITLE,Warden,Veghetor
 INV_STATS_EMPTY,Nothing equipped.,Nimic echipat.
@@ -863,3 +1159,48 @@ STAT_ATTACK_SPEED,Attack Speed,Viteză de atac
 INV_CONDITION,Condition:,Stare:
 HUB_GROWTH_ANNOUNCE,New in the tower: {names}.,Nou în turn: {names}.
 PUZZLE_SOLVED,Solved.,Rezolvat.
+INV_DAMAGE_PREVIEW,Opening light (base stance): {before} → {after} ({delta}),Lovitură ușoară inițială (poziție de bază): {before} → {after} ({delta})
+INV_DAMAGE_PREVIEW_SCOPE,Before target resistance; excludes critical hits and temporary combat effects.,Înainte de rezistența țintei; nu include lovituri critice sau efecte temporare de luptă.
+INV_DAMAGE_CAP_NOTE,Flat gear bonus capped at twice this move's base damage.,Bonusul fix de echipament este plafonat la dublul daunelor de bază ale acestei mișcări.
+CONTENT_EMBER_EXPEDITION_NAME,Ember Expedition,Expediția Jarului
+CONTENT_EMBER_EXPEDITION_DESCRIPTION,"Three floors. Choose your relics, find the keys, and defeat the final warden. Keep your loot if you escape.","Trei etaje. Alege relictele găsite și înfruntă străjerul final. Păstrează prada dacă scapi."
+CONTENT_EMBER_EXPEDITION_FLAVOUR,The village hearth is fading. Bring a living ember back from the halls below.,Vatra satului se stinge. Adu un jar viu din sălile de dedesubt.
+CONTENT_BOSS_RUSH_NAME,Vigil of Wardens,Priveghiul Străjerilor
+CONTENT_BOSS_RUSH_DESCRIPTION,"Five floors, a warden on each, and nothing between them worth stopping for.","Cinci etaje și câte un străjer pe fiecare. Nimic între ei nu merită oprirea."
+CONTENT_BOSS_RUSH_FLAVOUR,They stopped posting sentries. There was no longer anything to warn.,Au încetat să mai pună santinele. Nu mai rămăsese nimic de vestit.
+CONTENT_GAUNTLET_NAME,The Long Gauntlet,Mănușa Lungă
+CONTENT_GAUNTLET_DESCRIPTION,"Ten floors, no hearths, and the halls get worse the further down you go.","Zece etaje fără vetre, iar sălile se înrăutățesc pe măsură ce cobori."
+CONTENT_GAUNTLET_FLAVOUR,A straight road. That is the whole of the cruelty.,Un drum drept. Asta-i toată cruzimea.
+CONTENT_IRONMAN_NAME,One Life,O Singură Viață
+CONTENT_IRONMAN_DESCRIPTION,"Descend as far as you can. There is no second attempt on this character.","Coboară cât de departe poți. Acest personaj nu primește o a doua încercare."
+CONTENT_IRONMAN_FLAVOUR,"Whatever you were carrying, you are carrying it for the last time.","Orice ai purtat până acum, îl porți pentru ultima oară."
+MODE_UNLOCK_SHORTFALL,Locked — %d %s (you have %d),Blocat — %d %s (ai %d)
+MODE_RULE_FLOORS,%d floors.,%d etaje.
+MODE_RULE_PERMADEATH,No bonfire return — where you fall the run ends.,Fără întoarcere la vatră — unde cazi se încheie coborârea.
+MODE_RULE_SCORE_TIME,Scored by how fast you finish.,Scorul depinde de cât de repede termini.
+MODE_RULE_SCORE_KILLS,Scored by how much you kill.,Scorul depinde de câți inamici răpui.
+MODE_RULE_SCORE_DEPTH,Scored by how deep you get.,Scorul depinde de cât de adânc cobori.
+MODE_RULE_ESCALATION,The rules harden as you descend.,Regulile devin mai aspre pe măsură ce cobori.
+PROGRESS_DUNGEONS_CLEARED,halls cleared,săli încheiate
+PROGRESS_MAX_TIER,depth unlocked,adâncime deblocată
+PROGRESS_BESTIARY_STUDIED,quarry studied,prăzi studiate
+PROGRESS_BESTIARY_MASTERED,quarry mastered,prăzi stăpânite
+PROGRESS_ENDLESS_BEST,deepest descent,coborârea cea mai adâncă
+PROGRESS_BOUNTY_TOKENS,bounty tokens,jetoane de recompensă
+PROGRESS_DESCENT_TOKENS,descent tokens,jetoane de coborâre
+PROGRESS_RUNS_RECORDED,runs recorded,coborâri înregistrate
+INPUT_ACTION_DODGE,Dodge,Evitare
+INPUT_ACTION_SPRINT,Sprint,Alergare
+INPUT_ACTION_LOCK_ON,Lock on,Fixează ținta
+INPUT_ACTION_INVENTORY,Inventory,Inventar
+INPUT_ACTION_INTERACT,Interact,Interacțiune
+INPUT_ACTION_JUMP,Jump,Salt
+INPUT_ACTION_PAUSE,Pause,Pauză
+INPUT_ACTION_WEAPON_ART,Weapon art,Artă a armei
+INPUT_ACTION_QUICK_SLOT_CYCLE,Cycle quick slot,Schimbă slotul rapid
+INPUT_ACTION_QUICK_SLOT_USE,Use quick slot,Folosește slotul rapid
+INPUT_ACTION_SPLIT_STACK,Split stack,Împarte teancul
+INPUT_ACTION_CONFIRM,Confirm,Confirmă
+INPUT_ACTION_CLOSE,Close,Închide
+ACHIEVEMENT_STATUS_UNLOCKED,Unlocked,Deblocată
+ACHIEVEMENT_STATUS_LOCKED,Locked,Încuiată

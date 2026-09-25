@@ -45,6 +45,14 @@ var _target_health: Health
 var _los_grace_timer := 0.0
 var _was_occluded := false
 var _camera_spring: OrbitCamera
+var _lockable_refs: Array[WeakRef] = []
+var _lockables_dirty := true
+var _lockables_refresh_at_msec := 0
+var _lockable_group_scan_count := 0
+var _candidate_score_count := 0
+var _line_of_sight_query_count := 0
+
+const LOCKABLE_REFRESH_MSEC := 250
 
 
 func _ready() -> void:
@@ -57,6 +65,53 @@ func _ready() -> void:
 		_facing = _player.get_node_or_null(facing_path) as Node3D
 	if _player:
 		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
+	if not get_tree().node_added.is_connected(_on_tree_node_added):
+		get_tree().node_added.connect(_on_tree_node_added)
+	if not get_tree().node_removed.is_connected(_on_tree_node_removed):
+		get_tree().node_removed.connect(_on_tree_node_removed)
+
+
+func _exit_tree() -> void:
+	if get_tree().node_added.is_connected(_on_tree_node_added):
+		get_tree().node_added.disconnect(_on_tree_node_added)
+	if get_tree().node_removed.is_connected(_on_tree_node_removed):
+		get_tree().node_removed.disconnect(_on_tree_node_removed)
+
+
+func _on_tree_node_added(node: Node) -> void:
+	if node.is_in_group("lockable"):
+		_lockables_dirty = true
+	_invalidate_aim_mesh_cache_for_node(node)
+	if node is Node3D:
+		call_deferred("_check_added_node_lockable", weakref(node))
+
+
+func _on_tree_node_removed(node: Node) -> void:
+	if node.is_in_group("lockable"):
+		_lockables_dirty = true
+	_invalidate_aim_mesh_cache_for_node(node)
+
+
+func _check_added_node_lockable(node_ref: WeakRef) -> void:
+	var node := node_ref.get_ref() as Node
+	if node and is_instance_valid(node) and node.is_inside_tree() and node.is_in_group("lockable"):
+		_lockables_dirty = true
+
+
+func _invalidate_aim_mesh_cache_for_node(node: Node) -> void:
+	for root_id in _aim_mesh_cache.keys():
+		var entry: Dictionary = _aim_mesh_cache[root_id]
+		var root_ref: Variant = entry.get("root")
+		var root := root_ref.get_ref() as Node if root_ref is WeakRef else null
+		if root == null or root == node or root.is_ancestor_of(node):
+			_aim_mesh_cache.erase(root_id)
+			var ancestor := root
+			while ancestor:
+				if ancestor is Node3D and ancestor.is_in_group("lockable"):
+					_aim_offset_cache.erase(ancestor.get_instance_id())
+					_aim_offset_frame.erase(ancestor.get_instance_id())
+					break
+				ancestor = ancestor.get_parent()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -178,6 +233,8 @@ func _disconnect_target_death() -> void:
 
 func _on_lock_target_died() -> void:
 	if is_locked:
+		refresh_target_aim_cache(current_target)
+		_lockables_dirty = true
 		_advance_lock_after_defeat()
 
 
@@ -355,15 +412,22 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 	var aim_dir := _get_lock_search_direction()
 	var best: Node3D
 	var best_score := INF
-	for enemy in _get_acquisition_candidates(require_los):
+	_candidate_score_count = 0
+	for enemy in _get_registered_lockables():
+		if _is_defeated(enemy):
+			continue
+		var priority := 0.0
+		if enemy.has_method("get_lock_priority"):
+			priority = float(enemy.call("get_lock_priority"))
+			if priority < 0.0:
+				continue
 		var offset := enemy.global_position - _player.global_position
 		offset.y = 0.0
 		var distance := offset.length()
 		if distance > acquire_range() or distance < 0.01:
 			continue
-		if _vertical_delta_to(enemy) > LOCK_VERTICAL_LIMIT:
-			continue
-		if require_los and not _has_line_of_sight_to(enemy):
+		var aim_point := get_target_aim_point(enemy)
+		if absf(aim_point.y - _player.global_position.y) > LOCK_VERTICAL_LIMIT:
 			continue
 		var angle := 0.0
 		if not ignore_cone:
@@ -371,18 +435,18 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 			angle = rad_to_deg(aim_dir.angle_to(dir))
 			if angle > LOCK_PICK_CONE_DEG:
 				continue
+		if require_los and not _has_line_of_sight_to(enemy):
+			continue
 		var threat := 0.0
 		if enemy.has_method("get_lock_threat"):
 			threat = float(enemy.call("get_lock_threat"))
-		var priority := 0.0
-		if enemy.has_method("get_lock_priority"):
-			priority = float(enemy.call("get_lock_priority"))
 		var score := (
 			SCORE_DISTANCE_WEIGHT * (distance / acquire_range())
 			+ SCORE_ANGLE_WEIGHT * (angle / LOCK_PICK_CONE_DEG)
 			- SCORE_THREAT_WEIGHT * threat
 			- SCORE_PRIORITY_WEIGHT * priority
 		)
+		_candidate_score_count += 1
 		if score < best_score:
 			best_score = score
 			best = enemy
@@ -397,6 +461,7 @@ func _has_line_of_sight_to(target: Node3D) -> bool:
 		return true
 	var from := _player.global_position + Vector3(0.0, 1.0, 0.0)
 	var to := get_target_aim_point(target)
+	_line_of_sight_query_count += 1
 	var params := PhysicsRayQueryParameters3D.create(from, to)
 	params.collision_mask = 1
 	params.collide_with_areas = false
@@ -413,14 +478,35 @@ func _has_line_of_sight_to(target: Node3D) -> bool:
 
 func _get_lockable_targets() -> Array[Node3D]:
 	var result: Array[Node3D] = []
-	for node in get_tree().get_nodes_in_group("lockable"):
-		if node is Node3D and is_instance_valid(node):
-			if _is_defeated(node):
-				continue
-			if node.has_method("get_lock_priority"):
-				if float(node.call("get_lock_priority")) < 0.0:
-					continue
-			result.append(node as Node3D)
+	for node in _get_registered_lockables():
+		if _is_defeated(node):
+			continue
+		if node.has_method("get_lock_priority") and float(node.call("get_lock_priority")) < 0.0:
+			continue
+		result.append(node)
+	return result
+
+
+func _get_registered_lockables() -> Array[Node3D]:
+	var now := Time.get_ticks_msec()
+	if _lockables_dirty or now >= _lockables_refresh_at_msec:
+		_lockables_dirty = false
+		_lockables_refresh_at_msec = now + LOCKABLE_REFRESH_MSEC
+		_lockable_refs.clear()
+		_lockable_group_scan_count += 1
+		for node in get_tree().get_nodes_in_group("lockable"):
+			if node is Node3D and is_instance_valid(node):
+				_lockable_refs.append(weakref(node))
+	var result: Array[Node3D] = []
+	var live_refs: Array[WeakRef] = []
+	for node_ref in _lockable_refs:
+		var node := node_ref.get_ref() as Node3D
+		if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+			_lockables_dirty = true
+			continue
+		result.append(node)
+		live_refs.append(node_ref)
+	_lockable_refs = live_refs
 	return result
 
 
@@ -441,6 +527,9 @@ func _is_defeated(node: Node) -> bool:
 
 static var _aim_offset_cache: Dictionary = {}
 static var _aim_offset_frame: Dictionary = {}
+static var _aim_mesh_cache: Dictionary = {}
+static var _aim_mesh_tree_scan_count := 0
+static var _aim_mesh_node_visit_count := 0
 
 
 static func get_target_aim_point(target: Node3D) -> Vector3:
@@ -480,11 +569,27 @@ static func _prune_aim_cache() -> void:
 static func _mesh_aabb_from_root(root: Node) -> AABB:
 	var combined := AABB()
 	var found := false
-	for node in root.find_children("*", "MeshInstance3D", true, false):
-		var visual := node as MeshInstance3D
-		if visual == null or not visual.visible:
+	var root_id := root.get_instance_id()
+	var entry: Dictionary = _aim_mesh_cache.get(root_id, {})
+	var root_ref: Variant = entry.get("root")
+	var cached_root := root_ref.get_ref() as Node if root_ref is WeakRef else null
+	if cached_root != root:
+		var mesh_refs: Array[WeakRef] = []
+		_aim_mesh_tree_scan_count += 1
+		for node in root.find_children("*", "MeshInstance3D", true, false):
+			_aim_mesh_node_visit_count += 1
+			var mesh := node as MeshInstance3D
+			if mesh and not _should_skip_lock_aim_mesh(mesh):
+				mesh_refs.append(weakref(mesh))
+		_aim_mesh_cache[root_id] = {"root": weakref(root), "meshes": mesh_refs}
+	entry = _aim_mesh_cache[root_id]
+	var live_mesh_refs: Array[WeakRef] = []
+	for mesh_ref in entry.get("meshes", []) as Array:
+		var visual := mesh_ref.get_ref() as MeshInstance3D
+		if visual == null or not is_instance_valid(visual):
 			continue
-		if _should_skip_lock_aim_mesh(visual):
+		live_mesh_refs.append(mesh_ref)
+		if not visual.visible:
 			continue
 		var local_aabb := visual.get_aabb()
 		if local_aabb.size.length_squared() < 0.0001:
@@ -495,9 +600,23 @@ static func _mesh_aabb_from_root(root: Node) -> AABB:
 			found = true
 		else:
 			combined = combined.merge(global_aabb)
+	entry["meshes"] = live_mesh_refs
+	_aim_mesh_cache[root_id] = entry
 	if found:
 		return combined
 	return AABB()
+
+
+static func refresh_target_aim_cache(target: Node3D) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	var target_id := target.get_instance_id()
+	_aim_offset_cache.erase(target_id)
+	_aim_offset_frame.erase(target_id)
+	_aim_mesh_cache.erase(target_id)
+	var visual := target.get_node_or_null("DioramaVisual") as Node3D
+	if visual:
+		_aim_mesh_cache.erase(visual.get_instance_id())
 
 
 static func _aim_point_from_meshes(root: Node) -> Vector3:
@@ -560,7 +679,7 @@ func _defeated_exclude_rids() -> Array[RID]:
 		return _defeated_rids
 	_defeated_rids_frame = frame
 	var rids: Array[RID] = []
-	for node in get_tree().get_nodes_in_group("lockable"):
+	for node in _get_registered_lockables():
 		if not (node is CollisionObject3D):
 			continue
 		if _is_defeated(node):

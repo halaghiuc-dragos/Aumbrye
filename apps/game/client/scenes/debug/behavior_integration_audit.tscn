@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/behavior_integration_audit.gd" id="1"]
+
+[node name="BehaviorIntegrationAudit" type="Node"]
+script = ExtResource("1")

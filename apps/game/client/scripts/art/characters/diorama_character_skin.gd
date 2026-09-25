@@ -1260,23 +1260,47 @@ static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int)
 ## Kit models are rebuilt whenever equipment changes, and equipment is reapplied on every stat
 ## refresh — so the meshes are cached by item, slot and theme rather than remeshed each time.
 static var _kit_mesh_cache: Dictionary = {}
+static var _kit_mesh_cache_order: Array[String] = []
+static var _kit_mesh_cache_hits := 0
+static var _kit_mesh_cache_misses := 0
+static var _kit_mesh_cache_evictions := 0
+static var _kit_mesh_cache_peak := 0
+const KIT_MESH_CACHE_LIMIT := 256
 
 
 static func _kit_mesh(
 	vis: Dictionary, voxels: Dictionary, theme: int, mirrored: bool
 ) -> ArrayMesh:
-	var key := str(vis.get("cache_key", ""))
-	if key == "":
-		if mirrored:
-			return VoxelMeshBuilderScript.build_from_data(_mirror_voxels(voxels), theme)
-		return VoxelMeshBuilderScript.build_from_data(voxels, theme)
-	key = "%s|%d|%s" % [key, theme, str(mirrored)]
+	var source_key := str(vis.get("cache_key", "inline"))
+	var key := "%s|%s" % [
+		source_key,
+		VoxelMeshBuilderScript.cache_fingerprint(voxels, theme, "mirrored" if mirrored else "base"),
+	]
 	if _kit_mesh_cache.has(key):
+		_kit_mesh_cache_hits += 1
 		return _kit_mesh_cache[key]
+	_kit_mesh_cache_misses += 1
 	var data := _mirror_voxels(voxels) if mirrored else voxels
 	var mesh := VoxelMeshBuilderScript.build_from_data(data, theme, key)
+	if _kit_mesh_cache_order.size() >= KIT_MESH_CACHE_LIMIT:
+		var evicted_key: String = _kit_mesh_cache_order.pop_front()
+		_kit_mesh_cache.erase(evicted_key)
+		_kit_mesh_cache_evictions += 1
+	_kit_mesh_cache_order.append(key)
 	_kit_mesh_cache[key] = mesh
+	_kit_mesh_cache_peak = maxi(_kit_mesh_cache_peak, _kit_mesh_cache.size())
 	return mesh
+
+
+static func get_kit_mesh_cache_stats() -> Dictionary:
+	return {
+		"retained": _kit_mesh_cache.size(),
+		"limit": KIT_MESH_CACHE_LIMIT,
+		"peak": _kit_mesh_cache_peak,
+		"hits": _kit_mesh_cache_hits,
+		"misses": _kit_mesh_cache_misses,
+		"evictions": _kit_mesh_cache_evictions,
+	}
 
 
 ## The same voxel model reflected across X.

@@ -434,7 +434,9 @@ func play_menu_music() -> void:
 	_boss_active = false
 	_intensity = 0.0
 	_layer_base_db.clear()
-	_restore_generator_streams(true)
+	# Keep an already-playing title stream intact. Forcing a generator swap here created orphaned
+	# Ogg playback sequences every time the menu was reopened.
+	_restore_generator_streams()
 	_try_load_file_stream(_music, MENU_THEME_PATH)
 	_apply_reverb_preset("cathedral")
 	_fade_out_player(_combat_layer, _crossfade)
@@ -805,12 +807,14 @@ func _cue_priority(kind: String, entry: Dictionary) -> int:
 
 
 func _prepare_voice(player: Node, kind: String, priority: int) -> void:
-	_release_voice_owner(player)
 	var old_finished_callback: Variant = (
 		player.get_meta(&"sfx_finished_callback") if player.has_meta(&"sfx_finished_callback") else null
 	)
 	if old_finished_callback is Callable and player.finished.is_connected(old_finished_callback):
 		player.finished.disconnect(old_finished_callback)
+	# Release clears its metadata, including the callback. Disconnect first so a pooled voice cannot
+	# accumulate one one-shot listener per reuse and then report an already-connected error.
+	_release_voice_owner(player)
 	var generation := int(player.get_meta(&"sfx_generation", 0)) + 1
 	player.set_meta(&"sfx_generation", generation)
 	player.set_meta(&"sfx_kind", kind)
@@ -1118,9 +1122,11 @@ func _create_player(player_name: String, freq: float, bus: StringName) -> AudioS
 
 func _try_load_file_stream(player: AudioStreamPlayer, path: String) -> void:
 	var stream := _load_audio_stream(path)
-	if stream != null:
-		player.stream = stream
-		_recompute_generator_active()
+	if stream == null or player.stream == stream:
+		return
+	player.stop()
+	player.stream = stream
+	_recompute_generator_active()
 
 
 func _audio_path_candidates(path: String) -> Array[String]:
@@ -1287,6 +1293,9 @@ func _restore_generator_streams(force: bool = false) -> void:
 
 
 func _assign_generator_stream(player: AudioStreamPlayer) -> void:
+	if player.stream is AudioStreamGenerator:
+		return
+	player.stop()
 	var generator := AudioStreamGenerator.new()
 	generator.mix_rate = MIX_RATE
 	generator.buffer_length = GENERATOR_BUFFER_SEC

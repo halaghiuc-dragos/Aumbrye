@@ -36,6 +36,9 @@ func _ready() -> void:
 	_interactable.interacted.connect(_on_interacted)
 	_interactable.player_exited.connect(_on_player_exited)
 	_murmur_timer = MURMUR_MIN + fposmod(float(npc_id.hash()), MURMUR_MAX - MURMUR_MIN)
+	# NPCs outside the near field all update at a low cadence; spread that cadence by identity so a
+	# populated hub does not make every distant NPC do its look/pose work on the same physics tick.
+	_far_update_timer = float(posmod(npc_id.hash(), 200)) / 1000.0
 	set_available(is_available())
 	call_deferred("_resolve_visual")
 
@@ -55,13 +58,21 @@ const MURMUR_RADIUS := 7.5
 const MURMUR_GLOBAL_GAP := 2.5
 
 static var _next_murmur_at := 0
+static var _dialogue_ambient_suppressed := false
 
 var _visual: Node3D
 var _look_pivot: Node3D
+var _torso_pivot: Node3D
+var _left_arm_pivot: Node3D
+var _right_arm_pivot: Node3D
 var _visual_base_y := 0.0
+var _look_rest_rotation := Vector3.ZERO
+var _left_arm_rest_rotation := Vector3.ZERO
+var _right_arm_rest_rotation := Vector3.ZERO
 var _idle_phase := 0.0
 var _murmur_timer := 0.0
 var _far_update_timer := 0.0
+var _available := true
 var _player: Node3D
 var _zone_shape: CollisionShape3D
 var _zone_base_y := 0.0
@@ -80,6 +91,15 @@ func _resolve_visual() -> void:
 	if _visual:
 		_visual_base_y = _visual.position.y
 		_look_pivot = _visual.find_child("Head", true, false) as Node3D
+		_torso_pivot = _visual.find_child("Torso", true, false) as Node3D
+		_left_arm_pivot = _visual.find_child("ArmL", true, false) as Node3D
+		_right_arm_pivot = _visual.find_child("ArmR", true, false) as Node3D
+		if _look_pivot:
+			_look_rest_rotation = _look_pivot.rotation
+		if _left_arm_pivot:
+			_left_arm_rest_rotation = _left_arm_pivot.rotation
+		if _right_arm_pivot:
+			_right_arm_rest_rotation = _right_arm_pivot.rotation
 	_fit_interact_to_model()
 
 
@@ -142,7 +162,7 @@ func _visible_up_to_self(node: Node3D) -> bool:
 
 
 func _physics_process(delta: float) -> void:
-	if not visible or not is_available():
+	if not _available:
 		return
 	if _visual == null or not is_instance_valid(_visual):
 		return
@@ -161,29 +181,62 @@ func _physics_process(delta: float) -> void:
 	if to_player.length_squared() > LOOK_RADIUS * LOOK_RADIUS:
 		if _look_pivot and is_instance_valid(_look_pivot):
 			_look_pivot.rotation.y = lerp_angle(
-				_look_pivot.rotation.y, 0.0, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
+				_look_pivot.rotation.y, _look_rest_rotation.y, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
 			)
+		_restore_role_work_pose(delta)
 		return
 	_idle_phase = fmod(_idle_phase + delta * IDLE_BOB_SPEED, TAU)
 	var bob := sin(_idle_phase) * IDLE_BOB_HEIGHT
 	_visual.position.y = _visual_base_y + bob
 	if _zone_shape != null and is_instance_valid(_zone_shape):
 		_zone_shape.position.y = _zone_base_y + bob
+	_animate_role_idle()
 	if to_player.length_squared() < 0.04:
 		return
-	var target_yaw := atan2(to_player.x, to_player.z)
 	if _look_pivot and is_instance_valid(_look_pivot):
 		var local_target := global_transform.basis.inverse() * to_player.normalized()
 		var head_yaw := atan2(local_target.x, local_target.z)
 		_look_pivot.rotation.y = lerp_angle(
-			_look_pivot.rotation.y, clampf(head_yaw, -0.7, 0.7), clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
+			_look_pivot.rotation.y,
+			_look_rest_rotation.y + clampf(head_yaw, -0.7, 0.7),
+			clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
 		)
+
+
+func _animate_role_idle() -> void:
+	# These pivots belong to the generated character, so the root and interaction footprint stay fixed.
+	if _left_arm_pivot == null and _right_arm_pivot == null:
+		return
+	var interact_type := str(_data.get("interactType", "dialogue"))
+	if interact_type == "blacksmith":
+		_set_arm_pose(_left_arm_rest_rotation.x - 0.18, _right_arm_rest_rotation.x + sin(_idle_phase * 2.2) * 0.48)
+	elif interact_type == "merchant":
+		_set_arm_pose(_left_arm_rest_rotation.x + 0.12, _right_arm_rest_rotation.x + sin(_idle_phase * 1.25) * 0.2)
+	elif interact_type == "quest_board" or interact_type == "bounty_board":
+		_set_arm_pose(_left_arm_rest_rotation.x + 0.22, _right_arm_rest_rotation.x + 0.08)
+	elif interact_type == "storage":
+		_set_arm_pose(_left_arm_rest_rotation.x + sin(_idle_phase) * 0.12, _right_arm_rest_rotation.x - 0.16)
 	else:
-		rotation.y = lerp_angle(rotation.y, target_yaw, clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0))
+		_set_arm_pose(_left_arm_rest_rotation.x, _right_arm_rest_rotation.x)
+
+
+func _set_arm_pose(left_x: float, right_x: float) -> void:
+	if _left_arm_pivot and is_instance_valid(_left_arm_pivot):
+		_left_arm_pivot.rotation.x = left_x
+	if _right_arm_pivot and is_instance_valid(_right_arm_pivot):
+		_right_arm_pivot.rotation.x = right_x
+
+
+func _restore_role_work_pose(delta: float) -> void:
+	var weight := clampf(LOOK_TURN_SPEED * delta, 0.0, 1.0)
+	if _left_arm_pivot and is_instance_valid(_left_arm_pivot):
+		_left_arm_pivot.rotation.x = lerpf(_left_arm_pivot.rotation.x, _left_arm_rest_rotation.x, weight)
+	if _right_arm_pivot and is_instance_valid(_right_arm_pivot):
+		_right_arm_pivot.rotation.x = lerpf(_right_arm_pivot.rotation.x, _right_arm_rest_rotation.x, weight)
 
 
 func _advance_murmur(delta: float, distance_squared: float) -> void:
-	if not visible or distance_squared > MURMUR_RADIUS * MURMUR_RADIUS:
+	if _dialogue_ambient_suppressed or distance_squared > MURMUR_RADIUS * MURMUR_RADIUS:
 		return
 	_murmur_timer -= delta
 	if _murmur_timer > 0.0:
@@ -195,8 +248,27 @@ func _advance_murmur(delta: float, distance_squared: float) -> void:
 	AudioDirector.play_sfx("npc_murmur", global_position)
 
 
+static func set_dialogue_ambient_suppressed(suppressed: bool) -> void:
+	_dialogue_ambient_suppressed = suppressed
+	if not suppressed:
+		# Preserve a small quiet window after spoken dialogue closes.
+		_next_murmur_at = max(_next_murmur_at, Time.get_ticks_msec() + int(MURMUR_GLOBAL_GAP * 1000.0))
+
+
+static func is_dialogue_ambient_suppressed() -> bool:
+	return _dialogue_ambient_suppressed
+
+
 func get_npc_id() -> String:
 	return npc_id
+
+
+func has_upper_body_look_pivot() -> bool:
+	return _look_pivot != null and is_instance_valid(_look_pivot) and _look_pivot != self
+
+
+func is_available_cached() -> bool:
+	return _available
 
 
 func requires_flag() -> String:
@@ -228,6 +300,7 @@ func is_available() -> bool:
 
 
 func set_available(available: bool) -> void:
+	_available = available
 	var was_visible := visible
 	visible = available
 	if _interactable != null:

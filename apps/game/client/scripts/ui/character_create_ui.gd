@@ -10,6 +10,7 @@ const ClassCardScript := preload("res://scripts/ui/class_card.gd")
 const WardenPreviewRigScript := preload("res://scripts/ui/warden_preview_rig.gd")
 const NameValidatorScript := preload("res://scripts/ui/name_validator.gd")
 const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
+const ContentTextScript := preload("res://scripts/content/content_text.gd")
 
 const COMPARISON_TABLE_HEIGHT := 232.0
 const NAME_ROW_HEIGHT := 32
@@ -174,7 +175,7 @@ func _populate_comparison_table() -> void:
 	_comparison_headers.clear()
 	for class_def in _classes:
 		var head := Label.new()
-		head.text = str(class_def.get("name", class_def.get("id", "")))
+		head.text = ContentTextScript.name(class_def, str(class_def.get("id", "")))
 		GameUISkinScript.style_hint_label(head)
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -236,7 +237,8 @@ func _refresh_comparison_selection() -> void:
 		# numbers) rather than what it actually is: the same stats, resolved to real values instead
 		# of raw ratings. Keeping "Your Pick" in the label is what tells them apart.
 		_resolved_header.text = (
-			tr("CREATE_COMPARE_COL_YOU_NAMED") % str(_classes[_selected_class_index].get("name", ""))
+			tr("CREATE_COMPARE_COL_YOU_NAMED")
+			% ContentTextScript.name(_classes[_selected_class_index])
 			if _selected_class_index >= 0 and _selected_class_index < _classes.size()
 			else tr("CREATE_COMPARE_COL_YOU")
 		)
@@ -634,7 +636,7 @@ func _refresh_class_detail() -> void:
 	_perk_line.text = _pad_perk_text(_perk_text(class_def))
 	var weapon_id := str(class_def.get("startingWeaponItemId", ""))
 	var weapon_def := ItemCatalog.get_definition(weapon_id)
-	var weapon_name := str(weapon_def.get("name", weapon_id))
+	var weapon_name := ContentTextScript.name(weapon_def, weapon_id)
 	_weapon_line.text = tr("CREATE_STARTING_WEAPON") % weapon_name
 	_weapon_icon.texture = ItemIconAtlasScript.get_icon(
 		weapon_id, str(weapon_def.get("iconPath", ""))
@@ -663,7 +665,7 @@ func _refresh_class_detail() -> void:
 	var aspect_label := AppearanceCatalogScript.unlocked_aspect_label(
 		_aspect_row.get_selected_index()
 	)
-	_preview_caption.text = "%s — %s" % [str(class_def.get("name", "")), aspect_label]
+	_preview_caption.text = "%s — %s" % [ContentTextScript.name(class_def), aspect_label]
 
 
 func _on_perk_line_resized() -> void:
@@ -864,7 +866,7 @@ func _on_confirm_pressed() -> void:
 	var class_def := _classes[_selected_class_index]
 	var class_id: String = str(class_def.get("id", ""))
 	var character_name := _name_input.text.strip_edges()
-	var class_display_name := str(class_def.get("name", class_id))
+	var class_display_name := ContentTextScript.name(class_def, class_id)
 	AudioDirector.play_ui_sfx()
 	MenuShellScript.show_confirmation(
 		self,

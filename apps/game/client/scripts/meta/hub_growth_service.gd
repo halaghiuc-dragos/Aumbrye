@@ -59,13 +59,13 @@ static func is_unlocked(entry_id: String, counters: Dictionary = {}) -> bool:
 	return ProgressCounters.meets(condition as Dictionary, counters)
 
 
-static func get_standing() -> Array[Dictionary]:
-	var counters := ProgressCounters.snapshot()
+static func get_standing(counters: Dictionary = {}) -> Array[Dictionary]:
+	var totals := counters if not counters.is_empty() else ProgressCounters.snapshot()
 	var rows: Array[Dictionary] = []
 	for entry in get_all():
 		var condition: Variant = entry.get("condition", {})
 		var condition_dict: Dictionary = condition if condition is Dictionary else {}
-		var unlocked := ProgressCounters.meets(condition_dict, counters)
+		var unlocked := ProgressCounters.meets(condition_dict, totals)
 		var row := {
 			"id": str(entry.get("id", "")),
 			"name": str(entry.get("name", "")),
@@ -74,9 +74,10 @@ static func get_standing() -> Array[Dictionary]:
 			"description": str(entry.get("description", "")),
 			"unlocked": unlocked,
 			"requirement": "",
+			"goal_gap_ratio": _goal_gap_ratio(condition_dict, totals),
 		}
 		if not unlocked:
-			var missing := ProgressCounters.shortfall(condition_dict, counters)
+			var missing := ProgressCounters.shortfall(condition_dict, totals)
 			if not missing.is_empty():
 				row["requirement"] = (
 					"%d %s — you have %d"
@@ -88,6 +89,40 @@ static func get_standing() -> Array[Dictionary]:
 				)
 		rows.append(row)
 	return rows
+
+
+## Returns one nearest locked milestone, comparing remaining progress as a share of its target so
+## unlike counters (runs, studied enemies, tiers) do not compete by raw numeric gap.
+static func get_next_goal(counters: Dictionary = {}) -> Dictionary:
+	return choose_next_goal(get_standing(counters))
+
+
+static func choose_next_goal(rows: Array[Dictionary]) -> Dictionary:
+	var best: Dictionary = {}
+	var best_ratio := INF
+	for row in rows:
+		if bool(row.get("unlocked", false)):
+			continue
+		var requirement := str(row.get("requirement", ""))
+		if requirement == "":
+			continue
+		var ratio := float(row.get("goal_gap_ratio", 1.0))
+		if ratio < best_ratio:
+			best_ratio = ratio
+			best = row.duplicate(true)
+	return best
+
+
+static func _goal_gap_ratio(condition: Dictionary, counters: Dictionary) -> float:
+	var largest_prerequisite_gap := 0.0
+	for key in condition:
+		var need := int(condition[key])
+		if need <= 0:
+			continue
+		var have := maxi(0, int(counters.get(key, 0)))
+		var gap := clampf(float(need - have) / float(need), 0.0, 1.0)
+		largest_prerequisite_gap = maxf(largest_prerequisite_gap, gap)
+	return largest_prerequisite_gap
 
 
 static func unlocked_count() -> int:

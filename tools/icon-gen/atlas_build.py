@@ -33,12 +33,14 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import curated  # noqa: E402
 import item_icons as items_mod  # noqa: E402
 import minimap_icons as minimap_mod  # noqa: E402
 import pixel  # noqa: E402
 import status_icons as status_mod  # noqa: E402
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "apps" / "game" / "client" / "assets" / "ui"
@@ -85,7 +87,8 @@ def load_items() -> list[dict]:
     for path in sorted(glob.glob(str(ROOT / "content" / "items" / "**" / "*.json"), recursive=True)):
         if path.endswith("catalog.json"):
             continue
-        data = json.load(open(path))
+        with open(path, encoding="utf-8") as source:
+            data = json.load(source)
         if data.get("id"):
             out.append(data)
     return out
@@ -115,6 +118,70 @@ def item_cells() -> list[tuple[str, str, str, str]]:
 
 def build_item_atlas() -> tuple[Image.Image, dict]:
     cells = item_cells()
+    # The checked-in atlas is the authoritative art for cells already in the shipped manifest.
+    # Re-sorting the complete catalog on every build silently moves icons and replaces several
+    # intentionally hand-finished cells. Keep all established coordinates/pixels stable and
+    # allocate new catalog entries only into genuinely vacant cells.
+    image_path = ASSETS / "item_icons.png"
+    manifest_path = CONTENT_UI / "item_icon_atlas.json"
+    if image_path.exists() and manifest_path.exists():
+        img = Image.open(image_path).convert("RGBA")
+        manifest = json.loads(manifest_path.read_text())
+        if manifest.get("cellSize") != CELL or manifest.get("columns") != ITEM_COLUMNS:
+            raise SystemExit("existing item atlas geometry is incompatible with the builder")
+        if img.width % CELL or img.height % CELL or img.width // CELL != ITEM_COLUMNS:
+            raise SystemExit("existing item atlas image geometry does not match its manifest")
+        if img.height // CELL != int(manifest.get("rows", 0)):
+            raise SystemExit("existing item atlas image and manifest row counts differ")
+        mapping = {key: dict(value) for key, value in manifest.get("cells", {}).items()}
+        if len(set((v["col"], v["row"]) for v in mapping.values())) != len(mapping):
+            raise SystemExit("existing item atlas manifest assigns multiple keys to one cell")
+        for key, _group, shape_name, ramp_name in cells:
+            if key in mapping:
+                continue
+            occupied = {(v["col"], v["row"]) for v in mapping.values()}
+            vacant = next(
+                ((col, row) for row in range(img.height // CELL)
+                 for col in range(ITEM_COLUMNS)
+                 if (col, row) not in occupied
+                 and all(
+                     img.getpixel((col * CELL + x, row * CELL + y))[3] == 0
+                     for y in range(CELL) for x in range(CELL)
+                 )),
+                None,
+            )
+            if vacant is None:
+                raise SystemExit(
+                    "item atlas has no vacant cell for %s; expand it explicitly" % key
+                )
+            col, row = vacant
+            glyph = items_mod.SHAPES[shape_name]
+            ramp = SLOT_RAMP if ramp_name == "@slot" else items_mod.RAMPS[ramp_name]
+            if ramp_name != "@slot":
+                family = (shape_name, ramp_name)
+                ordinal = sum(
+                    1 for prior_key, _g, prior_shape, prior_ramp in cells
+                    if prior_key in mapping and (prior_shape, prior_ramp) == family
+                )
+                ramp = pixel.accent_variant(ramp, key, glyph, ordinal)
+            pixel.validate(key, glyph, CELL)
+            pixel.blit(img.load(), glyph, ramp, col, row, CELL)
+            mapping[key] = {"col": col, "row": row}
+        # Reject stale catalog cells instead of silently deleting art or changing saved content.
+        known = {key for key, _group, _shape, _ramp in cells}
+        stale = sorted(set(mapping) - known)
+        if stale:
+            raise SystemExit("item atlas contains cells absent from the catalog: %s" % ", ".join(stale))
+        manifest = {
+            "schemaVersion": 1,
+            "texture": "res://assets/ui/item_icons.png",
+            "cellSize": CELL,
+            "columns": ITEM_COLUMNS,
+            "rows": img.height // CELL,
+            "cells": dict(sorted(mapping.items())),
+        }
+        return img, manifest
+
     rows = (len(cells) + ITEM_COLUMNS - 1) // ITEM_COLUMNS
     img = Image.new("RGBA", (ITEM_COLUMNS * CELL, rows * CELL), (0, 0, 0, 0))
     px = img.load()
@@ -363,6 +430,8 @@ def report() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="verify only, write nothing")
+    parser.add_argument("--dry-run", action="store_true", help="validate ownership and staged bytes without writing")
+    parser.add_argument("--force", action="store_true", help="explicitly replace unowned/manual outputs")
     parser.add_argument("--report", action="store_true", help="print the alignment report")
     args = parser.parse_args()
 
@@ -370,23 +439,43 @@ def main() -> None:
         report()
         return
 
-    stale = []
-    for path, data in collect():
-        if args.check:
+    if args.check:
+        stale = []
+        for path, data in collect():
             current = path.read_bytes() if path.exists() else b""
             if current != data:
                 stale.append(path)
-            continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        print("wrote %s" % path.relative_to(ROOT))
-
-    if args.check:
         if stale:
             for path in stale:
                 print("stale: %s" % path.relative_to(ROOT))
             raise SystemExit(1)
         print("all generated icon sheets are up to date")
+        return
+
+    outputs = collect()
+    source_paths = [
+        Path(__file__).resolve(),
+        Path(__file__).resolve().parent / "curated.py",
+        Path(__file__).resolve().parent / "item_icons.py",
+        Path(__file__).resolve().parent / "minimap_icons.py",
+        Path(__file__).resolve().parent / "pixel.py",
+        Path(__file__).resolve().parent / "status_icons.py",
+        *[
+            path
+            for path in sorted((ROOT / "content" / "items").rglob("*.json"))
+            if path.name != "catalog.json"
+        ],
+    ]
+    published = write_generated_bytes_set(
+        outputs,
+        generator=Path(__file__).resolve(),
+        sources=source_paths[1:],
+        force=args.force,
+        dry_run=args.dry_run,
+    )
+    print("%s %d icon-sheet outputs (%d changed)" % (
+        "validated" if args.dry_run else "published", len(outputs), len(published)
+    ))
 
 
 if __name__ == "__main__":

@@ -27,6 +27,10 @@ const ARM_B := 4
 ## seeing separate positions, so a walk read as a series of poses and a trotting horse
 ## flickered. Thirty is smooth and still well under a render frame's worth of work.
 const TICK_HZ := 30.0
+const MID_DETAIL_RADIUS := 120.0
+const FAR_DETAIL_RADIUS := 240.0
+const MID_DETAIL_HZ := 15.0
+const FAR_DETAIL_HZ := 8.0
 
 ## How long a figure takes to come to a stop or get going again, in seconds. Gait and
 ## travel are driven by one eased factor, so a figure slows down, its legs wind down in
@@ -87,6 +91,7 @@ var _accum := 0.0
 ## easing, which is the one thing there that is rate-dependent.
 var _tick_delta := 0.0
 var _ground := 0.0
+var _lod_update_counts := {"near": 0, "mid": 0, "far": 0}
 
 
 func configure(ground_y: float) -> void:
@@ -219,6 +224,9 @@ func add_agent(
 	_agents.append({
 		"slots": slots,
 		"route": route_slot,
+		"lod_radius": float(route["radius"]),
+		"lod_accum": 0.0,
+		"lod_updates": 0,
 		"s": fposmod(at_fraction, 1.0) * float(route["total"]),
 		"speed": speed,
 		"dir": heading,
@@ -338,7 +346,7 @@ func commit(materials: Dictionary, bounds: AABB) -> void:
 		_meshes[mat_key] = multimesh
 	_slots.clear()
 	_resolve_lanes()
-	_step(0.0)
+	_step(0.0, true)
 
 
 func _process(delta: float) -> void:
@@ -355,12 +363,46 @@ func _process(delta: float) -> void:
 ## One tick: everybody advances, then the boxes are written. The two are separate
 ## passes only because it keeps the arithmetic and the transform writes apart; no
 ## figure reads any other figure's position at any point.
-func _step(delta: float) -> void:
-	_tick_delta = delta
+func _step(delta: float, force_draw: bool = false) -> void:
 	for agent in _agents:
-		_advance(agent, delta)
-	for agent in _agents:
+		if force_draw:
+			_tick_delta = 0.0
+			_draw(agent)
+			continue
+		var elapsed := float(agent["lod_accum"]) + delta
+		var interval := _update_interval(float(agent["lod_radius"]))
+		agent["lod_accum"] = elapsed
+		if elapsed + 0.000001 < interval:
+			continue
+		agent["lod_accum"] = maxf(0.0, elapsed - interval)
+		_tick_delta = elapsed
+		_advance(agent, elapsed)
 		_draw(agent)
+		agent["lod_updates"] = int(agent["lod_updates"]) + 1
+		var tier := _detail_tier(float(agent["lod_radius"]))
+		_lod_update_counts[tier] = int(_lod_update_counts[tier]) + 1
+
+
+func _update_interval(radius: float) -> float:
+	match _detail_tier(radius):
+		"mid":
+			return 1.0 / MID_DETAIL_HZ
+		"far":
+			return 1.0 / FAR_DETAIL_HZ
+		_:
+			return 1.0 / TICK_HZ
+
+
+func _detail_tier(radius: float) -> String:
+	if radius >= FAR_DETAIL_RADIUS:
+		return "far"
+	if radius >= MID_DETAIL_RADIUS:
+		return "mid"
+	return "near"
+
+
+func lod_metrics() -> Dictionary:
+	return _lod_update_counts.duplicate()
 
 
 func _advance(agent: Dictionary, delta: float) -> void:

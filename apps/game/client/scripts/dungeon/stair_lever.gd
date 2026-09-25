@@ -79,7 +79,7 @@ func floor_options() -> Array[Dictionary]:
 	var options: Array[Dictionary] = []
 	if _can_ascend:
 		for pact in DescentPactService.offers_for_descent(
-			RunFlow.current_seed, _floor_index + 1
+			RunFlow.current_seed, _floor_index + 1, RunFlow.get_base_run_modifiers()
 		):
 			(
 				options
@@ -90,7 +90,7 @@ func floor_options() -> Array[Dictionary]:
 						tr("STAIR_PACT_LABEL").format(
 							{
 								"floor": _floor_index + 1,
-								"pact": str(pact.get("label", "Pact")),
+								"pact": ContentText.name(pact, "Pact"),
 								"desc": DescentPactService.describe(pact),
 							}
 						),

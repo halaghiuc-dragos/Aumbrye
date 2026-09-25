@@ -1,6 +1,7 @@
 using Aumbrye.Application.Services;
 using Aumbrye.Api.Leaderboards;
 using Aumbrye.Shared.Contracts.Leaderboards;
+using Aumbrye.Shared.Contracts;
 
 namespace Aumbrye.Api.Auth;
 
@@ -13,12 +14,20 @@ public static class LeaderboardsEndpoints
         group.MapGet("/", async (
             string? biomeId,
             int? tier,
+            int? seed,
+            int? playerLevel,
+            string? ruleset,
+            string? contentVersion,
             int? limit,
             ILeaderboardService leaderboards,
             CancellationToken ct) =>
         {
             var biome = biomeId ?? LeaderboardRules.Biomes[0].Id;
             var tierValue = tier ?? LeaderboardRules.MinimumTier;
+            var seedValue = seed ?? 0;
+			var playerLevelValue = playerLevel ?? 0;
+			var rulesetValue = ruleset ?? RankedLeaderboardContract.Ruleset;
+			var contentVersionValue = contentVersion ?? RankedLeaderboardContract.ContentVersion;
             var requestedLimit = limit ?? 10;
             if (requestedLimit is < 1 or > 100)
                 return ProblemResults.BadRequest("limit must be between 1 and 100.");
@@ -26,11 +35,24 @@ public static class LeaderboardsEndpoints
                 return ProblemResults.BadRequest("tier is unavailable.");
             if (!LeaderboardRules.Biomes.Any(option => option.Id == biome))
                 return ProblemResults.BadRequest("biome is unavailable.");
+			if (seedValue < 1)
+				return ProblemResults.BadRequest("seed is required for a comparable ranked board.");
+			if (playerLevelValue < 1 || playerLevelValue > 1000)
+				return ProblemResults.BadRequest("playerLevel must be between 1 and 1000 for a comparable ranked board.");
+			if (!string.Equals(rulesetValue, RankedLeaderboardContract.Ruleset, StringComparison.Ordinal))
+				return ProblemResults.BadRequest("ruleset is unavailable.");
+			if (!string.Equals(contentVersionValue, RankedLeaderboardContract.ContentVersion, StringComparison.Ordinal))
+				return ProblemResults.BadRequest("contentVersion is unavailable.");
 
-            var top = await leaderboards.GetTopAsync(biome, tierValue, requestedLimit, ct);
+            var top = await leaderboards.GetTopAsync(biome, tierValue, seedValue, playerLevelValue, rulesetValue, contentVersionValue, requestedLimit, ct);
             return Results.Ok(new LeaderboardPageResponse(
                 biome,
                 tierValue,
+                seedValue,
+                playerLevelValue,
+				ApiVersions.ExpectedClientVersion,
+				rulesetValue,
+				contentVersionValue,
                 top.Select(e => new LeaderboardEntryResponse(
                     e.AccountId,
                     e.DisplayName,

@@ -316,6 +316,15 @@ static func _enforce_pacing(
 		critical_semantic,
 		rng
 	)
+	_guarantee_type(
+		room_content,
+		by_room,
+		reserved_semantics,
+		RoomContentTypes.LORE,
+		config.min_lore_rooms,
+		critical_semantic,
+		rng
+	)
 	if config.min_rest_rooms > 0 and _rest_allowed():
 		_guarantee_rest_before_boss(
 			room_content, by_room, critical_semantic, reserved_semantics, config
@@ -500,13 +509,24 @@ static func _finalize_content_entries(
 			continue
 		var content_type := str(entry.get("contentType", ""))
 		var room_id := str(entry.get("roomId", ""))
+		# Content must keep an identity independent of the runtime node name: the builder can be
+		# reconstructed, while discoveries and placement validation need to refer to the same
+		# authored/generated location after a reload.
+		entry["placementId"] = "%s:%s:%s" % [biome_id, room_id, content_type]
+		# A pre-boss rest is part of the generated progression contract, not decorative dressing.
+		# Its runtime placement must therefore fail the build path if no usable authored anchor exists.
+		entry["required"] = content_type == RoomContentTypes.REST and critical_set.has(room_id)
+		if content_type == RoomContentTypes.LORE:
+			entry["loreId"] = "%s:lore:%s" % [biome_id, room_id]
 		if content_type == RoomContentTypes.REWARD or content_type == RoomContentTypes.LOCKED_VAULT:
 			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type, tier)
 		if content_type == RoomContentTypes.NPC_QUEST:
 			var quest := _pick_dungeon_quest(biome_id, rng)
+			entry["questId"] = str(quest.get("questId", ""))
 			entry["questKeyId"] = str(quest.get("questKeyId", ""))
 			entry["dialogueId"] = str(quest.get("dialogueId", "dungeon_npc_stranded"))
 			entry["targetNpcId"] = str(quest.get("targetNpcId", ""))
+			entry["delivery"] = DungeonQuestCatalogScript.delivery_for_quest(quest)
 		if content_type == RoomContentTypes.PUZZLE:
 			var puzzle := _build_puzzle_entry(
 				entry, graph, layout_semantic, critical_set, rng, reserved_semantics
@@ -514,7 +534,6 @@ static func _finalize_content_entries(
 			if not puzzle.is_empty():
 				puzzles.append(puzzle)
 				entry["flagId"] = str(puzzle.get("flagId", ""))
-	_ensure_quest_reward_items(room_content)
 	return puzzles
 
 
@@ -821,7 +840,10 @@ static func _roll_chest_items(
 ## entry now carries the same `targetNpcId`, so an active escort quest's NPC is preferred over the
 ## uniform-random pick whenever this biome can place it.
 static func _pick_dungeon_quest(biome_id: String, rng: RandomNumberGenerator) -> Dictionary:
-	var quests := DungeonQuestCatalogScript.quests_for_biome(biome_id)
+	var quests: Array = []
+	for candidate in DungeonQuestCatalogScript.quests_for_biome(biome_id):
+		if candidate is Dictionary and _rescue_quest_is_available(candidate):
+			quests.append(candidate)
 	if quests.is_empty():
 		return {
 			"questKeyId": "met_dungeon_npc",
@@ -840,6 +862,22 @@ static func _pick_dungeon_quest(biome_id: String, rng: RandomNumberGenerator) ->
 				if active_targets.has(str(quest.get("targetNpcId", ""))):
 					return quest
 	return quests[rng.randi_range(0, quests.size() - 1)]
+
+
+## A committed rescue remains represented in the world for this run, but must not be offered as a
+## second rescue. Completed or failed rescues resolve to an empty-landing dialogue and must not be
+## regenerated at all; deferred rescues intentionally remain available for a later revisit.
+static func _rescue_quest_is_available(quest: Dictionary) -> bool:
+	var dialogue_id := str(quest.get("dialogueId", ""))
+	if not dialogue_id.begins_with("rescue_"):
+		return true
+	var npc_id := dialogue_id.trim_prefix("rescue_")
+	if npc_id == "" or CharacterService == null:
+		return true
+	for prefix in ["rescued_", "lost_", "rescue_committed_"]:
+		if bool(CharacterService.get_flag(prefix + npc_id, false)):
+			return false
+	return true
 
 
 static func _build_puzzle_entry(
@@ -906,40 +944,6 @@ static func _find_puzzle_gate_layout(
 	return str(tied[rng.randi_range(0, tied.size() - 1)].get("layoutId", ""))
 
 
-static func _ensure_quest_reward_items(room_content: Array) -> void:
-	for entry in room_content:
-		if str(entry.get("contentType", "")) != RoomContentTypes.NPC_QUEST:
-			continue
-		var quest := DungeonQuestCatalogScript.quest_for_dialogue(str(entry.get("dialogueId", "")))
-		var reward_item := str(quest.get("rewardItemId", ""))
-		if reward_item == "":
-			continue
-		if _content_has_item(room_content, reward_item):
-			continue
-		for candidate in room_content:
-			var candidate_type := str(candidate.get("contentType", ""))
-			if candidate_type not in [RoomContentTypes.REWARD, RoomContentTypes.LOCKED_VAULT]:
-				continue
-			var items: Array = candidate.get("items", [])
-			items.append(
-				{
-					"itemId": reward_item,
-					"quantity": 1,
-					"instanceId": "%s_quest_reward" % entry.get("roomId", ""),
-				}
-			)
-			candidate["items"] = items
-			break
-
-
-static func _content_has_item(room_content: Array, item_id: String) -> bool:
-	for entry in room_content:
-		for item in entry.get("items", []):
-			if str(item.get("itemId", "")) == item_id:
-				return true
-	return false
-
-
 static func _shuffled_indices(count: int, rng: RandomNumberGenerator) -> Array:
 	var indices: Array = []
 	for i in count:
@@ -985,15 +989,9 @@ static func _reserved_semantics(
 
 
 static func build_branch_previews(
-	graph: RoomGraph, assignment: Dictionary, room_content: Array
+	graph: RoomGraph, assignment: Dictionary, _room_content: Array
 ) -> Array:
 	var layout_semantic := _layout_to_semantic(assignment)
-	var content_by_room: Dictionary = {}
-	for entry in room_content:
-		if entry is Dictionary:
-			content_by_room[str(entry.get("roomId", ""))] = str(
-				entry.get("contentType", RoomContentTypes.COMBAT)
-			)
 	var critical_layout: Array[String] = RoomGraphPaths.critical_path_ids(graph)
 	var critical_layout_set := {}
 	for layout_id in critical_layout:
@@ -1017,10 +1015,10 @@ static func build_branch_previews(
 					{
 						"fromRoomId": from_sem,
 						"toRoomId": to_sem,
-						"hint":
-						_preview_hint_for_content(
-							content_by_room.get(to_sem, RoomContentTypes.COMBAT)
-						),
+						# Don't disclose generated room purpose from the map alone. A later authored
+						# clue may opt into a type preview by setting clueQuality explicitly.
+						"hint": "unknown",
+						"clueQuality": 0,
 					}
 				)
 			)
@@ -1031,16 +1029,6 @@ static func build_branch_previews(
 			return ak < bk
 	)
 	return previews
-
-
-static func _preview_hint_for_content(content_type: String) -> String:
-	match content_type:
-		RoomContentTypes.REWARD, RoomContentTypes.LORE, RoomContentTypes.REST, RoomContentTypes.MERCHANT, RoomContentTypes.LOCKED_VAULT, RoomContentTypes.NPC_QUEST:
-			return "reward"
-		RoomContentTypes.EMPTY, RoomContentTypes.PUZZLE:
-			return "neutral"
-		_:
-			return "danger"
 
 
 static func _layout_to_semantic(assignment: Dictionary) -> Dictionary:
@@ -1074,6 +1062,10 @@ static func _fallback_assignment(
 		room_content.append(entry)
 	var locks: Array = []
 	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
+	# A fallback is still a playable floor, not permission to discard the pacing contract. In
+	# particular, this keeps the guaranteed lore location present when a complex assignment rerolls.
+	_enforce_pacing(room_content, critical_semantic, reserved_semantics, config, rng)
+	_apply_pacing_beats(room_content, critical_semantic, reserved_semantics)
 	if critical_semantic.size() >= 4:
 		locks = RoomLockPlacer.place_locked_doors(
 			graph,

@@ -8,6 +8,8 @@ const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const WAVES_DEFINITION_PATH := "content/waves/umbral_waves.json"
 
 const TORCH_ITEM_ID := "waves_torch"
+const WAVES_DEFAULT_WEAPON_ID := "iron_sword"
+const STARTER_WEAPON_IDS: Array[String] = ["iron_sword", "rogue_dagger", "hunter_bow", "sage_staff"]
 
 const DEFAULT_FINAL_WAVE := 50
 const DEFAULT_INTERMISSION_EVERY := 5
@@ -37,6 +39,7 @@ var _cash_out_settled := false
 var _victory_settled := false
 var _definition: Dictionary = {}
 var _chest_defs: Array = []
+var _starter_choice_pending := false
 
 
 func _ready() -> void:
@@ -91,6 +94,7 @@ func begin_new_run(run_seed: int = 0) -> void:
 	_run_seed = run_seed if run_seed > 0 else randi_range(1, 2_147_483_646)
 	waves_inventory = GridInventory.new(8, 5)
 	_bind_inventory_signals()
+	_seed_starter_weapon_choices()
 	InventoryService.reset_waves_quick_slots()
 	waves_changed.emit()
 
@@ -117,8 +121,9 @@ func restore_from_save(saved: Dictionary) -> void:
 		waves_inventory.from_save_dict(inv)
 	else:
 		waves_inventory = GridInventory.new(8, 5)
-	_bind_inventory_signals()
+		_bind_inventory_signals()
 	InventoryService.restore_waves_quick_slots(saved.get("quickSlots", []))
+	_starter_choice_pending = bool(saved.get("starterChoicePending", false))
 	waves_changed.emit()
 
 
@@ -149,6 +154,7 @@ func to_save_dict() -> Dictionary:
 		"chestSet": chest_set,
 		"torchPlaced": torch_placed,
 		"torchEntitled": torch_entitled,
+		"starterChoicePending": _starter_choice_pending,
 		"chestsOpened": chests_opened.duplicate(true),
 		"wavesInventory": waves_inventory.to_save_dict(),
 		"quickSlots": InventoryService.get_waves_quick_slots(),
@@ -345,7 +351,7 @@ func _filter_weapon_pool(pool: Array) -> Array:
 
 
 func start_waves() -> void:
-	if not lobby_ready:
+	if not lobby_ready or _starter_choice_pending:
 		return
 	current_wave = 1
 	prep_active = false
@@ -354,25 +360,65 @@ func start_waves() -> void:
 	waves_changed.emit()
 
 
-## The Vigil starts you with nothing, so the first wave should not begin with a looted sword still
-## sitting in the grid. If no weapon is equipped, put the best one found so far in your hand.
+func starter_choice_pending() -> bool:
+	return _starter_choice_pending
+
+
+func starter_choice_options() -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	for item_id in STARTER_WEAPON_IDS:
+		var index := -1
+		for slot_index in waves_inventory.slots.size():
+			if str(waves_inventory.slots[slot_index].get("itemId", "")) == item_id:
+				index = slot_index
+				break
+		if index < 0:
+			continue
+		var slot: Dictionary = waves_inventory.slots[index]
+		options.append({"itemId": item_id, "instanceId": str(slot.get("instanceId", "")), "weaponId": str(ItemCatalog.get_definition(item_id).get("weaponId", ""))})
+	return options
+
+
+func choose_starter_weapon(instance_id: String) -> bool:
+	if not _starter_choice_pending:
+		return false
+	var index := waves_inventory.find_instance_index(instance_id)
+	if index < 0 or str(waves_inventory.slots[index].get("itemId", "")) not in STARTER_WEAPON_IDS:
+		return false
+	if not waves_inventory.equip_weapon(index):
+		return false
+	_starter_choice_pending = false
+	waves_changed.emit()
+	return true
+
+
+func _seed_starter_weapon_choices() -> void:
+	for item_id in STARTER_WEAPON_IDS:
+		if not waves_inventory.add_item(item_id, 1, {"rarity": "common"}):
+			push_error("WavesRunService: unable to create starter weapon choice %s" % item_id)
+			return
+	_starter_choice_pending = true
+
+
+## The Vigil starts you with nothing, so the first wave should not begin with a weapon sitting in
+## the grid. This is an intentional safe default, never a misleading price comparison between
+## different weapon verbs; the starter-choice UI owns build selection before this fallback.
 func auto_equip_best_weapon() -> bool:
 	if waves_inventory.get_equipped_weapon_id() != "":
 		return false
-	var best_index := -1
-	var best_value := -1.0
+	var fallback_index := -1
 	for index in waves_inventory.slots.size():
 		var slot: Dictionary = waves_inventory.slots[index]
 		var def := ItemCatalog.get_definition(str(slot.get("itemId", "")))
 		if def.get("itemType", "") != "weapon" or str(def.get("weaponId", "")) == "":
 			continue
-		var value := float(def.get("value", 0))
-		if value > best_value:
-			best_value = value
-			best_index = index
-	if best_index < 0:
+		if str(slot.get("itemId", "")) == WAVES_DEFAULT_WEAPON_ID:
+			return waves_inventory.equip_weapon(index)
+		if fallback_index < 0:
+			fallback_index = index
+	if fallback_index < 0:
 		return false
-	return waves_inventory.equip_weapon(best_index)
+	return waves_inventory.equip_weapon(fallback_index)
 
 
 func advance_wave() -> void:
@@ -670,8 +716,23 @@ func get_enemies_for_wave(wave: int) -> Array[String]:
 	var count := _enemy_count_for_wave(wave)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = FloorSeedMix.mix(_run_seed, wave * 313)
-	for _i in count:
-		enemies.append(roster[rng.randi_range(0, roster.size() - 1)])
+	var candidates := _ordinary_enemy_candidates(roster)
+	if candidates.is_empty():
+		push_error("WavesRunService: no ordinary enemies in roster at wave %d" % wave)
+		return enemies
+	var introductions := _newly_unlocked_enemy_ids(wave, candidates)
+	var ordinary_count := count
+	for enemy_id in introductions:
+		if enemies.size() >= ordinary_count:
+			break
+		enemies.append(enemy_id)
+	while enemies.size() < ordinary_count:
+		var eligible := _budget_eligible_candidates(candidates, enemies, ordinary_count)
+		if eligible.is_empty():
+			# Small rosters can make role caps mutually incompatible. Relax the fewest
+			# concurrency limits possible, while keeping the authored threat budget hard.
+			eligible = _least_violating_candidates(candidates, enemies, ordinary_count)
+		enemies.append(str(eligible[rng.randi_range(0, eligible.size() - 1)]))
 	if is_boss_wave(wave):
 		var bosses := _bosses_for_wave(wave)
 		if not bosses.is_empty():
@@ -679,6 +740,154 @@ func get_enemies_for_wave(wave: int) -> Array[String]:
 			boss_rng.seed = FloorSeedMix.mix(_run_seed, wave * 911)
 			enemies.append(str(bosses[boss_rng.randi_range(0, bosses.size() - 1)]))
 	return enemies
+
+
+func _ordinary_enemy_candidates(roster: Array[String]) -> Array[String]:
+	var candidates: Array[String] = []
+	for enemy_id in roster:
+		var definition := EnemyCatalog.get_definition(enemy_id)
+		if definition.is_empty() or str(definition.get("enemy_type", "melee")) == "boss":
+			continue
+		if enemy_id not in candidates:
+			candidates.append(enemy_id)
+	return candidates
+
+
+func _newly_unlocked_enemy_ids(wave: int, candidates: Array[String]) -> Array[String]:
+	var introductions: Array[String] = []
+	for unlock in _definition.get("roster_unlocks", []):
+		if not unlock is Dictionary or int(unlock.get("wave", -1)) != wave:
+			continue
+		for enemy_id_value in unlock.get("ids", []):
+			var enemy_id := str(enemy_id_value)
+			if enemy_id in candidates and enemy_id not in introductions:
+				introductions.append(enemy_id)
+	return introductions
+
+
+func _enemy_budget_role(enemy_id: String) -> String:
+	var definition := EnemyCatalog.get_definition(enemy_id)
+	var enemy_type := str(definition.get("enemy_type", "melee"))
+	if enemy_type == "ranged":
+		return "ranged"
+	if enemy_type == "shield":
+		return "control"
+	return "melee"
+
+
+func _is_fast_enemy(enemy_id: String) -> bool:
+	return float(EnemyCatalog.get_definition(enemy_id).get("move_speed", 0.0)) >= 5.0
+
+
+func _is_long_reach_enemy(enemy_id: String) -> bool:
+	var definition := EnemyCatalog.get_definition(enemy_id)
+	var reach := maxf(
+		float(definition.get("attack_range", 0.0)), float(definition.get("preferred_range", 0.0))
+	)
+	for attack in definition.get("attacks", []):
+		if attack is Dictionary:
+			reach = maxf(reach, float(attack.get("max_range", 0.0)))
+	return reach >= 8.0
+
+
+func _threat_cost(enemy_id: String) -> float:
+	return maxf(0.0, float(EnemyCatalog.get_definition(enemy_id).get("threat_cost", 0.0)))
+
+
+func _budget_eligible_candidates(
+	candidates: Array[String], selected: Array[String], desired_count: int
+) -> Array[String]:
+	var budget: Dictionary = _definition.get("encounter_budget", {})
+	var ranged_limit := ceili(float(budget.get("max_ranged_ratio", 0.35)) * desired_count)
+	var fast_limit := ceili(float(budget.get("max_fast_ratio", 0.35)) * desired_count)
+	var control_limit := ceili(float(budget.get("max_control_ratio", 0.25)) * desired_count)
+	var long_reach_limit := ceili(float(budget.get("max_long_reach_ratio", 0.35)) * desired_count)
+	var max_total_threat := float(budget.get("max_average_threat_cost", 35.0)) * desired_count
+	var minimum_candidate_threat := INF
+	for enemy_id in candidates:
+		minimum_candidate_threat = minf(minimum_candidate_threat, _threat_cost(enemy_id))
+	var ranged_count := 0
+	var fast_count := 0
+	var control_count := 0
+	var long_reach_count := 0
+	var melee_count := 0
+	var threat_total := 0.0
+	for enemy_id in selected:
+		match _enemy_budget_role(enemy_id):
+			"ranged": ranged_count += 1
+			"control": control_count += 1
+			_: melee_count += 1
+		if _is_fast_enemy(enemy_id):
+			fast_count += 1
+		if _is_long_reach_enemy(enemy_id):
+			long_reach_count += 1
+		threat_total += _threat_cost(enemy_id)
+	if melee_count < int(budget.get("min_melee_count", 1)):
+		var melee_candidates: Array[String] = []
+		for enemy_id in candidates:
+			if _enemy_budget_role(enemy_id) == "melee":
+				melee_candidates.append(enemy_id)
+		if not melee_candidates.is_empty():
+			return melee_candidates
+	var eligible: Array[String] = []
+	for enemy_id in candidates:
+		var role := _enemy_budget_role(enemy_id)
+		if role == "ranged" and ranged_count >= ranged_limit:
+			continue
+		if role == "control" and control_count >= control_limit:
+			continue
+		if _is_long_reach_enemy(enemy_id) and long_reach_count >= long_reach_limit:
+			continue
+		if _is_fast_enemy(enemy_id) and fast_count >= fast_limit:
+			continue
+		var remaining_slots := desired_count - selected.size() - 1
+		var projected_minimum := threat_total + _threat_cost(enemy_id) + minimum_candidate_threat * remaining_slots
+		if projected_minimum > max_total_threat:
+			continue
+		eligible.append(enemy_id)
+	return eligible
+
+
+func _least_violating_candidates(
+	candidates: Array[String], selected: Array[String], desired_count: int
+) -> Array[String]:
+	var counts := {"melee": 0, "ranged": 0, "control": 0}
+	var ranged_limit := ceili(float(_definition.get("encounter_budget", {}).get("max_ranged_ratio", 0.35)) * desired_count)
+	var fast_limit := ceili(float(_definition.get("encounter_budget", {}).get("max_fast_ratio", 0.35)) * desired_count)
+	var control_limit := ceili(float(_definition.get("encounter_budget", {}).get("max_control_ratio", 0.25)) * desired_count)
+	var long_reach_limit := ceili(float(_definition.get("encounter_budget", {}).get("max_long_reach_ratio", 0.35)) * desired_count)
+	var max_total_threat := float(_definition.get("encounter_budget", {}).get("max_average_threat_cost", 35.0)) * desired_count
+	var selected_fast := 0
+	var selected_long_reach := 0
+	var selected_threat := 0.0
+	for enemy_id in selected:
+		var role := _enemy_budget_role(enemy_id)
+		counts[role] = int(counts.get(role, 0)) + 1
+		selected_fast += 1 if _is_fast_enemy(enemy_id) else 0
+		selected_long_reach += 1 if _is_long_reach_enemy(enemy_id) else 0
+		selected_threat += _threat_cost(enemy_id)
+	var best_score := INF
+	var fallback: Array[String] = []
+	for enemy_id in candidates:
+		var role := _enemy_budget_role(enemy_id)
+		var score := float(counts.get(role, 0)) * 0.01
+		if role == "ranged" and int(counts.ranged) >= ranged_limit:
+			score += 100.0
+		if role == "control" and int(counts.control) >= control_limit:
+			score += 100.0
+		if _is_fast_enemy(enemy_id) and selected_fast >= fast_limit:
+			score += 100.0
+		if _is_long_reach_enemy(enemy_id) and selected_long_reach >= long_reach_limit:
+			score += 100.0
+		var threat_excess := selected_threat + _threat_cost(enemy_id) - max_total_threat
+		if threat_excess > 0.0:
+			score += 1000.0 + threat_excess
+		if score < best_score:
+			best_score = score
+			fallback.clear()
+		if is_equal_approx(score, best_score):
+			fallback.append(enemy_id)
+	return fallback if not fallback.is_empty() else candidates
 
 
 func apply_equipment_to_player(player: Node) -> void:

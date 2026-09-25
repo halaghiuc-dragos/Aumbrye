@@ -76,12 +76,13 @@ func _ready() -> void:
 	dodge.reset_after_revive()
 	_check(not dodge.iframes_active and dodge._recovery_timer == 0.0, "Revive clears roll state")
 	dodge._weight_override = ""
-	body.set_meta("combat_defense", 80.0)
+	body.set_meta("equipped_mass", 80.0)
+	body.set_meta("carry_capacity", 100.0)
 	stamina.current = 35.0
-	_check(not dodge._can_dash(), "New heavy equipment cost applies before affordability check")
-	body.set_meta("combat_defense", 0.0)
+	_check(not dodge._can_dash(), "Heavy equipped mass applies before affordability check")
+	body.set_meta("equipped_mass", 0.0)
 	stamina.current = 28.0
-	_check(dodge._can_dash(), "New light equipment cost applies before affordability check")
+	_check(dodge._can_dash(), "Light equipped mass applies before affordability check")
 	guard._enter_guard()
 	dodge.is_dodging = true
 	guard._physics_process(0.01)

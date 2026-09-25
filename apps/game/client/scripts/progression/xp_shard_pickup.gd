@@ -89,9 +89,9 @@ func configure(world_pos: Vector3, xp_amount: int, gold_amount: int = 0) -> void
 	_xp_amount = maxi(0, xp_amount)
 	_gold_amount = maxi(0, gold_amount)
 	if _gold_amount > 0:
-		_label.text = "Umbral shard (+%d XP, %d gold)" % [_xp_amount, _gold_amount]
+		_label.text = tr("XP_SHARD_XP_GOLD").format({"xp": _xp_amount, "gold": _gold_amount})
 	else:
-		_label.text = "Umbral shard (+%d XP)" % _xp_amount
+		_label.text = tr("XP_SHARD_XP").format({"xp": _xp_amount})
 
 
 func _unhandled_input(event: InputEvent) -> void:

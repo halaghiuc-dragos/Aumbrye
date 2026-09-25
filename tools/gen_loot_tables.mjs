@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { publishGeneratedAssetSet } from "../scripts/tools/generated_asset_set.mjs";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, "$1"), "..");
 const ITEM_DIRS = ["equipment", "consumables", "materials", "quest"];
@@ -33,11 +34,6 @@ const RARITY_WEIGHT = {
 
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
-}
-
-function writeJson(p, obj) {
-  const eol = fs.existsSync(p) && fs.readFileSync(p, "utf8").includes("\r\n") ? "\r\n" : "\n";
-  fs.writeFileSync(p, JSON.stringify(obj, null, 2).replace(/\n/g, eol) + eol);
 }
 
 function loadItems() {
@@ -132,7 +128,7 @@ function build() {
     tables[b][slotFor(item)].push({ itemId: id, quantity: quantityFor(item), weight: RARITY_WEIGHT[item.rarity || "common"] || 4 });
   });
 
-  let written = 0;
+  const outputs = [];
   for (const b of biomes) {
     for (const slot of SLOTS) {
       if (tables[b][slot].length === 0) {
@@ -152,23 +148,47 @@ function build() {
         merged.lootTables[slot].push(e);
       }
     }
-    writeJson(outPath, merged);
-    written++;
+    outputs.push({ path: outPath, buffer: Buffer.from(`${JSON.stringify(merged, null, 2)}\n`) });
 
     const biomePath = path.join(ROOT, "content/biomes", b + ".json");
     const biome = readJson(biomePath);
     const rel = "content/loot/tables/" + b + ".json";
     if (biome.lootTablePath !== rel) {
       biome.lootTablePath = rel;
-      writeJson(biomePath, biome);
+      outputs.push({ path: biomePath, buffer: Buffer.from(`${JSON.stringify(biome, null, 2)}\n`) });
     }
   }
 
+  const sourcePaths = [
+    ...ITEM_DIRS.flatMap((dir) => fs.readdirSync(path.join(ROOT, "content/items", dir))
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => path.join(ROOT, "content/items", dir, file))),
+    ...biomes.map((biome) => path.join(ROOT, "content/biomes", `${biome}.json`)),
+    ...fs.readdirSync(path.join(ROOT, "content/loot/tables"))
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => path.join(ROOT, "content/loot/tables", file)),
+    path.join(ROOT, "content/loot/global_drops.json"),
+  ];
+  const written = publishGeneratedAssetSet({
+    repoRoot: ROOT,
+    manifestPath: path.join(ROOT, "tools/.generated-manifest.json"),
+    generatorPath: new URL(import.meta.url).pathname,
+    sourcePaths,
+    outputs,
+    force: process.argv.includes("--force"),
+    dryRun: process.argv.includes("--dry-run"),
+  });
+
   const nowReach = reachableToday(items);
   const stillOrphan = Object.keys(items).filter((id) => !nowReach.has(id));
-  console.log("tables written:", written);
+  console.log(process.argv.includes("--dry-run") ? "tables validated:" : "outputs published:", written.length);
   console.log("items:", Object.keys(items).length, "reachable before:", reach.size, "after:", nowReach.size);
   console.log("still orphaned:", stillOrphan.length, stillOrphan.slice(0, 10));
 }
 
-build();
+try {
+  build();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+}

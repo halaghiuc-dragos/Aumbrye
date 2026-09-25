@@ -281,6 +281,28 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: seed
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: playerLevel
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+        - name: ruleset
+          in: query
+          schema:
+            type: string
+        - name: contentVersion
+          in: query
+          schema:
+            type: string
         - name: limit
           in: query
           schema:
@@ -647,6 +669,13 @@ components:
       additionalProperties: false
     CreateRunResponse:
       type: object
+      required:
+        - runId
+        - seed
+        - playerLevel
+        - clientVersion
+        - biomeId
+        - definitionJson
       properties:
         runId:
           type: string
@@ -654,6 +683,11 @@ components:
         seed:
           type: integer
           format: int32
+        playerLevel:
+          type: integer
+          format: int32
+        clientVersion:
+          type: string
         biomeId:
           type: string
           nullable: true
@@ -702,6 +736,15 @@ components:
       additionalProperties: false
     LeaderboardPageResponse:
       type: object
+      required:
+        - biomeId
+        - tier
+        - seed
+        - playerLevel
+        - clientVersion
+        - ruleset
+        - contentVersion
+        - entries
       properties:
         biomeId:
           type: string
@@ -709,6 +752,18 @@ components:
         tier:
           type: integer
           format: int32
+        seed:
+          type: integer
+          format: int32
+        playerLevel:
+          type: integer
+          format: int32
+        clientVersion:
+          type: string
+        ruleset:
+          type: string
+        contentVersion:
+          type: string
         entries:
           type: array
           items:

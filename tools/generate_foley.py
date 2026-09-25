@@ -14,18 +14,18 @@ missing rather than any particular sound:
 * a **room** — pre-delay, early reflections and a frequency-dependent tail, sized to the space the
   sound happens in.
 
-Usage:  python tools/generate_foley.py [--check] [--only name,name]
+Usage:  python tools/generate_foley.py [--check] [--only name,name] [--dry-run] [--force]
 
-`--only` exists because a full run rewrites every file whether or not its audio changed. The
-encoder is chosen at runtime — ffmpeg when it is on PATH, libsndfile through `soundfile` when it
-is not — and the two do not produce identical bytes for identical samples, so running this on a
-machine without ffmpeg re-encodes the entire committed bank as a side effect of adding one sound.
-Render the effect you actually changed.
+`--only` renders the selected effects while advancing the shared seeded generator through every
+job, preserving the other candidates' sample sequences. Candidates are encoded in memory,
+preflighted as a set, and protected by the generated-asset ownership manifest. Use `--dry-run` to
+validate without publishing; `--force` is required to replace unregistered or hand-edited bytes.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import pathlib
 import sys
@@ -34,9 +34,11 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import audio_synth as A  # noqa: E402
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SFX_DIR = ROOT / "apps/game/client/assets/audio/sfx"
+SFX_JSON = ROOT / "content/audio/sfx.json"
 
 # --- materials ---------------------------------------------------------------------------------
 #
@@ -501,6 +503,8 @@ for _tier in LOOT_TIERS:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="render nothing; list what would be made")
+    ap.add_argument("--dry-run", action="store_true", help="render and validate candidates without writing")
+    ap.add_argument("--force", action="store_true", help="explicitly replace unowned/manual assets")
     ap.add_argument(
         "--only",
         default="",
@@ -511,7 +515,6 @@ def main() -> int:
     )
     args = ap.parse_args()
     wanted = {name for name in args.only.split(",") if name}
-    SFX_DIR.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0x50FA)
     jobs: list[tuple[str, object]] = [(name, GENERATORS[name]) for name in sorted(GENERATORS)]
     for surface, fn in FOOTSTEP_SURFACES.items():
@@ -520,7 +523,12 @@ def main() -> int:
                 (f"step_{surface}_{variant:02d}", lambda r, f=fn, v=variant: f(r, v))
             )
     jobs.extend((name, TAIL_GENERATORS[name]) for name in sorted(TAIL_GENERATORS))
+    job_names = {name for name, _fn in jobs}
+    unknown = wanted - job_names
+    if unknown:
+        ap.error("unknown effect(s): " + ", ".join(sorted(unknown)))
     print(f"{'effect':<22} {'seconds':>8} {'bytes':>9}")
+    outputs: list[tuple[pathlib.Path, bytes]] = []
     for name, fn in jobs:
         if args.check:
             print(f"{name:<22} {'-':>8} {'-':>9}")
@@ -531,17 +539,30 @@ def main() -> int:
         if wanted and name not in wanted:
             continue
         path = SFX_DIR / f"{name}.ogg"
-        A.write_ogg(path, sig, quality=7)
-        print(f"{name:<22} {sig.shape[0] / A.SAMPLE_RATE:>8.2f} {path.stat().st_size:>9}")
+        encoded = A.encode_ogg(sig, quality=7)
+        outputs.append((path, encoded))
+        print(f"{name:<22} {sig.shape[0] / A.SAMPLE_RATE:>8.2f} {len(encoded):>9}")
     print(f"\n{len(jobs)} effects in {SFX_DIR}")
-    _update_footstep_bank(args.check or bool(wanted))
+    if args.check:
+        _update_footstep_bank(check=True)
+        return 0
+    bank = _footstep_bank_data()
+    bank_bytes = (json.dumps(bank, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    if json.loads(SFX_JSON.read_text(encoding="utf-8")) != bank:
+        outputs.append((SFX_JSON, bank_bytes))
+    published = write_generated_bytes_set(
+        outputs,
+        generator=pathlib.Path(__file__).resolve(),
+        sources=[pathlib.Path(__file__).resolve().parent / "audio_synth.py"],
+        force=args.force,
+        dry_run=args.dry_run,
+        seed=0x50FA,
+    )
+    print(f"{'validated' if args.dry_run else 'published'} {len(outputs)} candidate(s); {len(published)} file(s) written")
     return 0
 
 
-def _update_footstep_bank(check: bool) -> None:
-    """Point `content/audio/sfx.json` at the three variants now authored for each surface."""
-    import json
-
+def _footstep_bank_data() -> dict:
     manifest_path = ROOT / "content/audio/sfx.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     entry = manifest["sfx"]["footstep"]
@@ -552,13 +573,16 @@ def _update_footstep_bank(check: bool) -> None:
         ]
         for surface in FOOTSTEP_SURFACES
     }
-    if check:
+    return manifest
+
+
+def _update_footstep_bank(check: bool) -> None:
+    """Read-only status for the authored footstep manifest; writes use the staged set publisher."""
+    manifest_path = ROOT / "content/audio/sfx.json"
+    if json.loads(manifest_path.read_text(encoding="utf-8")) == _footstep_bank_data():
+        print("footstep surface_variants already match", ", ".join(FOOTSTEP_SURFACES))
+    elif check:
         print("would update footstep surface_variants for", ", ".join(FOOTSTEP_SURFACES))
-        return
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
-    )
-    print(f"updated {manifest_path.relative_to(ROOT)} with {len(FOOTSTEP_SURFACES)} surfaces")
 
 
 if __name__ == "__main__":

@@ -87,20 +87,20 @@ static func shortfall(condition: Dictionary, counters: Dictionary = {}) -> Dicti
 static func describe(key: String) -> String:
 	match key:
 		KEY_DUNGEONS_CLEARED:
-			return "halls cleared"
+			return String(TranslationServer.translate("PROGRESS_DUNGEONS_CLEARED"))
 		KEY_MAX_TIER:
-			return "depth unlocked"
+			return String(TranslationServer.translate("PROGRESS_MAX_TIER"))
 		KEY_BESTIARY_STUDIED:
-			return "quarry studied"
+			return String(TranslationServer.translate("PROGRESS_BESTIARY_STUDIED"))
 		KEY_BESTIARY_MASTERED:
-			return "quarry mastered"
+			return String(TranslationServer.translate("PROGRESS_BESTIARY_MASTERED"))
 		KEY_ENDLESS_BEST:
-			return "deepest descent"
+			return String(TranslationServer.translate("PROGRESS_ENDLESS_BEST"))
 		KEY_BOUNTY_TOKENS:
-			return "bounty tokens"
+			return String(TranslationServer.translate("PROGRESS_BOUNTY_TOKENS"))
 		KEY_DESCENT_TOKENS:
-			return "descent tokens"
+			return String(TranslationServer.translate("PROGRESS_DESCENT_TOKENS"))
 		KEY_RUNS_RECORDED:
-			return "runs recorded"
+			return String(TranslationServer.translate("PROGRESS_RUNS_RECORDED"))
 		_:
 			return key

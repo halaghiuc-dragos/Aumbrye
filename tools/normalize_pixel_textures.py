@@ -20,7 +20,7 @@ nearest-neighbour filtering. Colours come from the source art, so the art direct
 only the sampling grid and the alpha channel change.
 
 Usage:
-    python tools/normalize_pixel_textures.py [--check]
+    python tools/normalize_pixel_textures.py [--check] [--dry-run] [--force]
 
 --check reports what would change and exits non-zero if anything is out of date.
 """
@@ -28,11 +28,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "apps" / "game" / "client" / "assets"
@@ -181,9 +185,12 @@ def build(target: Target) -> Image.Image:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="report drift instead of rewriting")
+    parser.add_argument("--dry-run", action="store_true", help="validate staged candidates without writing")
+    parser.add_argument("--force", action="store_true", help="explicitly replace unowned/manual outputs")
     args = parser.parse_args()
 
     stale = 0
+    outputs: list[tuple[Path, bytes]] = []
     for target in TARGETS:
         path = ASSETS / target.path
         if not path.exists():
@@ -205,17 +212,33 @@ def main() -> int:
             )
             continue
 
-        build(target).save(path, optimize=True)
-        after_kb = path.stat().st_size / 1024
+        buffer = io.BytesIO()
+        build(target).save(buffer, format="PNG", optimize=True)
+        outputs.append((path, buffer.getvalue()))
+        after_kb = len(buffer.getvalue()) / 1024
         detail = f" — {target.note}" if target.note else ""
         print(
-            f"REWROTE {target.path}: {current.width}x{current.height} ({before_kb:.0f} KB) -> "
+            f"STAGED  {target.path}: {current.width}x{current.height} ({before_kb:.0f} KB) -> "
             f"{target.width}x{target.height} ({after_kb:.1f} KB){detail}"
         )
 
     if args.check and stale:
         print(f"\n{stale} texture(s) are not at native resolution.")
         return 1
+    if outputs:
+        published = write_generated_bytes_set(
+            outputs,
+            generator=Path(__file__).resolve(),
+            sources=[],
+            force=args.force,
+            dry_run=args.dry_run or args.check,
+        )
+        print(
+            f"{'validated' if args.dry_run or args.check else 'published'} "
+            f"{len(outputs)} candidates; {len(published)} file(s) written"
+        )
+    elif not args.check and not args.dry_run:
+        print("all pixel textures already use their authored native dimensions")
     return 0
 
 

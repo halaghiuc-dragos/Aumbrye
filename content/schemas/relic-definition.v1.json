@@ -157,6 +157,17 @@
           "ifTargetHasStatus": {
             "type": "string"
           },
+          "ifAppliedStatus": {
+            "type": "string"
+          },
+          "ifInstigatorGroup": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ifNotApplicationOrigin": {
+            "type": "string",
+            "minLength": 1
+          },
           "ifAcquiredRelic": {
             "type": "string"
           },
@@ -176,6 +187,9 @@
           },
           "applyToActor": {
             "type": "boolean"
+          },
+          "removalPolicy": {
+            "enum": ["debuffs", "all"]
           },
           "multiplier": {
             "type": "number",

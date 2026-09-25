@@ -38,6 +38,8 @@ signal hit_resolved(resolution: RefCounted)
 @export var region: String = "body"
 @export var region_damage_mult := 1.0
 @export var region_poise_mult := 1.0
+## Practice arenas may suppress health/poise effects without changing combat rules elsewhere.
+var practice_invulnerable := false
 
 var _health: Health
 var _poise: Poise
@@ -79,7 +81,6 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 	res.damage_type = info.damage_type
 	res.crit = info.crit
 	res.region = region
-
 	if _health and _health.is_dead():
 		hit_resolved.emit(res)
 		return res
@@ -176,6 +177,9 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 	final_poise = res.poise_outgoing
 	final_amount *= region_damage_mult
 	final_poise *= region_poise_mult
+	if practice_invulnerable:
+		final_amount = 0.0
+		final_poise = 0.0
 	final_amount = _apply_defense(final_amount)
 	final_amount = _apply_resistances(final_amount, info.damage_type)
 	final_amount = _apply_status_damage_taken(final_amount)
@@ -242,7 +246,8 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 		res.blocked,
 		res.backstab,
 		impact,
-		info.periodic
+		info.periodic,
+		info.root_attack_id
 	)
 	_emit_attacker_feedback(info, final_amount, impact, res.blocked, poise_broke_this_hit)
 	_dispatch_combat_events(info, res)
@@ -265,8 +270,8 @@ func _try_apply_grab(info: DamageInfo, owner_body: Node, res: RefCounted) -> boo
 	if reactions == null or not reactions.has_method("apply_grab"):
 		return false
 	var guard := _cached_guard
-	var duration := 1.6
-	if guard and guard.has_method("get_grab_duration"):
+	var duration := info.grab_duration if info.grab_duration > 0.0 else 1.6
+	if info.grab_duration <= 0.0 and guard and guard.has_method("get_grab_duration"):
 		duration = float(guard.call("get_grab_duration"))
 	res.outgoing = info.amount
 	res.poise_outgoing = 0.0
@@ -429,7 +434,8 @@ func _emit_attacker_feedback(
 		info.damage_type,
 		impact,
 		bool(info.crit),
-		poise_broke
+		poise_broke,
+		info.root_attack_id
 	)
 
 
@@ -472,6 +478,7 @@ func _emit_victim_feedback(
 	crit: bool = false,
 	impact: int = HitFeedbackScript.ImpactClass.SOLID,
 	periodic: bool = false,
+	root_attack_id: String = "",
 ) -> void:
 	if damage <= 0.0:
 		return
@@ -518,7 +525,7 @@ func _emit_victim_feedback(
 	)
 	var feedback := body.get_node_or_null("HitFeedback")
 	if feedback and feedback.has_method("on_hit_received"):
-		feedback.call("on_hit_received", damage, direction, damage_type, impact)
+		feedback.call("on_hit_received", damage, direction, damage_type, impact, root_attack_id)
 
 
 func _emit_periodic_feedback(body: Node3D, damage_type: String) -> void:

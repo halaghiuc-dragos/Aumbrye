@@ -133,18 +133,25 @@ function runContentLayer() {
     "node",
     [join(repoRoot, "scripts/validate-content/validate.mjs"), "--strict-content"],
   );
-  // SY-07: warn-only, never affects this layer's pass/fail -- see the script's own header for why.
+  const translationKeys = runCommand(
+    "translation-keys",
+    "node",
+    [join(repoRoot, "tools/find_missing_strings.mjs")],
+  );
+  // SY-07's literal assignment scan remains warn-only because it cannot distinguish every
+  // technical label from prose. Key references, however, are deterministic and must be complete.
   runCommand(
     "untranslated-strings",
     "node",
     [join(repoRoot, "scripts/check-untranslated-strings.mjs")],
   );
+  const ok = result.ok && translationKeys.ok;
   return {
     name: "content",
-    ok: result.ok,
-    passed: result.ok ? 1 : 0,
-    failed: result.ok ? 0 : 1,
-    detail: result.detail,
+    ok,
+    passed: ok ? 1 : 0,
+    failed: ok ? 0 : 1,
+    detail: ok ? "content and translation keys passed" : [result, translationKeys].filter((item) => !item.ok).map((item) => item.detail).join("; "),
   };
 }
 

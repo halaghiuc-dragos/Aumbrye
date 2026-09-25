@@ -10,6 +10,13 @@
         { "type": "record_discovery", "discoveryId": "stranded_scout" }
       ],
       "choices": [
+        {
+          "text": "Take the scout's scrap.",
+          "condition": { "not": { "flag": "receipt_dungeon_stranded_scout" } },
+          "actions": [{ "type": "grant_dungeon_payment", "questId": "dungeon_stranded_scout" }],
+          "next": "paid"
+        },
+        { "text": "The scout already paid me.", "condition": { "flag": "receipt_dungeon_stranded_scout" }, "next": "paid" },
         { "text": "What lamp?", "next": "lamp" },
         { "text": "Where is your squad?", "next": "squad" },
         { "text": "Keep your head down.", "next": "end" }
@@ -24,6 +31,11 @@
     "squad": {
       "speaker": "Stranded scout",
       "text": "Two rooms back, and they are still there, and they are still standing. Take the scrap and watch the captain's parry — he was always better at it than he was at anything else.",
+      "next": "end"
+    },
+    "paid": {
+      "speaker": "Stranded scout",
+      "text": "That is my share, earned and witnessed. Keep it separate from whatever scrap you find in these halls.",
       "next": "end"
     }
   }

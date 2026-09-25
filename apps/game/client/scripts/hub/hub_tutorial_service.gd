@@ -46,36 +46,80 @@ static func load_catalog() -> void:
 const FLAG_TELEGRAPH_PREFIX := "tutorial_seen_telegraph_"
 const FLAG_POISE_BREAK := "tutorial_seen_poise_break_dealt"
 const FLAG_STAMINA_EXHAUSTED := "tutorial_seen_stamina_exhausted"
+const FLAG_PENDING_COMBAT_TEACHING := "tutorial_pending_combat_teaching"
 
 
 static func notify_telegraph_seen(attack_class: String) -> String:
 	var flag := FLAG_TELEGRAPH_PREFIX + attack_class
-	if bool(CharacterService.get_flag(flag, false)):
-		return ""
-	CharacterService.set_flag(flag, true)
+	var teaching_key := ""
 	match attack_class:
 		"blockable":
-			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_AMBER"))
+			teaching_key = "TUTORIAL_TELEGRAPH_AMBER"
 		"parryable":
-			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_BLUE"))
+			teaching_key = "TUTORIAL_TELEGRAPH_BLUE"
 		"unblockable":
-			return String(TranslationServer.translate("TUTORIAL_TELEGRAPH_RED"))
-		_:
-			return ""
+			teaching_key = "TUTORIAL_TELEGRAPH_RED"
+	if teaching_key != "":
+		_queue_combat_teaching(flag, teaching_key)
+	return ""
 
 
 static func notify_poise_break_dealt() -> String:
-	if bool(CharacterService.get_flag(FLAG_POISE_BREAK, false)):
-		return ""
-	CharacterService.set_flag(FLAG_POISE_BREAK, true)
-	return String(TranslationServer.translate("TUTORIAL_POISE_BREAK"))
+	_queue_combat_teaching(FLAG_POISE_BREAK, "TUTORIAL_POISE_BREAK")
+	return ""
 
 
 static func notify_stamina_exhausted() -> String:
-	if bool(CharacterService.get_flag(FLAG_STAMINA_EXHAUSTED, false)):
-		return ""
-	CharacterService.set_flag(FLAG_STAMINA_EXHAUSTED, true)
-	return String(TranslationServer.translate("TUTORIAL_STAMINA_EXHAUSTED"))
+	_queue_combat_teaching(FLAG_STAMINA_EXHAUSTED, "TUTORIAL_STAMINA_EXHAUSTED")
+	return ""
+
+
+static func _queue_combat_teaching(seen_flag: String, teaching_key: String) -> void:
+	var seen := bool(CharacterService.get_flag(seen_flag, false))
+	var pending_value: Variant = CharacterService.get_flag(FLAG_PENDING_COMBAT_TEACHING, [])
+	var flags := queue_combat_teaching_flags(
+		{seen_flag: seen, FLAG_PENDING_COMBAT_TEACHING: pending_value}, seen_flag, teaching_key
+	)
+	if not bool(flags.get(seen_flag, false)):
+		CharacterService.set_flag(seen_flag, true)
+		CharacterService.set_flag(FLAG_PENDING_COMBAT_TEACHING, flags.get(FLAG_PENDING_COMBAT_TEACHING, []))
+
+
+static func queue_combat_teaching_flags(
+	flags: Dictionary, seen_flag: String, teaching_key: String
+) -> Dictionary:
+	var out := flags.duplicate(true)
+	if bool(out.get(seen_flag, false)):
+		return out
+	out[seen_flag] = true
+	var pending_value: Variant = out.get(FLAG_PENDING_COMBAT_TEACHING, [])
+	var pending: Array = pending_value.duplicate() if pending_value is Array else []
+	if teaching_key not in pending:
+		pending.append(teaching_key)
+	out[FLAG_PENDING_COMBAT_TEACHING] = pending
+	return out
+
+
+static func drain_combat_teaching_flags(flags: Dictionary) -> Dictionary:
+	var out := flags.duplicate(true)
+	var pending_value: Variant = out.get(FLAG_PENDING_COMBAT_TEACHING, [])
+	var messages: Array[String] = []
+	if pending_value is Array:
+		for entry in pending_value:
+			var message := String(TranslationServer.translate(str(entry)))
+			if message != "":
+				messages.append(message)
+	out[FLAG_PENDING_COMBAT_TEACHING] = []
+	return {"flags": out, "messages": messages}
+
+
+static func consume_pending_combat_teaching() -> Array[String]:
+	var pending_value: Variant = CharacterService.get_flag(FLAG_PENDING_COMBAT_TEACHING, [])
+	var drained := drain_combat_teaching_flags(
+		{FLAG_PENDING_COMBAT_TEACHING: pending_value}
+	)
+	CharacterService.set_flag(FLAG_PENDING_COMBAT_TEACHING, [])
+	return drained.get("messages", []) as Array[String]
 
 
 static func reset_for_character() -> void:

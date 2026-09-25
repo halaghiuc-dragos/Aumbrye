@@ -91,7 +91,9 @@
             "open_blacksmith",
             "open_merchant",
             "open_quest_board",
-            "open_storage"
+            "open_storage",
+            "grant_dungeon_payment",
+            "set_rescue_state"
           ]
         },
         "flag": { "type": "string", "minLength": 1 },
@@ -103,6 +105,7 @@
         "recipeId": { "type": "string", "minLength": 1 },
         "npc": { "type": "string", "minLength": 1 },
         "npcId": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "minLength": 1 },
         "delta": { "type": "integer" },
         "sfxId": { "type": "string", "minLength": 1 },
         "beat": { "type": "integer", "minimum": 0 },

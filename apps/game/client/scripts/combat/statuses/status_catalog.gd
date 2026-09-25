@@ -14,7 +14,7 @@ static func tooltip(status_id: String, stacks: int = 1) -> String:
 	if def.is_empty():
 		return status_id
 	var lines: Array[String] = [str(def.get("name", status_id))]
-	var description := str(def.get("description", ""))
+	var description := ContentText.description(def)
 	if description != "":
 		lines.append(description)
 	var max_stacks := maxi(1, int(def.get("maxStacks", 1)))
@@ -37,9 +37,9 @@ static func tooltip(status_id: String, stacks: int = 1) -> String:
 		lines.append("Damage taken x%.2f" % float(def.get("damageTakenMultiplier", 1.0)))
 	var stats: Dictionary = def.get("stats", {}) as Dictionary
 	if float(stats.get("damagePercent", 0.0)) != 0.0:
-		lines.append("Damage %+g%%" % float(stats.get("damagePercent", 0.0)))
+		lines.append("Damage %+.1f%%" % float(stats.get("damagePercent", 0.0)))
 	if float(stats.get("moveSpeedPercent", 0.0)) != 0.0:
-		lines.append("Move speed %+g%%" % float(stats.get("moveSpeedPercent", 0.0)))
+		lines.append("Move speed %+.1f%%" % float(stats.get("moveSpeedPercent", 0.0)))
 	if float(stats.get("healthRegen", 0.0)) != 0.0:
 		lines.append("Health regeneration %+g" % float(stats.get("healthRegen", 0.0)))
 	if float(stats.get("armor", 0.0)) != 0.0:

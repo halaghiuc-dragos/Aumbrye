@@ -11,6 +11,7 @@ var _inventory_ui: Control
 var _settings_ui: Control
 var _achievements_ui: Control
 var _bestiary_ui: Control
+var _lore_journal_ui: Control
 var _talents_ui: Control
 var _loadout_ui: Control
 var _pause_menu: Control
@@ -83,6 +84,7 @@ func _build_global_uis() -> void:
 	_settings_ui = _make_scripted_ui("SettingsUI", "res://scripts/ui/settings_ui.gd")
 	_achievements_ui = _make_scripted_ui("AchievementsUI", "res://scripts/ui/achievements_ui.gd")
 	_bestiary_ui = _make_scripted_ui("BestiaryUI", "res://scripts/ui/bestiary_ui.gd")
+	_lore_journal_ui = _make_scripted_ui("LoreJournalUI", "res://scripts/ui/lore_journal_ui.gd")
 	_talents_ui = _make_scripted_ui("TalentsUI", "res://scripts/ui/talents_ui.gd")
 	_pause_menu = _make_scripted_ui("PauseMenu", "res://scripts/ui/pause_menu.gd")
 	var loadout_scene := load("res://scenes/ui/loadout_ui.tscn") as PackedScene
@@ -167,6 +169,12 @@ func open_bestiary() -> void:
 		_bestiary_ui.call("open")
 
 
+func open_lore_journal() -> void:
+	_raise(_lore_journal_ui)
+	if _lore_journal_ui and _lore_journal_ui.has_method("open"):
+		_lore_journal_ui.call("open")
+
+
 func open_loadout() -> void:
 	_raise(_loadout_ui)
 	if _loadout_ui and _loadout_ui.has_method("open"):
@@ -203,6 +211,14 @@ func is_bestiary_open() -> bool:
 	)
 
 
+func is_lore_journal_open() -> bool:
+	return (
+		_lore_journal_ui != null
+		and _lore_journal_ui.has_method("is_open")
+		and _lore_journal_ui.call("is_open")
+	)
+
+
 func is_talents_open() -> bool:
 	return _talents_ui != null and _talents_ui.has_method("is_open") and _talents_ui.call("is_open")
 
@@ -221,6 +237,7 @@ func is_player_meta_ui_open() -> bool:
 		or is_settings_open()
 		or is_achievements_open()
 		or is_bestiary_open()
+		or is_lore_journal_open()
 		or is_talents_open()
 		or is_loadout_open()
 		or is_pause_open()

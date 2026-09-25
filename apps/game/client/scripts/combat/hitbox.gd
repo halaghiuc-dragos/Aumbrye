@@ -39,6 +39,10 @@ var _last_shape_transform := Transform3D.IDENTITY
 var _has_swept_transform := false
 var _arc_half_angle_cos := -1.0
 var _weapon_item_id := ""
+var _root_attack_id := ""
+var _swing_generation := 0
+var grab_duration := 0.0
+var grab_drain_per_second := 0.0
 
 
 func _ready() -> void:
@@ -71,10 +75,16 @@ func set_debug_draw(enabled: bool) -> void:
 
 func enable() -> void:
 	_weapon_item_id = _attacker_weapon_item_id()
+	_swing_generation += 1
+	if _root_attack_id == "":
+		var attacker := _get_attacker_node()
+		var attacker_id := attacker.get_instance_id() if attacker else get_instance_id()
+		_root_attack_id = "%s:%s" % [attacker_id, _swing_generation]
 	_active = true
 	monitoring = true
 	set_physics_process(true)
 	_has_swept_transform = false
+	_root_attack_id = ""
 	_scan_overlaps()
 
 
@@ -97,6 +107,10 @@ func disable() -> void:
 func set_execution(target: Node, kind: String) -> void:
 	_execution_target = target
 	_execution_kind = kind
+
+
+func set_root_attack_id(value: String) -> void:
+	_root_attack_id = value
 
 
 func reset_swing() -> void:
@@ -251,33 +265,38 @@ func _shape_min_extent(shape: Shape3D) -> float:
 	return 0.3
 
 
-func _try_hit(area: Area3D) -> void:
+## Resolves one explicitly selected contact. Projectile flight uses this instead of the Area3D
+## overlap callback so it can order a hurtbox against world geometry along the same segment.
+## `null` means the candidate was not eligible (same team, occluded, already hit, etc.); a
+## DamageResolution means contact was delivered, including deliberate zero-damage outcomes such
+## as dodge, parry and block.
+func resolve_contact(area: Area3D) -> DamageResolution:
 	if not is_instance_valid(_owner_node):
-		return
+		return null
 	if not _active or area == self:
-		return
+		return null
 	if not area.has_method("receive_hit"):
-		return
+		return null
 	if area.get("team") == team:
-		return
+		return null
 	if _execution_target != null and _body_of(area) != _execution_target:
-		return
+		return null
 	if not _inside_authored_arc(area):
-		return
+		return null
 	if _is_cross_boss_boundary(area):
-		return
+		return null
 	var target_body := _body_of(area)
 	var target_id := target_body.get_instance_id() if target_body != null else area.get_instance_id()
 	if not _los_clear_this_swing.get(target_id, false):
 		if not _has_clear_line_to(area):
-			return
+			return null
 		_los_clear_this_swing[target_id] = true
 	var now := Time.get_ticks_msec() / 1000.0
 	if _hit_times.has(target_id):
 		if rehit_interval <= 0.0:
-			return
+			return null
 		if now - float(_hit_times[target_id]) < rehit_interval:
-			return
+			return null
 	_hit_times[target_id] = now
 	var direction := Vector3.ZERO
 	if _owner_node:
@@ -302,12 +321,20 @@ func _try_hit(area: Area3D) -> void:
 	info.backstab_multiplier_override = _backstab_multiplier
 	info.is_projectile = is_projectile
 	info.weapon_item_id = _weapon_item_id
+	info.root_attack_id = _root_attack_id
+	info.grab_duration = maxf(0.0, grab_duration)
+	info.grab_drain_per_second = maxf(0.0, grab_drain_per_second)
 	if _execution_kind != "":
 		info.execution = _execution_kind
 		info.ignore_guard = true
-	var resolution = area.call("receive_hit", info)
-	if resolution == null or not resolution is DamageResolution or resolution.outgoing <= 0.0:
-		return
+	var resolution := area.call("receive_hit", info) as DamageResolution
+	if resolution == null:
+		return null
+	# A landed hit means damage actually reached the target. Projectiles inspect the returned
+	# resolution separately, so a dodge/parry still consumes a physical projectile without
+	# incorrectly playing on-hit rewards or granting mana.
+	if resolution.outgoing <= 0.0:
+		return resolution
 	hit_landed.emit(area)
 	var attacker := _get_attacker_node()
 	var mana_restore := ClassPerks.arcane_focus_mana_on_hit(attacker)
@@ -315,6 +342,11 @@ func _try_hit(area: Area3D) -> void:
 		var mana := attacker.get_node_or_null("Mana") as Mana
 		if mana:
 			mana.restore(mana_restore)
+	return resolution
+
+
+func _try_hit(area: Area3D) -> void:
+	resolve_contact(area)
 
 
 func _inside_authored_arc(area: Area3D) -> bool:

@@ -4,6 +4,7 @@ class_name ClassCard
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ClassIconAtlasScript := preload("res://scripts/ui/class_icon_atlas.gd")
+const ContentTextScript := preload("res://scripts/content/content_text.gd")
 
 
 var class_id: String = ""
@@ -11,13 +12,14 @@ var _selected_mark: TextureRect
 var _portrait: TextureRect
 var _name_label: Label
 var _role_label: Label
+var _description_label: Label
 var _built := false
 
 
 func _ready() -> void:
 	toggle_mode = true
 	focus_mode = Control.FOCUS_ALL
-	custom_minimum_size = Vector2(0, 72)
+	custom_minimum_size = Vector2(0, 96)
 	_build_ui()
 
 
@@ -29,7 +31,11 @@ func setup(class_def: Dictionary) -> void:
 			class_id, str(class_def.get("iconPath", ""))
 		)
 	if _name_label:
-		_name_label.text = str(class_def.get("name", class_id))
+		_name_label.text = ContentTextScript.name(class_def, class_id)
+	var description := ContentTextScript.description(class_def)
+	tooltip_text = description
+	if _description_label:
+		_description_label.text = description
 	if _role_label:
 		var role_key := str(class_def.get("role", ""))
 		var role_text := tr(role_key) if role_key != "" else ""
@@ -77,6 +83,11 @@ func _build_ui() -> void:
 	GameUISkinScript.style_hint_label(_role_label)
 	_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text_col.add_child(_role_label)
+	_description_label = Label.new()
+	_description_label.name = "DescriptionLabel"
+	_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_body_label(_description_label)
+	text_col.add_child(_description_label)
 	_selected_mark = TextureRect.new()
 	_selected_mark.name = "SelectedMark"
 	_selected_mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

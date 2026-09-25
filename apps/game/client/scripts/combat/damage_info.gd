@@ -49,6 +49,13 @@ var backstab_multiplier_override: float = 0.0
 ## interception path.
 var is_projectile: bool = false
 var weapon_item_id: String = ""
+## Stable for every contact from one committed swing/shot. Presentation uses this to budget a
+## global hitstop pulse once per attack rather than once per victim.
+var root_attack_id: String = ""
+## Damage dealt at short intervals while an accepted grab remains attached; zero preserves the
+## ordinary single-release grab contract.
+var grab_duration: float = 0.0
+var grab_drain_per_second: float = 0.0
 
 
 static func create(
@@ -103,6 +110,9 @@ func copy_with(amount_override: Variant = null, poise_override: Variant = null) 
 	copy.backstab_multiplier_override = backstab_multiplier_override
 	copy.is_projectile = is_projectile
 	copy.weapon_item_id = weapon_item_id
+	copy.root_attack_id = root_attack_id
+	copy.grab_duration = grab_duration
+	copy.grab_drain_per_second = grab_drain_per_second
 	return copy
 
 

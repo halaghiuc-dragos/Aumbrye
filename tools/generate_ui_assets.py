@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Generate character voxel JSON for Aumbrye.
+"""Deprecated placeholder character generator retained as a migration notice.
 
 This used to generate the status and item icon sheets too, from a table of twenty item ids and
 five status ids, as flat colour blobs. It was the reason half the colourblind status sheet was
 empty and the item atlas had a placeholder era baked into it -- running it overwrote the authored
 artwork. Those sheets now come from tools/icon-gen/atlas_build.py, which draws all of them to one
 set of rules; nothing about icons is generated here any more.
+The sculpted character generator at ``tools/generate_character_voxels.py`` is the sole owner of
+character voxel assets and rig manifests. This old cuboid writer targets the same paths and must
+not be run: doing so would replace reviewed silhouettes with placeholder boxes.
 """
 
 from __future__ import annotations
@@ -81,36 +84,14 @@ PROFILES = {
 
 
 def generate_character_assets() -> None:
-    CONTENT_CHARS.mkdir(parents=True, exist_ok=True)
-    for archetype, spec in PROFILES.items():
-        out_dir = ASSETS_CHARS / archetype
-        out_dir.mkdir(parents=True, exist_ok=True)
-        manifest = {
-            "id": archetype,
-            "grid": VOXEL_EDGE,
-            "profile": spec["profile"],
-            "parts": {},
-        }
-        for part_name, part in spec["parts"].items():
-            fname = part_name.lower() + ".voxels.json"
-            rel_mesh = f"res://assets/characters/{archetype}/{fname}"
-            color = [0.55, 0.58, 0.62] if "enemy" in archetype else [0.42, 0.48, 0.55]
-            vox = _voxels_from_size(part["size"], color)
-            (out_dir / fname).write_text(json.dumps(vox, indent=2), encoding="utf-8")
-            entry = {"mesh": rel_mesh, "joint": part["joint"]}
-            if "parent" in part:
-                entry["parent"] = part["parent"]
-            if part_name == "ArmL":
-                entry["mount"] = "ShieldMount"
-            if part_name == "ArmR":
-                entry["mount"] = "WeaponMount"
-            manifest["parts"][part_name] = entry
-        (CONTENT_CHARS / f"{archetype}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    raise SystemExit(
+        "This cuboid generator is retired to protect reviewed character assets. "
+        "Use tools/generate_character_voxels.py, the sole character-voxel owner."
+    )
 
 
 def main() -> None:
     generate_character_assets()
-    print("Generated character assets.")
 
 
 if __name__ == "__main__":

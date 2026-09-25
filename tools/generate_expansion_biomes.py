@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from generated_manifest import prepare_write, record_write
+from generated_manifest import write_generated_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
@@ -242,11 +242,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
 """
     path = folder / f"{template_id}.tscn"
-    if not prepare_write(path, tscn, force=force, dry_run=dry_run):
-        return
-    folder.mkdir(parents=True, exist_ok=True)
-    path.write_text(tscn, encoding="utf-8")
-    record_write(path, tscn)
+    write_generated_text(
+        path,
+        tscn,
+        generator=Path(__file__).resolve(),
+        sources=[Path(__file__).resolve()],
+        force=force,
+        dry_run=dry_run,
+    )
 
 
 def write_biome_json(biome: dict, *, force: bool, dry_run: bool) -> None:
@@ -271,10 +274,14 @@ def write_biome_json(biome: dict, *, force: bool, dry_run: bool) -> None:
     }
     path = CONTENT / "biomes" / f"{biome['id']}.json"
     text = json.dumps(data, indent=2) + "\n"
-    if not prepare_write(path, text, force=force, dry_run=dry_run):
-        return
-    path.write_text(text, encoding="utf-8")
-    record_write(path, text)
+    write_generated_text(
+        path,
+        text,
+        generator=Path(__file__).resolve(),
+        sources=[Path(__file__).resolve()],
+        force=force,
+        dry_run=dry_run,
+    )
 
 
 def write_audio_profile(biome: dict, *, force: bool, dry_run: bool) -> None:
@@ -296,10 +303,14 @@ def write_audio_profile(biome: dict, *, force: bool, dry_run: bool) -> None:
     }
     path = CONTENT / "audio_profiles" / f"{biome['id']}.json"
     text = json.dumps(data, indent=2) + "\n"
-    if not prepare_write(path, text, force=force, dry_run=dry_run):
-        return
-    path.write_text(text, encoding="utf-8")
-    record_write(path, text)
+    write_generated_text(
+        path,
+        text,
+        generator=Path(__file__).resolve(),
+        sources=[Path(__file__).resolve()],
+        force=force,
+        dry_run=dry_run,
+    )
 
 
 def parse_args() -> argparse.Namespace:

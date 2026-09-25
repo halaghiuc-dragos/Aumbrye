@@ -1,4 +1,5 @@
 import { parseFrontmatter } from "./frontmatter";
+import { findPatchNoteContent, findWikiContent } from "./content-paths";
 
 export type WikiPage = {
   slug: string;
@@ -90,7 +91,7 @@ export const patchNotes: PatchNote[] = Object.values(patchNoteModules)
   });
 
 export function getWikiPage(slug: string): WikiPage | undefined {
-  return wikiPages.find((page) => page.slug === slug);
+  return findWikiContent(wikiPages, slug);
 }
 
 /**
@@ -100,8 +101,5 @@ export function getWikiPage(slug: string): WikiPage | undefined {
  * version alone made any custom-slugged note 404 its own list entry.
  */
 export function getPatchNote(slugOrVersion: string): PatchNote | undefined {
-  return (
-    patchNotes.find((entry) => entry.slug === slugOrVersion) ??
-    patchNotes.find((entry) => entry.version === slugOrVersion)
-  );
+  return findPatchNoteContent(patchNotes, slugOrVersion);
 }

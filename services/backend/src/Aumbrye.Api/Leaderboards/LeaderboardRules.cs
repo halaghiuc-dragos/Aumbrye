@@ -4,7 +4,7 @@ namespace Aumbrye.Api.Leaderboards;
 
 public static class LeaderboardRules
 {
-    public const string Version = "2026.09.15";
+    public const string Version = RankedLeaderboardContract.RulesVersion;
     public const int MinimumTier = 1;
     public const int MaximumTier = 10;
 

@@ -144,10 +144,11 @@ func on_hit(
 	damage_type: String = "physical",
 	impact: int = ImpactClass.SOLID,
 	crit: bool = false,
-	poise_broke: bool = false
+	poise_broke: bool = false,
+	root_attack_id: String = ""
 ) -> void:
 	hit_landed.emit(target, damage)
-	_freeze_attacker(impact)
+	_freeze_attacker(impact, root_attack_id)
 	_apply_impact_recoil(impact)
 	_apply_camera_punch(direction, impact)
 	_apply_vibration(impact)
@@ -194,9 +195,10 @@ func on_hit_received(
 	damage: float,
 	direction: Vector3 = Vector3.ZERO,
 	damage_type: String = "physical",
-	impact: int = ImpactClass.SOLID
+	impact: int = ImpactClass.SOLID,
+	root_attack_id: String = ""
 ) -> void:
-	_freeze_victim(impact)
+	_freeze_victim(impact, root_attack_id)
 	_apply_camera_punch(direction, impact)
 	_apply_vibration(impact)
 	_play_combat_sfx_at_body("hit")
@@ -272,17 +274,17 @@ func _spawn_damage_number(
 
 ## `PH-02`: called on the attacker's own `HitFeedback` (see `on_hit()`). Left at the impact
 ## class's base freeze duration -- the attacker is meant to recover first.
-func _freeze_attacker(impact: int) -> void:
-	_apply_hitstop(impact, false)
+func _freeze_attacker(impact: int, root_attack_id: String = "") -> void:
+	_apply_hitstop(impact, false, root_attack_id)
 
 
 ## Called on the victim's own `HitFeedback` (see `on_hit_received()`). Longer than
 ## `_freeze_attacker()` by `VICTIM_FREEZE_MULT` for the same impact class.
-func _freeze_victim(impact: int) -> void:
-	_apply_hitstop(impact, true)
+func _freeze_victim(impact: int, root_attack_id: String = "") -> void:
+	_apply_hitstop(impact, true, root_attack_id)
 
 
-func _apply_hitstop(impact: int = ImpactClass.SOLID, is_victim: bool = false) -> void:
+func _apply_hitstop(impact: int = ImpactClass.SOLID, is_victim: bool = false, root_attack_id: String = "") -> void:
 	if feedback_intensity <= 0.0 or AccessibilitySettings.hitstop_scale() <= 0.0:
 		return
 	var duration := _freeze_duration(impact) * AccessibilitySettings.hitstop_scale()
@@ -291,8 +293,16 @@ func _apply_hitstop(impact: int = ImpactClass.SOLID, is_victim: bool = false) ->
 	if duration <= 0.0:
 		return
 	var duration_ms := int(duration * 1000.0)
-	if impact == ImpactClass.CRITICAL:
-		VfxService.push_time_scale(&"hitstop", HITSTOP_TIME_SCALE, duration_ms)
+	var body := get_parent()
+	var player_contact := body != null and body.is_in_group("player")
+	# Light secondary contacts retain their local animation freeze. A global pulse is reserved for
+	# player contact, criticals and parries; its attack-owned key means a cleave can extend one
+	# bounded pulse but cannot stack a full stop for every victim.
+	if root_attack_id != "" and (player_contact or impact in [ImpactClass.CRITICAL, ImpactClass.PARRY]):
+		var global_duration := _freeze_duration(impact)
+		if is_victim:
+			global_duration *= VICTIM_FREEZE_MULT
+		VfxService.request_attack_hitstop(root_attack_id, roundi(global_duration * 1000.0), HITSTOP_TIME_SCALE)
 	var director := _director()
 	if director and director.has_method("begin_hitstop"):
 		var until_ms := Time.get_ticks_msec() + duration_ms

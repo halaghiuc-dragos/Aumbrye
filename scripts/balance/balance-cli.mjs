@@ -670,6 +670,164 @@ function loadWeapons() {
   });
 }
 
+function readGdNumberConstant(path, name) {
+  const source = readFileSync(path, "utf8");
+  const match = source.match(new RegExp(`const ${name} := ([0-9]+(?:\\.[0-9]+)?)`));
+  if (!match) throw new Error(`Could not read ${name} from ${path}`);
+  return Number(match[1]);
+}
+
+function readModifierFactors(path, methodName) {
+  const source = readFileSync(join(repoRoot, "apps/game/client/scripts/dungeon/difficulty_profile.gd"), "utf8");
+  const start = source.indexOf(`static func ${methodName}()`);
+  if (start < 0) throw new Error(`Could not find ${methodName} in ${path}`);
+  const nextMethod = source.indexOf("\n\nstatic func ", start + 1);
+  const body = source.slice(start, nextMethod < 0 ? source.length : nextMethod);
+  const factors = {};
+  for (const match of body.matchAll(/MODIFIER_([A-Z_]+)\):\s*factor \*= ([0-9]+(?:\.[0-9]+)?)/g)) {
+    factors[match[1].toLowerCase()] = Number(match[2]);
+  }
+  return factors;
+}
+
+function difficultyModifierScenarios(hpFactors, damageFactors) {
+  const scenarios = [
+    { id: "none", modifiers: [] },
+    { id: "armoured_foes", modifiers: ["armoured_foes"] },
+    { id: "volatile_foes", modifiers: ["volatile_foes"] },
+    { id: "armoured_and_volatile", modifiers: ["armoured_foes", "volatile_foes"] },
+  ];
+  return scenarios.map((scenario) => {
+    const factor = (table) => scenario.modifiers.reduce(
+      (value, modifier) => value * (table[modifier] ?? 1), 1,
+    );
+    return {
+      ...scenario,
+      hpFactor: factor(hpFactors),
+      damageFactor: factor(damageFactors),
+    };
+  });
+}
+
+function buildDifficultyCurveReport() {
+  const castleScript = join(repoRoot, "apps/game/client/scripts/dungeon/castle_tier_difficulty.gd");
+  const wavesScript = join(repoRoot, "apps/game/client/scripts/dungeon/waves_difficulty.gd");
+  const profileScript = join(repoRoot, "apps/game/client/scripts/dungeon/difficulty_profile.gd");
+  const runModifierScript = join(repoRoot, "apps/game/client/scripts/dungeon/run_modifier_service.gd");
+  const castleHpCap = readGdNumberConstant(castleScript, "HP_COMBINED_CAP");
+  const castleDamageCap = readGdNumberConstant(castleScript, "DAMAGE_COMBINED_CAP");
+  const waveHpCap = readGdNumberConstant(wavesScript, "HP_CAP");
+  const waveDamageCap = readGdNumberConstant(wavesScript, "DAMAGE_CAP");
+  const waveHpGrowth = readGdNumberConstant(wavesScript, "HP_PER_WAVE");
+  const waveDamageGrowth = readGdNumberConstant(wavesScript, "DAMAGE_PER_WAVE");
+  const wavePressureEnd = readGdNumberConstant(profileScript, "WAVES_FULL_PRESSURE_WAVE");
+  const modifiers = difficultyModifierScenarios(
+    readModifierFactors(runModifierScript, "modifier_hp_factor"),
+    readModifierFactors(runModifierScript, "modifier_damage_factor"),
+  );
+  const round3 = (value) => Number(value.toFixed(3));
+  const sampledFloors = [1, 2, 5, 10, 25, 50, 100];
+
+  const castles = listJsonFiles(join(contentRoot, "dungeons")).map((file) => {
+    const dungeon = readJson(file);
+    return {
+      id: dungeon.id,
+      hpCap: castleHpCap,
+      damageCap: castleDamageCap,
+      floors: sampledFloors.map((floor) => ({
+        floor,
+        tiers: (dungeon.difficultyTiers ?? []).map((tier) => ({
+          tier: tier.tier,
+          label: tier.label,
+          samples: modifiers.map((scenario) => {
+            const rawHp = Number(tier.hpMult ?? 1) * (1 + Number(dungeon.floorHpGrowth ?? 0) * (floor - 1));
+            const rawDamage = Number(tier.damageMult ?? 1) * (1 + Number(dungeon.floorDamageGrowth ?? 0) * (floor - 1));
+            return {
+              modifiers: scenario.modifiers,
+              hpFactor: round3(scenario.hpFactor),
+              damageFactor: round3(scenario.damageFactor),
+              rawHp: round3(rawHp * scenario.hpFactor),
+              hp: round3(Math.min(castleHpCap, rawHp * scenario.hpFactor)),
+              hpCapped: rawHp * scenario.hpFactor >= castleHpCap,
+              rawDamage: round3(rawDamage * scenario.damageFactor),
+              damage: round3(Math.min(castleDamageCap, rawDamage * scenario.damageFactor)),
+              damageCapped: rawDamage * scenario.damageFactor >= castleDamageCap,
+            };
+          }),
+        })),
+      })),
+    };
+  });
+
+  const waves = readJson(join(contentRoot, "waves", "umbral_waves.json"));
+  const count = waves.count ?? {};
+  const rosterUnlocks = waves.roster_unlocks ?? [];
+  const bossUnlocks = waves.boss_unlocks ?? [];
+  const waveRows = [];
+  for (let wave = 1; wave <= Number(waves.finalWave ?? 50); wave++) {
+    const isBoss = wave === Number(waves.finalWave ?? 50) || wave % Number(waves.bossEvery ?? 10) === 0;
+    const isIntermission = wave < Number(waves.finalWave ?? 50) && wave % Number(waves.intermissionEvery ?? 5) === 0;
+    let enemyCount = Math.min(
+      Number(count.base ?? 3) + (wave >> 1) * Number(count.per_half_wave ?? 1),
+      Number(count.cap ?? 14),
+    );
+    if (isBoss) enemyCount = Math.max(2, enemyCount >> 1);
+    else if (isIntermission) enemyCount += Number(count.milestone_bonus ?? 2);
+    const unlocked = rosterUnlocks
+      .filter((entry) => wave >= Number(entry.wave ?? 0))
+      .sort((a, b) => Number(a.wave) - Number(b.wave));
+    const activeBands = unlocked.slice(-3);
+    const activeRoster = activeBands.flatMap((entry) => entry.ids ?? []);
+    const useBaseRoster = unlocked.length < 3 || activeRoster.length === 0;
+    let roster = useBaseRoster ? [...(waves.base_roster ?? [])] : [...activeRoster];
+    const bossBand = bossUnlocks
+      .filter((entry) => wave >= Number(entry.wave ?? 0))
+      .sort((a, b) => Number(a.wave) - Number(b.wave))
+      .at(-1);
+    const bossPool = bossBand?.ids ?? waves.milestone_bosses ?? [];
+    const spawnPool = useBaseRoster ? [...(waves.base_roster ?? [])] : [...roster];
+    if (isBoss) for (const bossId of bossPool) if (!spawnPool.includes(bossId)) spawnPool.push(bossId);
+    if (spawnPool.length === 0) {
+      for (const bossId of waves.milestone_bosses ?? []) spawnPool.push(bossId);
+    }
+    const hpBase = Math.min(waveHpCap, 1 + Math.max(0, wave - 1) * waveHpGrowth);
+    const damageBase = Math.min(waveDamageCap, 1 + Math.max(0, wave - 1) * waveDamageGrowth);
+    waveRows.push({
+      wave,
+      hpCap: waveHpCap,
+      damageCap: waveDamageCap,
+      hp: modifiers.map((scenario) => ({
+        modifiers: scenario.modifiers,
+        value: round3(Math.min(waveHpCap, hpBase * scenario.hpFactor)),
+        capped: hpBase * scenario.hpFactor >= waveHpCap,
+      })),
+      damage: modifiers.map((scenario) => ({
+        modifiers: scenario.modifiers,
+        value: round3(Math.min(waveDamageCap, damageBase * scenario.damageFactor)),
+        capped: damageBase * scenario.damageFactor >= waveDamageCap,
+      })),
+      behaviourPressure: round3(Math.min(1, Math.max(0, wave - 1) / wavePressureEnd)),
+      baseEnemyCount: enemyCount,
+      boss: isBoss && bossPool.length > 0 ? { eligiblePool: bossPool } : null,
+      totalEnemyCount: enemyCount,
+      activeRosterBandWaves: activeBands.map((entry) => Number(entry.wave)),
+      activeRosterIds: useBaseRoster ? [] : activeRoster,
+      spawnPoolIds: spawnPool,
+      intermission: isIntermission,
+    });
+  }
+
+  return {
+    source: "runtime GDScript constants + authored dungeon/wave content",
+    castle: castles,
+    waves: {
+      id: waves.id,
+      finalWave: Number(waves.finalWave ?? 50),
+      sampledCurve: waveRows,
+    },
+  };
+}
+
 function buildExport() {
   const enemies = loadEnemies();
   const biomes = loadBiomes();
@@ -812,6 +970,7 @@ function buildExport() {
       xpToLevel,
       runsToLevelCap,
     },
+    difficultyCurves: buildDifficultyCurveReport(),
     outliers,
   };
 }

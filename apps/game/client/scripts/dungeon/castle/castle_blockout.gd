@@ -131,6 +131,8 @@ var _pending_stairs: Array[Dictionary] = []
 var _navigation_map: RID = RID()
 var _geometry_dirty: bool = true
 var _nav_bake_count: int = 0
+static var _navigation_template_cache: Dictionary = {}
+static var _navigation_template_max_usec := 0
 var _applying_kind_spec := false
 var _rebuild_queued := false
 
@@ -208,6 +210,7 @@ func _rebuild() -> void:
 		if build_ceiling:
 			_build_curved_ceiling()
 	else:
+		var structural_height := _structural_wall_height()
 		if not skip_floor:
 			if shape == &"split":
 				_build_split_floor()
@@ -215,31 +218,35 @@ func _rebuild() -> void:
 				_build_floor()
 		_build_wall(
 			Vector3(0.0, 0.0, -room_depth * 0.5),
-			Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS),
+			Vector3(room_width, structural_height, CastleRoomConstants.WALL_THICKNESS),
 			door_north,
 			true,
-			door_north_offset
+			door_north_offset,
+			socket_landing_height(CastleRoomConstants.Direction.NORTH)
 		)
 		_build_wall(
 			Vector3(0.0, 0.0, room_depth * 0.5),
-			Vector3(room_width, wall_height, CastleRoomConstants.WALL_THICKNESS),
+			Vector3(room_width, structural_height, CastleRoomConstants.WALL_THICKNESS),
 			door_south,
 			true,
-			door_south_offset
+			door_south_offset,
+			socket_landing_height(CastleRoomConstants.Direction.SOUTH)
 		)
 		_build_wall(
 			Vector3(room_width * 0.5, 0.0, 0.0),
-			Vector3(CastleRoomConstants.WALL_THICKNESS, wall_height, room_depth),
+			Vector3(CastleRoomConstants.WALL_THICKNESS, structural_height, room_depth),
 			door_east,
 			false,
-			door_east_offset
+			door_east_offset,
+			socket_landing_height(CastleRoomConstants.Direction.EAST)
 		)
 		_build_wall(
 			Vector3(-room_width * 0.5, 0.0, 0.0),
-			Vector3(CastleRoomConstants.WALL_THICKNESS, wall_height, room_depth),
+			Vector3(CastleRoomConstants.WALL_THICKNESS, structural_height, room_depth),
 			door_west,
 			false,
-			door_west_offset
+			door_west_offset,
+			socket_landing_height(CastleRoomConstants.Direction.WEST)
 		)
 		_build_pending_stairs()
 		if build_ceiling:
@@ -292,6 +299,7 @@ func _build_floor() -> void:
 	floor_body.name = "Floor"
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
+	floor_body.add_to_group("walkable_floor")
 	_geometry_root.add_child(floor_body)
 	if Engine.is_editor_hint():
 		floor_body.owner = get_tree().edited_scene_root
@@ -325,6 +333,20 @@ func _build_floor() -> void:
 const BALCONY_RISE := 3.0
 
 
+## The raised half of a split room is north of the internal seam. East/west exterior doors are
+## intentionally unsupported by the template catalog because they would land on that seam.
+func socket_landing_height(direction: CastleRoomConstants.Direction) -> float:
+	if shape == &"split" and direction == CastleRoomConstants.Direction.NORTH:
+		return BALCONY_RISE
+	return 0.0
+
+
+func _structural_wall_height() -> float:
+	# A raised doorway still needs a full-height player opening and lintel. Raising only the floor
+	# beneath it would otherwise cut the opening above the ceiling.
+	return wall_height + BALCONY_RISE if shape == &"split" else wall_height
+
+
 func _build_split_floor() -> void:
 	var half_w := room_width * 0.5
 	var half_d := room_depth * 0.5
@@ -340,6 +362,7 @@ func _build_split_floor_half(center: Vector3, xz_size: Vector2, base_y: float, b
 	floor_body.name = body_name
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
+	floor_body.add_to_group("walkable_floor")
 	_geometry_root.add_child(floor_body)
 	if Engine.is_editor_hint():
 		floor_body.owner = get_tree().edited_scene_root
@@ -394,7 +417,7 @@ func _build_ceiling() -> void:
 		ceiling_body.owner = get_tree().edited_scene_root
 
 	var size := Vector3(room_width, CEILING_THICKNESS, room_depth)
-	var center_y := wall_height + CEILING_THICKNESS * 0.5
+	var center_y := _structural_wall_height() + CEILING_THICKNESS * 0.5
 	var mesh_instance := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
@@ -437,6 +460,7 @@ func _build_curved_floor() -> void:
 	floor_body.name = "Floor"
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
+	floor_body.add_to_group("walkable_floor")
 	_geometry_root.add_child(floor_body)
 	if Engine.is_editor_hint():
 		floor_body.owner = get_tree().edited_scene_root
@@ -627,6 +651,7 @@ func _build_curved_stub(
 	floor_body.name = "StubFloor"
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
+	floor_body.add_to_group("walkable_floor")
 	floor_body.set_meta("surface", "stone")
 	_geometry_root.add_child(floor_body)
 	if Engine.is_editor_hint():
@@ -692,7 +717,12 @@ func _add_curved_wall_segment(
 ## stretch of wall on one side than the other. `door_offset` is clamped so the opening always stays
 ## fully inside the wall -- a door that ran off the end would leave a hole into solid rock.
 func _build_wall(
-	center: Vector3, size: Vector3, has_door: bool, spans_x: bool, door_offset: float = 0.0
+	center: Vector3,
+	size: Vector3,
+	has_door: bool,
+	spans_x: bool,
+	door_offset: float = 0.0,
+	door_base_y: float = 0.0
 ) -> void:
 	if not has_door:
 		_add_wall_segment(center, size)
@@ -731,9 +761,22 @@ func _build_wall(
 				Vector3(size.x, size.y, high)
 			)
 
-	var lintel_h := wall_height - CastleRoomConstants.DOOR_HEIGHT
+	# A raised landing must not leave a full-height hole under the floor. The sill and lintel make
+	# the opening exactly [door_base_y, door_base_y + DOOR_HEIGHT], matching the socket contract.
+	if door_base_y > 0.0:
+		if spans_x:
+			_add_wall_segment(
+				Vector3(center.x + offset, center.y, center.z),
+				Vector3(door, door_base_y, size.z)
+			)
+		else:
+			_add_wall_segment(
+				Vector3(center.x, center.y, center.z + offset),
+				Vector3(size.x, door_base_y, door)
+			)
+	var lintel_h := size.y - door_base_y - CastleRoomConstants.DOOR_HEIGHT
 	if lintel_h > 0.0:
-		var lintel_y := CastleRoomConstants.DOOR_HEIGHT
+		var lintel_y := door_base_y + CastleRoomConstants.DOOR_HEIGHT
 		if spans_x:
 			_add_wall_segment(
 				Vector3(center.x + offset, lintel_y, center.z),
@@ -822,31 +865,119 @@ func _build_navigation_mesh() -> void:
 		_nav_region.free()
 	_nav_region = NavigationRegion3D.new()
 	_nav_region.name = "NavigationRegion3D"
+	_nav_region.enabled = true
 	add_child(_nav_region)
 	if Engine.is_editor_hint():
 		_nav_region.owner = get_tree().edited_scene_root
 
+	var nav_mesh := _navigation_template()
+	# Geometry doors are joined by DungeonBuilder's explicit links. Their immutable room footprint
+	# needs no collider parsing or synchronous bake on every rebuild.
+	_nav_region.navigation_mesh = nav_mesh
+	if _navigation_map != RID():
+		_nav_region.set_navigation_map(_navigation_map)
+		# Region server state is created as the node enters the tree. Synchronize on the next idle
+		# frame so a runtime rebuild cannot publish the empty pre-build snapshot.
+		call_deferred("_sync_navigation_region_server")
+
+
+func _sync_navigation_region_server() -> void:
+	var region := _nav_region
+	if region == null or not is_instance_valid(region):
+		return
+	if _navigation_map == RID():
+		return
+	var nav_mesh := region.navigation_mesh
+	if nav_mesh == null:
+		return
+	var region_rid := region.get_region_rid()
+	NavigationServer3D.region_set_map(region_rid, _navigation_map)
+	NavigationServer3D.region_set_navigation_mesh(region_rid, nav_mesh)
+	NavigationServer3D.region_set_transform(region_rid, global_transform)
+
+
+func _navigation_template() -> NavigationMesh:
+	var key := "%s:%.2f:%.2f" % [shape, room_width, room_depth]
+	var cached := _navigation_template_cache.get(key) as NavigationMesh
+	if cached != null:
+		return cached
+	var started_usec := Time.get_ticks_usec()
 	var nav_mesh := NavigationMesh.new()
 	nav_mesh.cell_size = NAV_CELL_SIZE
 	nav_mesh.cell_height = NAV_CELL_SIZE
 	nav_mesh.agent_height = ceilf(NAV_AGENT_HEIGHT / NAV_CELL_SIZE) * NAV_CELL_SIZE
 	nav_mesh.agent_radius = ceilf(NAV_AGENT_RADIUS / NAV_CELL_SIZE) * NAV_CELL_SIZE
 	nav_mesh.agent_max_climb = 0.5
-	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	nav_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nav_mesh.filter_low_hanging_obstacles = true
-	_nav_region.navigation_mesh = nav_mesh
-
-	var source_data := NavigationMeshSourceGeometryData3D.new()
-	if _geometry_root != null:
-		NavigationServer3D.parse_source_geometry_data(nav_mesh, source_data, _geometry_root)
-	var cover_root := get_node_or_null("CoverObstacles")
-	if cover_root != null:
-		NavigationServer3D.parse_source_geometry_data(nav_mesh, source_data, cover_root)
-	NavigationServer3D.bake_from_source_geometry_data(nav_mesh, source_data)
+	if shape == &"split":
+		_build_split_navigation_mesh(nav_mesh)
+	else:
+		_build_flat_navigation_mesh(nav_mesh)
+	nav_mesh.emit_changed()
+	_navigation_template_cache[key] = nav_mesh
+	_navigation_template_max_usec = maxi(_navigation_template_max_usec, Time.get_ticks_usec() - started_usec)
 	_nav_bake_count += 1
-	if _navigation_map != RID():
-		_nav_region.set_navigation_map(_navigation_map)
+	return nav_mesh
+
+
+static func navigation_template_cache_size() -> int:
+	return _navigation_template_cache.size()
+
+
+static func navigation_template_max_usec() -> int:
+	return _navigation_template_max_usec
+
+
+func navigation_template_build_count() -> int:
+	return _nav_bake_count
+
+
+## The balcony has two disconnected walkable surfaces and a one-way drop between them. Godot's
+## collision-source parser omits this generated split geometry, so define its two authored floor
+## polygons directly. Inter-room traversal remains governed by the builder's explicit links.
+func _build_split_navigation_mesh(nav_mesh: NavigationMesh) -> void:
+	var inset := NAV_AGENT_RADIUS + 0.1
+	var half_w := maxf(0.25, room_width * 0.5 - inset)
+	var half_d := maxf(0.25, room_depth * 0.5 - inset)
+	nav_mesh.vertices = PackedVector3Array(
+		[
+			Vector3(-half_w, BALCONY_RISE, -half_d),
+			Vector3(-half_w, BALCONY_RISE, -0.05),
+			Vector3(half_w, BALCONY_RISE, -0.05),
+			Vector3(half_w, BALCONY_RISE, -half_d),
+			Vector3(-half_w, 0.0, 0.05),
+			Vector3(-half_w, 0.0, half_d),
+			Vector3(half_w, 0.0, half_d),
+			Vector3(half_w, 0.0, 0.05),
+		]
+	)
+	nav_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	nav_mesh.add_polygon(PackedInt32Array([4, 5, 6, 7]))
+
+
+func _build_flat_navigation_mesh(nav_mesh: NavigationMesh) -> void:
+	var inset := NAV_AGENT_RADIUS + 0.1
+	var half_w := maxf(0.25, room_width * 0.5 - inset)
+	var half_d := maxf(0.25, room_depth * 0.5 - inset)
+	if shape == &"round" or shape == &"octagon":
+		var points := PackedVector3Array()
+		var sides := ROUND_WALL_SEGMENTS if shape == &"round" else OCTAGON_WALL_SEGMENTS
+		var radius := maxf(0.25, minf(half_w, half_d))
+		for index in sides:
+			var angle := TAU * float(index) / float(sides)
+			points.append(Vector3(cos(angle) * radius, 0.0, sin(angle) * radius))
+		nav_mesh.vertices = points
+		nav_mesh.add_polygon(PackedInt32Array(range(sides)))
+		return
+	nav_mesh.vertices = PackedVector3Array(
+		[
+			Vector3(-half_w, 0.0, -half_d),
+			Vector3(-half_w, 0.0, half_d),
+			Vector3(half_w, 0.0, half_d),
+			Vector3(half_w, 0.0, -half_d),
+		]
+	)
+	nav_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+
 
 
 func get_navigation_map() -> RID:
@@ -857,9 +988,24 @@ func get_navigation_map() -> RID:
 	return _nav_region.get_navigation_map()
 
 
+func get_navigation_vertex_count() -> int:
+	if _nav_region == null or _nav_region.navigation_mesh == null:
+		return 0
+	return _nav_region.navigation_mesh.get_vertices().size()
+
+
+func get_navigation_polygon_count() -> int:
+	if _nav_region == null or _nav_region.navigation_mesh == null:
+		return 0
+	return _nav_region.navigation_mesh.get_polygon_count()
+
+
 func set_navigation_map(map: RID) -> void:
 	_navigation_map = map
+	if map != RID():
+		NavigationServer3D.map_set_active(map, true)
 	if _nav_region != null:
+		_nav_region.enabled = true
 		_nav_region.set_navigation_map(map)
 	for link in _nav_links:
 		if is_instance_valid(link):
@@ -869,6 +1015,11 @@ func set_navigation_map(map: RID) -> void:
 func sample_random_nav_point(rng: RandomNumberGenerator) -> Dictionary:
 	var map := get_navigation_map()
 	if map == RID() or rng == null:
+		return {"ok": false}
+	## Navigation regions are registered asynchronously after a floor build. Querying before the
+	## first map iteration logs an engine error and returns an unusable point, so fall back to the
+	## authored placement offset until the map has synchronized.
+	if NavigationServer3D.map_get_iteration_id(map) == 0:
 		return {"ok": false}
 	var inset := 1.0
 	var half_w := maxf(room_width * 0.5 - inset, 0.5)
@@ -957,6 +1108,14 @@ func _build_height_stairs(
 ) -> void:
 	var step_depth := 0.8
 	var width := CastleRoomConstants.DOOR_WIDTH + 1.0
+	var stairs_body := StaticBody3D.new()
+	stairs_body.name = "WalkableStairs"
+	stairs_body.collision_layer = 1
+	stairs_body.collision_mask = 0
+	stairs_body.add_to_group("walkable_floor")
+	_geometry_root.add_child(stairs_body)
+	if Engine.is_editor_hint():
+		stairs_body.owner = get_tree().edited_scene_root
 	for i in step_count:
 		var back := float(step_count - 1 - i) * step_depth
 		var base_y := step_height * float(i)
@@ -972,8 +1131,29 @@ func _build_height_stairs(
 		else:
 			center = Vector3(-room_width * 0.5 + back, base_y, lateral)
 			size = Vector3(step_depth, step_height, width)
-		_add_wall_segment(center, size, floor_material)
-	_build_stair_landing(step_count, direction, step_height, lateral, step_depth, width)
+		_add_stair_segment(stairs_body, center, size)
+	_build_stair_landing(stairs_body, step_count, direction, step_height, lateral, step_depth, width)
+
+
+func _add_stair_segment(body: StaticBody3D, center: Vector3, size: Vector3) -> void:
+	var mesh_instance := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh_instance.mesh = box
+	mesh_instance.position = center + Vector3(0.0, size.y * 0.5, 0.0)
+	if floor_material != null:
+		mesh_instance.material_override = floor_material
+	body.add_child(mesh_instance)
+	if Engine.is_editor_hint():
+		mesh_instance.owner = get_tree().edited_scene_root
+	var collision := CollisionShape3D.new()
+	var box_shape := BoxShape3D.new()
+	box_shape.size = size
+	collision.shape = box_shape
+	collision.position = mesh_instance.position
+	body.add_child(collision)
+	if Engine.is_editor_hint():
+		collision.owner = get_tree().edited_scene_root
 
 
 ## A flat tread pushed one step-depth past the wall, at the flight's full height, so the player
@@ -981,6 +1161,7 @@ func _build_height_stairs(
 ## inside the room. Its base sits one `step_height` below the flight's top, same convention as the
 ## treads above.
 func _build_stair_landing(
+	body: StaticBody3D,
 	step_count: int,
 	direction: Vector2i,
 	step_height: float,
@@ -1001,7 +1182,7 @@ func _build_stair_landing(
 	else:
 		center = Vector3(-room_width * 0.5 - step_depth * 0.5, base_y, lateral)
 		size = Vector3(step_depth, step_height, width)
-	_add_wall_segment(center, size, floor_material)
+	_add_stair_segment(body, center, size)
 
 
 func sync_dimensions_from_kind() -> void:

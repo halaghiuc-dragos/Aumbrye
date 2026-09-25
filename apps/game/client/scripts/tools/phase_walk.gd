@@ -27,6 +27,11 @@ func _ready() -> void:
 	if RunFlow and not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
 	_ensure_playable_character()
+	var repeat_main_menu := _repeat_main_menu_arg()
+	if repeat_main_menu > 0:
+		await _walk_repeated_main_menu(repeat_main_menu)
+		get_tree().quit(0)
+		return
 	match _phase:
 		"main_menu", "character_create", "castle_entry", "endless_menu", "waves_menu", \
 		"results", "loading":
@@ -87,6 +92,36 @@ func _phase_arg() -> String:
 	return "hub"
 
 
+func _repeat_main_menu_arg() -> int:
+	for arg in OS.get_cmdline_user_args():
+		if str(arg).begins_with("--repeat-main-menu="):
+			return clampi(int(str(arg).substr("--repeat-main-menu=".length())), 1, 20)
+	return 0
+
+
+func _walk_repeated_main_menu(count: int) -> void:
+	var baseline := _lifecycle_snapshot()
+	var previous := baseline
+	var peak_delta := 0
+	for cycle in count:
+		await _walk_scene(str(UI_SCENES["main_menu"]), 12)
+		await get_tree().process_frame
+		var current := _lifecycle_snapshot()
+		peak_delta = maxi(peak_delta, int(current["objects"]) - int(baseline["objects"]))
+		print("LIFECYCLE main_menu %d/%d %s" % [cycle + 1, count, current])
+		previous = current
+	print("LIFECYCLE RESULT baseline=%s final=%s peak_object_delta=%d" % [baseline, previous, peak_delta])
+
+
+func _lifecycle_snapshot() -> Dictionary:
+	return {
+		"objects": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		"resources": int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
+		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
+	}
+
+
 func _ensure_playable_character() -> void:
 	if CharacterService.class_id != "":
 		return
@@ -110,7 +145,10 @@ func _walk_scene(path: String, frames: int) -> void:
 	for i in frames:
 		await get_tree().process_frame
 	instance.queue_free()
-	await get_tree().process_frame
+	# Control/theme resources can be released after the deletion queue and renderer have both
+	# advanced; one frame makes lifecycle monitoring report temporary UI allocations as leaks.
+	for _settle in 4:
+		await get_tree().process_frame
 
 
 func _watch(after: Callable = Callable()) -> void:

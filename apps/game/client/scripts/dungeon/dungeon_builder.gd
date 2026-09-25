@@ -48,6 +48,7 @@ var _entities: Node3D
 var _dungeon_root: Node3D
 var _nav_links_root: Node3D
 var _floor_nav_map: RID = RID()
+var _owns_floor_nav_map := false
 var _placement_rng: RandomNumberGenerator
 var _boss: Node
 ## `BS-06`: at most one miniboss per floor today (`ProcgenPlacements._place_miniboss`), so a single
@@ -364,13 +365,22 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 
 
 func _setup_floor_nav_map() -> void:
-	if _floor_nav_map != RID():
+	if _owns_floor_nav_map and _floor_nav_map != RID():
 		NavigationServer3D.free_rid(_floor_nav_map)
-		_floor_nav_map = RID()
-	_floor_nav_map = NavigationServer3D.map_create()
-	NavigationServer3D.map_set_active(_floor_nav_map, true)
-	NavigationServer3D.map_set_cell_size(_floor_nav_map, 0.25)
-	NavigationServer3D.map_set_cell_height(_floor_nav_map, 0.25)
+	_floor_nav_map = RID()
+	_owns_floor_nav_map = false
+	var world := get_world_3d()
+	if world != null and world.navigation_map != RID():
+		# NavigationAgent3D uses World3D.navigation_map unless explicitly overridden. Registering
+		# rooms on a private map made the generated floor invisible to live enemy agents.
+		_floor_nav_map = world.navigation_map
+	else:
+		_floor_nav_map = NavigationServer3D.map_create()
+		_owns_floor_nav_map = true
+		NavigationServer3D.map_set_active(_floor_nav_map, true)
+		NavigationServer3D.map_set_use_edge_connections(_floor_nav_map, true)
+		NavigationServer3D.map_set_cell_size(_floor_nav_map, 0.25)
+		NavigationServer3D.map_set_cell_height(_floor_nav_map, 0.25)
 	for room_id in _rooms:
 		var room := get_room(room_id)
 		if room == null:
@@ -381,6 +391,10 @@ func _setup_floor_nav_map() -> void:
 		var nav_region := room.get_nav_region()
 		if nav_region:
 			nav_region.set_navigation_map(_floor_nav_map)
+
+
+func get_floor_navigation_map() -> RID:
+	return _floor_nav_map
 
 
 ## Opens exactly the doorways the floor's edges call for, and no others.
@@ -494,6 +508,8 @@ func _open_blockout_door_toward(
 	socket.position = RoomTemplateCatalogScript.socket_wall_position(
 		socket.direction, blockout.room_width * 0.5, blockout.room_depth * 0.5, lateral
 	)
+	socket.landing_height = blockout.socket_landing_height(socket.direction)
+	socket.position.y = socket.landing_height
 	# RM-16: a frame around the hole, not just the hole -- guarded since a floor can resync its
 	# door state (`_sync_blockout_doors_from_edges` closes then reopens every door) and this must
 	# not stack a second frame on the same socket when that happens.
@@ -723,8 +739,6 @@ func _build_height_transitions() -> void:
 					)
 				)
 				return
-	if max_height_level <= 0:
-		return
 	for edge in definition.get("edges", []):
 		var kind := str(edge.get("kind", "door"))
 		if kind == "secret":
@@ -733,8 +747,19 @@ func _build_height_transitions() -> void:
 		var to_room := get_room(str(edge.get("to", "")))
 		if from_room == null or to_room == null:
 			continue
-		var from_y := from_room.position.y
-		var to_y := to_room.position.y
+		# A logical room transform is not enough here: a split room has a raised north
+		# landing while its origin remains at the floor's base elevation. Compare the
+		# doorway landings themselves so every physical rise gets a valid transition.
+		var from_socket := _socket_for_edge(from_room, to_room, edge)
+		var to_socket := _socket_for_edge(to_room, from_room, edge)
+		if from_socket == null or to_socket == null:
+			push_error(
+				"DungeonBuilder: missing socket for height transition %s->%s"
+				% [edge.get("from", ""), edge.get("to", "")]
+			)
+			continue
+		var from_y := from_socket.global_position.y
+		var to_y := to_socket.global_position.y
 		if absf(from_y - to_y) < 0.001:
 			continue
 		var lower_room := from_room if from_y < to_y else to_room
@@ -742,7 +767,7 @@ func _build_height_transitions() -> void:
 		var blockout := lower_room.get_blockout()
 		if blockout == null:
 			continue
-		var socket := _socket_for_edge(lower_room, higher_room, edge)
+		var socket := from_socket if lower_room == from_room else to_socket
 		if socket == null:
 			push_error(
 				(
@@ -814,6 +839,11 @@ func _build_landmarks() -> void:
 		landmark.position = Vector3(
 			float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0))
 		)
+		var room_id := str(hint.get("revealRoomId", hint.get("roomId", "")))
+		if room_id != "" and kind in ["junction_beacon", "orientation_spire"]:
+			landmark.set_meta("map_landmark_room_id", room_id)
+			landmark.set_meta("map_landmark_reveal_distance", 24.0 if kind == "orientation_spire" else 8.0)
+			landmark.add_to_group("map_landmark_revealer")
 		root.add_child(landmark)
 
 
@@ -1010,6 +1040,7 @@ func _build_nav_links() -> void:
 		if from_socket == null or to_socket == null:
 			continue
 		var link := NavigationLink3D.new()
+		link.enabled = true
 		link.bidirectional = true
 		link.travel_cost = 1.0
 		link.set_navigation_map(_floor_nav_map)
@@ -1121,6 +1152,13 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 	# synchronously before this function's own statements after it would otherwise get the chance.
 	if placement.get("isElite", false):
 		enemy.set_meta("is_elite", true)
+	# Encounter ownership is data-derived rather than an incidental RoomTemplate parent instance.
+	# The floor seed keeps an otherwise repeated room ID from sharing pressure permits with a
+	# different reconstructed floor, while spawned/summoned actors can inherit this exact key.
+	var encounter_room_id := str(placement.get("roomId", ""))
+	enemy.set_meta(
+		"encounter_key", hash("floor:%d:%s" % [int(definition.get("seed", 0)), encounter_room_id])
+	)
 	enemy.position = _sample_placement_offset(room, placement)
 	room.add_child(enemy)
 	if enemy is CharacterBody3D:
@@ -1199,7 +1237,10 @@ func _place_room_content() -> bool:
 	if not gate_failure.is_empty():
 		push_error("DungeonBuilder: required gate placement failed %s" % JSON.stringify(gate_failure))
 		return false
-	RoomContentSpawnerScript.spawn_all(self, definition)
+	var content_failure := RoomContentSpawnerScript.spawn_all(self, definition)
+	if not content_failure.is_empty():
+		push_error("DungeonBuilder: required room content placement failed %s" % JSON.stringify(content_failure))
+		return false
 	RoomContentSpawnerScript.spawn_locks(self, definition)
 	RoomContentSpawnerScript.spawn_puzzle_gates(self, definition)
 	RoomContentSpawnerScript.spawn_shortcut_gates(self, definition)
@@ -1610,9 +1651,10 @@ func unload_from_parent(parent: Node3D) -> void:
 	_boss_door = null
 	_stair_levers.clear()
 	_nav_links_root = null
-	if _floor_nav_map != RID():
+	if _owns_floor_nav_map and _floor_nav_map != RID():
 		NavigationServer3D.free_rid(_floor_nav_map)
-		_floor_nav_map = RID()
+	_floor_nav_map = RID()
+	_owns_floor_nav_map = false
 	if _entities and is_instance_valid(_entities):
 		_entities.queue_free()
 		_entities = null

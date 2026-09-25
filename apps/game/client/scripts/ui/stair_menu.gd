@@ -65,11 +65,11 @@ func close_menu() -> void:
 func _build_ui() -> void:
 	var shell: Dictionary = MenuShellScript.build_modal(
 		self,
-		"Stair Lever",
+		tr("STAIR_MENU_TITLE"),
 		GameUISkinScript.MENU_HALF_W + 180.0,
 		GameUISkinScript.MENU_HALF_H + 120.0
 	)
-	MenuShellScript.add_hint(shell["content_vbox"], "Esc to close")
+	MenuShellScript.add_hint(shell["content_vbox"], tr("UI_HINT_CLOSE"))
 
 
 func _rebuild_buttons(options: Array) -> void:
@@ -111,7 +111,7 @@ func _rebuild_buttons(options: Array) -> void:
 			pact_row.add_child(_make_pact_card(row))
 	for row in plain_options:
 		var enabled := bool(row.get("enabled", false))
-		var label := str(row.get("label", "Action"))
+		var label := str(row.get("label", tr("UI_ACTION")))
 		if not enabled:
 			var reason := str(row.get("reason", ""))
 			if reason != "":
@@ -160,9 +160,12 @@ func _make_pressure_bar() -> Control:
 	bar.custom_minimum_size = Vector2(300.0, 10.0)
 	box.add_child(bar)
 	var risk := Label.new()
-	risk.text = "Current %.1fx HP / %.1fx damage · Next %.1fx HP / %.1fx damage" % [
-		current_health, current_damage, next_health, next_damage
-	]
+	risk.text = tr("STAIR_RISK_COMPARISON").format({
+		"current_hp": current_health,
+		"current_damage": current_damage,
+		"next_hp": next_health,
+		"next_damage": next_damage,
+	})
 	GameUISkinScript.style_hint_label(risk)
 	box.add_child(risk)
 
@@ -210,12 +213,12 @@ func _make_pact_card(row: Dictionary) -> Control:
 	card.add_theme_constant_override("separation", GameUISkinScript.PIXEL_UNIT)
 
 	var name_label := Label.new()
-	name_label.text = str(pact.get("label", "Pact"))
+	name_label.text = ContentText.name(pact, "Pact")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.add_child(name_label)
 
-	var flavor := str(pact.get("description", ""))
+	var flavor := ContentText.description(pact)
 	if flavor != "":
 		var flavor_label := Label.new()
 		flavor_label.text = flavor
@@ -231,13 +234,16 @@ func _make_pact_card(row: Dictionary) -> Control:
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var gain := str(pact.get("gain", ""))
-	var cost := str(pact.get("cost", ""))
+	var gain := ContentText.field(pact, "gain")
+	var cost := ContentText.field(pact, "cost")
+	var resolved_delta := DescentPactServiceScript.describe_resolution(pact.get("resolution", {}) as Dictionary)
 	var lines: PackedStringArray = []
 	if gain != "":
 		lines.append("[color=%s]%s[/color]" % [COLOR_GIVES, gain])
 	if cost != "":
 		lines.append("[color=%s]%s[/color]" % [COLOR_TAKES, cost])
+	if resolved_delta != "":
+		lines.append("[color=%s]%s[/color]" % [COLOR_GIVES, resolved_delta])
 	body.text = "\n".join(lines)
 	card.add_child(body)
 

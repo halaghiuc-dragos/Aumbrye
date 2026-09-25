@@ -866,7 +866,8 @@ func _update_detail() -> void:
 	_show_tooltip(
 		_build_tooltip_header(detail_slot),
 		InventoryService.format_slot_tooltip_bbcode(detail_slot, false),
-		""
+		"",
+		InventoryService.damage_comparison_tooltip_bbcode(detail_slot, inv)
 	)
 	var def := _item_def(detail_slot.get("itemId", ""))
 	var item_type: String = def.get("itemType", "")
@@ -1604,7 +1605,8 @@ func _on_action_salvage_pressed() -> void:
 		return
 	var away_from_hub := RunFlow != null and RunFlow.is_run_active()
 	var preview := ForgeServiceScript.salvage_preview(slot, away_from_hub)
-	var item_name := str(_item_def(slot.get("itemId", "")).get("name", slot.get("itemId", "")))
+	var item_def := _item_def(slot.get("itemId", ""))
+	var item_name := ContentTextScript.name(item_def, str(slot.get("itemId", "")))
 	var parts: PackedStringArray = []
 	for material_id in preview:
 		parts.append("%s x%d" % [str(material_id), int(preview[material_id])])

@@ -87,24 +87,27 @@ func _build_at_socket() -> void:
 	_label.position = Vector3(0.0, 3.6, 0.0)
 	_label.modulate = Color(0.75, 0.8, 0.9, 1.0)
 	add_child(_label)
+	DungeonInteractionService.register_candidate(self, _barrier, 2.7, 5, Callable(self, "_activate_interaction"), Callable(self, "_can_interact"), Callable(self, "_set_selected_prompt"), true)
 
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true
-		_update_label()
+		DungeonInteractionService.refresh()
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
-		_update_label()
+		DungeonInteractionService.refresh()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _opened or not _near_player:
-		return
-	if not PlayerInput.interact_just_pressed(event):
+func _can_interact() -> bool:
+	return not _opened and _near_player
+
+
+func _activate_interaction() -> void:
+	if not _can_interact():
 		return
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if player == null:
@@ -112,14 +115,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _player_on_open_side(player):
 		if RunFlow:
 			RunFlow.emit_run_warning(tr("SHORTCUT_WRONG_SIDE"))
-		get_viewport().set_input_as_handled()
 		return
 	_open(true)
 	if _gate_flag_id != "":
 		WorldState.set_flag(_gate_flag_id, true)
 	# AU-03: the moment the far, harder side pays off with a permanent shortcut.
 	AudioDirector.play_stinger("shortcut_opened")
-	get_viewport().set_input_as_handled()
+
+
+func _set_selected_prompt(active: bool) -> void:
+	if _label == null:
+		return
+	if not active:
+		_label.visible = false
+		return
+	_update_label()
 
 
 func _player_on_open_side(player: Node3D) -> bool:
@@ -154,7 +164,7 @@ func _update_label() -> void:
 	if _opened:
 		_label.visible = false
 		return
-	_label.visible = _near_player
+	_label.visible = _near_player and DungeonInteractionService.selected_candidate_id() == get_instance_id()
 	if not _near_player:
 		return
 	var player := get_tree().get_first_node_in_group("player") as Node3D

@@ -110,8 +110,8 @@ func _update_label() -> void:
 		return
 	_label.visible = true
 	if _fired:
-		_label.text = "Cannon fired!"
+		_label.text = tr("BOSS_CANNON_FIRED")
 	elif _loaded < _required:
-		_label.text = "Load crystals (%d/%d)" % [_loaded, _required]
+		_label.text = tr("BOSS_CANNON_LOAD").format({"loaded": _loaded, "required": _required})
 	else:
-		_label.text = InputGlyphService.format_interact_name("Fire cannon")
+		_label.text = InputGlyphService.format_interact_name(tr("BOSS_CANNON_FIRE"))

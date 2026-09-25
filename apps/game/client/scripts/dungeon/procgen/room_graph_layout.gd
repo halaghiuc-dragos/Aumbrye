@@ -231,8 +231,12 @@ static func solve(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 			result["realised_edges"] = _realised_edges(
 				graph, result["placements"], result["tree_edges"]
 			)
-			result["ok"] = true
-			return result
+			# Required graph loops are only valuable if the physical placement kept a doorway for
+			# them. A tree-shaped result is not an acceptable early return: try another seating
+			# before falling back to an authored layout.
+			if _realised_loop_count(graph, result["realised_edges"]) >= graph.config.min_loops:
+				result["ok"] = true
+				return result
 		attempt += 1
 	for pattern in FALLBACK_PATTERNS:
 		var fallback := _pattern_layout(
@@ -244,7 +248,9 @@ static func solve(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 		fallback["realised_edges"] = _realised_edges(
 			graph, fallback["placements"], fallback["tree_edges"], int(pattern["rotation"])
 		)
-		if fallback["realised_edges"].size() < graph.walk_edges.size() + graph.loop_edges.size():
+		if not _has_required_rooms(graph, rooms_by_layout, fallback["placements"]):
+			continue
+		if _realised_loop_count(graph, fallback["realised_edges"]) < graph.config.min_loops:
 			continue
 		fallback["fallback_pattern"] = str(pattern["id"])
 		fallback["ok"] = true
@@ -257,6 +263,21 @@ static func solve(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 		"fallback_pattern": "",
 		"ok": false,
 	}
+
+
+static func _realised_loop_count(graph: RoomGraph, realised_edges: Dictionary) -> int:
+	var loop_keys := {}
+	for edge in graph.loop_edges:
+		if edge is Dictionary:
+			var a := graph.get_slot_at((edge as Dictionary).get("a", Vector2i.ZERO))
+			var b := graph.get_slot_at((edge as Dictionary).get("b", Vector2i.ZERO))
+			if a != null and b != null:
+				loop_keys[_pair_key(a.slot_id, b.slot_id)] = true
+	var count := 0
+	for key in realised_edges:
+		if loop_keys.has(str(key)):
+			count += 1
+	return count
 
 
 ## Whether a layout seated everything a floor cannot be played without.

@@ -68,6 +68,22 @@
       "knockback": 2.0
     },
     {
+      "id": "siphon_grab",
+      "name": "Siphon Grab",
+      "weight": 1,
+      "windup_duration": 0.9,
+      "windup_variance": 0.05,
+      "active_duration": 0.12,
+      "recovery_duration": 1.0,
+      "attack_damage": 0,
+      "attack_poise_damage": 0,
+      "max_range": 1.8,
+      "telegraph_shape": "line",
+      "attackClass": "grab",
+      "grab_duration": 2.0,
+      "grab_drain_per_second": 6.0
+    },
+    {
       "id": "worry",
       "name": "Worry",
       "weight": 2,

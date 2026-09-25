@@ -66,7 +66,7 @@ static func _tooltip(definition: Dictionary, rarity: String) -> String:
 	if not name.is_empty():
 		lines.append(name)
 	lines.append(RarityRegistryScript.display_name(rarity))
-	var description := str(definition.get("description", ""))
+	var description := ContentText.description(definition)
 	if not description.is_empty():
 		lines.append(description)
 	return "\n".join(lines)

@@ -174,10 +174,11 @@ var _desired_flank_angle_deg := 0.0
 var _circle_radius_mult := 1.4
 var _room_id := 0
 var _room_registered := false
-var _role: int = EnemyBlackboard.Role.ENGAGER
+var _role: int = EnemyBlackboard.Role.WAITER
 const FLANKER_RADIUS_MULT := 1.15
 const WAITER_RADIUS_MULT := 1.7
 var _nav_agent: NavigationAgent3D
+var _navigation_radius := 0.55
 var _nav_probe_timer := 0.0
 var _nav_repath_timer := 0.0
 const NAV_PROBE_INTERVAL := 1.5
@@ -337,6 +338,30 @@ func _get_collision_radius() -> float:
 	return 0.45
 
 
+## Size belongs to explicit gameplay shapes; scaling the CharacterBody changes every child
+## transform at once and makes collision, navigation, hit reach and visuals disagree. Variant
+## wrappers call this after `super._ready()`, when the authored collider and diorama visual exist.
+func configure_physical_size(radius: float, height: float, visual_scale: Vector3) -> void:
+	var safe_radius := maxf(0.1, radius)
+	var safe_height := maxf(safe_radius * 2.0, height)
+	_navigation_radius = safe_radius
+	if _body_collision and _body_collision.shape is CapsuleShape3D:
+		var body_shape := _body_collision.shape as CapsuleShape3D
+		body_shape.radius = safe_radius
+		body_shape.height = safe_height
+	var hurt_shape_node := get_node_or_null("Hurtbox/CollisionShape3D") as CollisionShape3D
+	if hurt_shape_node and hurt_shape_node.shape is BoxShape3D:
+		var hurt_shape := hurt_shape_node.shape as BoxShape3D
+		hurt_shape.size = Vector3(safe_radius * 2.0, safe_height, safe_radius * 2.0)
+	if _nav_agent:
+		_nav_agent.radius = _navigation_radius
+	var visual := _diorama_visual if _diorama_visual != null else _mesh as Node3D
+	if visual:
+		visual.scale = visual_scale
+	# Keep the body at unit scale so every world-space user gets the dimensions above directly.
+	scale = Vector3.ONE
+
+
 func _is_boss_enemy() -> bool:
 	if not _data.is_empty():
 		return _is_boss
@@ -471,6 +496,26 @@ func _exit_tree() -> void:
 
 func set_ai_role(role: int) -> void:
 	_role = role
+
+
+func get_ai_role() -> int:
+	return _role
+
+
+## Scheduler-facing readiness snapshot. Keeping visibility and reach evaluation beside the enemy
+## avoids a blackboard choosing a distant/blocked actor purely because it is centered in view.
+func engager_readiness(player: Node3D) -> Dictionary:
+	if player == null or not is_instance_valid(player):
+		return {"ready": false, "visible": false, "distance": INF}
+	var distance := global_position.distance_to(player.global_position)
+	var has_visibility := _has_line_of_sight_to_player()
+	var attack_ready := _cooldown <= 0.0 and _phase_lock_timer <= 0.0 and has_visibility and distance <= _max_attack_range
+	return {
+		"ready": attack_ready,
+		"visible": has_visibility,
+		"distance": distance,
+		"attack_gap": maxf(0.0, distance - _max_attack_range),
+	}
 
 
 func _unpack_tuning() -> void:
@@ -732,7 +777,7 @@ func _setup_diorama_visual() -> void:
 ## Tolerant by design: `windup_variance` can land the animation's open frame a tick or two before
 ## `_start_attack()` transitions, and returning early there drops the swing entirely. Promote the
 ## phase instead. `WeaponController.enable_hitbox_from_anim` handles the same race the same way.
-func _on_anim_hitbox_open() -> void:
+func _on_anim_hitbox_open(_generation: int = -1) -> void:
 	if _hitbox == null:
 		return
 	if _state == State.WINDUP:
@@ -744,7 +789,7 @@ func _on_anim_hitbox_open() -> void:
 	_hitbox.enable()
 
 
-func _on_anim_hitbox_close() -> void:
+func _on_anim_hitbox_close(_generation: int = -1) -> void:
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
@@ -771,7 +816,10 @@ func get_diorama_visual() -> Node3D:
 
 
 func get_hp_bar_height() -> float:
-	return _estimate_body_top_y() + 0.22
+	var body_top := _estimate_body_top_y()
+	# Small bodies keep a one-metre lock aim point for camera/readability. Their health bar must
+	# remain above that point instead of using only the physical capsule top.
+	return maxf(body_top + 0.22, maxf(1.0, body_top * 0.55) + 0.22)
 
 
 func get_lock_aim_point() -> Vector3:
@@ -780,12 +828,14 @@ func get_lock_aim_point() -> Vector3:
 
 
 func _estimate_body_top_y() -> float:
-	if _diorama_visual:
-		return _node_max_y(_diorama_visual)
+	var physical_top := 0.0
 	if _body_collision and _body_collision.shape is CapsuleShape3D:
 		var cap := _body_collision.shape as CapsuleShape3D
-		return _body_collision.position.y + cap.height * 0.5
-	return 1.55
+		physical_top = _body_collision.position.y + cap.height * 0.5
+	if _diorama_visual:
+		var visual_top := _node_max_y(_diorama_visual) * _diorama_visual.scale.y
+		return maxf(physical_top, visual_top)
+	return physical_top if physical_top > 0.0 else 1.55
 
 
 func _node_max_y(node: Node3D) -> float:
@@ -1085,6 +1135,10 @@ func is_dead() -> bool:
 	return _state == State.DEAD
 
 
+func is_staggered() -> bool:
+	return _state == State.STAGGER
+
+
 func capture_state() -> Dictionary:
 	var defeated := is_dead() or (_health != null and _health.is_dead())
 	var state := {"alive": not defeated}
@@ -1130,6 +1184,9 @@ func _finalize_death(silent: bool) -> void:
 	if _health:
 		_health.force_dead()
 	if not silent:
+		# Death is a high-importance punctuation mark, but uses the same bounded global budget as
+		# impacts so a group kill cannot turn into a chain of full-screen freezes.
+		VfxService.request_attack_hitstop("death:%s" % get_instance_id(), 90, 0.12)
 		RunFlow.register_kill(get_enemy_id(), _kill_credit())
 		_award_kill_coins()
 		_try_roll_global_drop()
@@ -1207,7 +1264,7 @@ func apply_stagger(duration: float) -> void:
 		return
 	if _state in [State.WINDUP, State.ATTACK]:
 		_combo_step = 0
-		_release_attack_token()
+	_release_attack_token()
 	if _state in [State.GUARD, State.SIDESTEP, State.PUNISH]:
 		is_guarding = false
 		_sidestep_iframe_timer = 0.0
@@ -1355,6 +1412,9 @@ func _update_ai(delta: float) -> void:
 			_apply_chase_velocity(delta, RECOVERY_APPROACH_SPEED_MULT)
 			_state_timer -= delta
 			if _state_timer <= 0.0:
+				# Keep this permit until recovery ends so a replacement attacker cannot erase
+				# the previous attacker's player-actionable punish window.
+				_release_attack_token()
 				_state = State.CHASE if _has_aggro() else State.PATROL
 				if _short_recovery_cooldown:
 					_cooldown = FEINT_COOLDOWN
@@ -1657,7 +1717,7 @@ func _ensure_nav_agent() -> void:
 	_nav_agent.target_desired_distance = 0.6
 	_nav_agent.path_max_distance = 4.0
 	_nav_agent.avoidance_enabled = true
-	_nav_agent.radius = 0.55
+	_nav_agent.radius = _navigation_radius
 	_nav_agent.neighbor_distance = 4.0
 	_nav_agent.max_neighbors = 6
 	_nav_agent.avoidance_priority = 0.5
@@ -1803,7 +1863,7 @@ func _leave_room_engagement() -> void:
 	if not _room_registered:
 		return
 	EnemyBlackboard.report_engaged(_room_id, self, false)
-	_role = EnemyBlackboard.Role.ENGAGER
+	_role = EnemyBlackboard.Role.WAITER
 
 
 ## `EN-07`: the enemy reads the player's own public `WeaponController` state -- never the other way
@@ -2198,6 +2258,8 @@ func _start_attack() -> void:
 			1.5,
 			_current_attack_class()
 		)
+		_hitbox.grab_duration = maxf(0.0, float(_current_attack_data.get("grab_duration", 0.0)))
+		_hitbox.grab_drain_per_second = maxf(0.0, float(_current_attack_data.get("grab_drain_per_second", 0.0)))
 		if not _sync_hitbox_from_anim and not bool(_current_attack_data.get("no_hitbox", false)):
 			_hitbox.enable()
 	var hazard_spec: Dictionary = _current_attack_data.get("spawn_hazard", {}) as Dictionary
@@ -2227,7 +2289,6 @@ func _end_attack() -> void:
 		_enter_windup(combo[_combo_step - 1])
 		return
 	_combo_step = 0
-	_release_attack_token()
 	_yield_room_turn()
 	_state = State.RECOVERY
 	_state_timer = float(
@@ -2478,9 +2539,9 @@ func _try_leap_attack() -> bool:
 	var leap_data := {
 		"windup_duration": windup,
 		"active_duration": 0.22,
-		"recovery_duration": float(_data.get("recovery_duration", 0.9)),
-		"attack_damage": float(_data.get("attack_damage", 20.0)),
-		"attack_poise_damage": float(_data.get("attack_poise_damage", 10.0)),
+		"recovery_duration": float(spec.get("recovery", _data.get("recovery_duration", 0.9))),
+		"attack_damage": float(spec.get("damage", _data.get("attack_damage", 20.0))),
+		"attack_poise_damage": float(spec.get("poise_damage", _data.get("attack_poise_damage", 10.0))),
 		"attackClass": str(spec.get("attackClass", "unblockable")),
 		"max_range": leap_range,
 		"lunge_distance": distance,

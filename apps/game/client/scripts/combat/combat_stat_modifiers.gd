@@ -12,11 +12,15 @@ static func stack_bonus(stat: String) -> float:
 	return CombatEvents.get_stat_bonus(stat)
 
 
-static func damage_multiplier(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
+static func damage_multiplier(
+	equipment_stats: Dictionary, talent_stats: Dictionary, include_run_bonuses: bool = true
+) -> float:
 	var equipment := float(equipment_stats.get("damagePercent", 0.0)) / 100.0
 	equipment += float(equipment_stats.get("physicalDamage", 0.0))
 	var talents := float(talent_stats.get("physicalDamage", 0.0))
-	var run := stack_bonus("damagePercent") / 100.0 + stack_bonus("physicalDamage")
+	var run := 0.0
+	if include_run_bonuses:
+		run = stack_bonus("damagePercent") / 100.0 + stack_bonus("physicalDamage")
 	var mult := 1.0 + minf(EQUIPMENT_DAMAGE_CAP, equipment)
 	mult += minf(TALENT_DAMAGE_CAP, talents)
 	mult += minf(RUN_DAMAGE_CAP, run)
@@ -61,6 +65,45 @@ static func flat_damage_bonus(
 	if attack_damage > 0.0:
 		bonus = minf(bonus, attack_damage * FLAT_DAMAGE_CAP_RATIO)
 	return bonus
+
+
+## Damage preview for a clean attack without temporary empowerment, criticals, low-health perks, or
+## two-hand stance. It shares the live damage multiplier, weapon scaling, attack weighting and flat
+## cap so equipment comparisons cannot imply value beyond what the move can receive.
+static func preview_attack_damage(
+	attack: Dictionary,
+	weapon_data: Dictionary,
+	equipment_stats: Dictionary,
+	talent_stats: Dictionary,
+	class_stats: Dictionary
+) -> Dictionary:
+	var multiplier := damage_multiplier(equipment_stats, talent_stats, false)
+	multiplier *= weapon_scaling_multiplier(weapon_data.get("scaling", {}), class_stats)
+	return resolve_attack_damage(attack, weapon_data, equipment_stats, multiplier)
+
+
+## Shared live/preview formula for attack base damage and capped flat gear contribution.
+## `post_multiplier` carries conditional multiplicative combat perks applied after flat gear.
+static func resolve_attack_damage(
+	attack: Dictionary,
+	weapon_data: Dictionary,
+	equipment_stats: Dictionary,
+	base_multiplier: float,
+	post_multiplier: float = 1.0
+) -> Dictionary:
+	var base_damage := float(attack.get("damage", 0.0))
+	var weight := attack_weight(attack, weapon_data)
+	var raw_flat := float(equipment_stats.get("bonusDamage", 0.0)) * maxf(0.0, weight)
+	var flat_cap := base_damage * FLAT_DAMAGE_CAP_RATIO
+	var flat_applied := flat_damage_bonus(equipment_stats, weight, base_damage)
+	return {
+		"damage": (base_damage * base_multiplier + flat_applied) * post_multiplier,
+		"base_damage": base_damage,
+		"flat_raw": raw_flat,
+		"flat_applied": flat_applied,
+		"flat_cap": flat_cap,
+		"flat_capped": base_damage > 0.0 and raw_flat >= flat_cap,
+	}
 
 
 ## An attack's weight: how hard it hits relative to the weapon's opening light swing. The opener is

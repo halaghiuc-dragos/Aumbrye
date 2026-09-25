@@ -154,6 +154,7 @@ func roll_offer(offer_key: String, count: int = 3) -> Array[String]:
 			var reduced := weights[i] * factor
 			total -= weights[i] - reduced
 			weights[i] = reduced
+	_ensure_immediately_useful_offer(offer, candidates)
 	_pending_offer_ids = offer.duplicate()
 	return offer
 
@@ -174,16 +175,17 @@ func take_offer(relic_id: String) -> bool:
 
 
 func note_player_hit(resolution: Variant) -> void:
-	if resolution == null:
+	if not resolution is DamageResolution:
 		return
-	var amount := float(resolution.get("outgoing"))
+	var hit_resolution := resolution as DamageResolution
+	var amount := hit_resolution.outgoing
 	if amount <= float(_best_hit.get("amount", 0.0)):
 		return
 	_best_hit = {
 		"amount": amount,
-		"crit": bool(resolution.get("crit")),
-		"backstab": bool(resolution.get("backstab")),
-		"damageType": str(resolution.get("damage_type")),
+		"crit": hit_resolution.crit,
+		"backstab": hit_resolution.backstab,
+		"damageType": hit_resolution.damage_type,
 	}
 
 
@@ -394,6 +396,71 @@ func _offer_weight(relic_id: String, carried: Dictionary) -> float:
 			if str(tag) == previous:
 				recent_matches += 1
 	return weight * synergy / (1.0 + float(recent_matches) * 0.25)
+
+
+## RL05: an on-hit conditional is not a useful synergy unless the current loadout can actually
+## produce its required status.  This stays data-driven: a relic or equipped item that applies a
+## status becomes a capability source without a hard-coded weapon list.
+func offer_relevance(relic_id: String) -> Dictionary:
+	var def := RelicCatalog.get_definition(relic_id)
+	var required := _required_statuses(def)
+	var capabilities := _current_capabilities()
+	var missing: Array[String] = []
+	for status_id in required:
+		if not capabilities.has(status_id):
+			missing.append(status_id)
+	return {
+		"immediatelyUseful": missing.is_empty(),
+		"requiredStatuses": required,
+		"missingStatuses": missing,
+	}
+
+
+func _ensure_immediately_useful_offer(offer: Array[String], candidates: Array[String]) -> void:
+	if offer.is_empty():
+		return
+	for relic_id in offer:
+		if bool(offer_relevance(relic_id).get("immediatelyUseful", false)):
+			return
+	for relic_id in candidates:
+		if relic_id not in offer and bool(offer_relevance(relic_id).get("immediatelyUseful", false)):
+			offer[offer.size() - 1] = relic_id
+			return
+
+
+func _required_statuses(definition: Dictionary) -> Array[String]:
+	var required: Array[String] = []
+	for rule in definition.get("rules", []):
+		if not rule is Dictionary:
+			continue
+		var status_id := str((rule as Dictionary).get("ifTargetHasStatus", ""))
+		if status_id != "" and status_id not in required:
+			required.append(status_id)
+	return required
+
+
+func _current_capabilities() -> Dictionary:
+	var capabilities: Dictionary = {}
+	for entry in _active:
+		_add_rule_capabilities(capabilities, RelicCatalog.get_definition(str(entry.get("relicId", ""))))
+	if InventoryService == null:
+		return capabilities
+	var inventory := InventoryService.active_inventory()
+	if inventory == null:
+		return capabilities
+	for slot_name in inventory.equipped:
+		var instance: Variant = inventory.equipped.get(slot_name, {})
+		if instance is Dictionary:
+			_add_rule_capabilities(capabilities, InventoryService.get_item_def(str((instance as Dictionary).get("itemId", ""))))
+	return capabilities
+
+
+func _add_rule_capabilities(capabilities: Dictionary, definition: Dictionary) -> void:
+	for rule in definition.get("rules", []):
+		if rule is Dictionary and str((rule as Dictionary).get("effect", "")) == "apply_status":
+			var status_id := str((rule as Dictionary).get("statusId", ""))
+			if status_id != "":
+				capabilities[status_id] = true
 
 
 func _shares_tag(relic_id: String, tags: Array) -> bool:

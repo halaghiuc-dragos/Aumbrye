@@ -16,10 +16,11 @@
             "not": {
               "flag": "lost_ivo"
             }
-          }
+          },
+          {"not": {"flag": "rescue_committed_ivo"}}
         ]
       },
-      "fallback": "already",
+      "fallback": "committed",
       "choices": [
         {
           "text": "Walk behind me. Stay close.",
@@ -33,16 +34,12 @@
     },
     "taken": {
       "speaker": "Ivo Kell",
-      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "text": "Then the page comes with us. If the vault takes me, make sure somebody else reads it.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "rescued_ivo",
-          "value": true
-        },
-        {
-          "type": "record_rescue",
-          "npcId": "clerk_ivo"
+          "type": "set_rescue_state",
+          "npcId": "ivo",
+          "state": "committed"
         },
         {
           "type": "play_sfx",
@@ -53,16 +50,17 @@
     },
     "left": {
       "speaker": "Ivo Kell",
-      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "text": "Then I will keep the page dry and wait. Come back by this aisle when your road turns upward.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "lost_ivo",
-          "value": true
+          "type": "set_rescue_state",
+          "npcId": "ivo",
+          "state": "deferred"
         }
       ],
       "next": "end"
     },
+    "committed": {"speaker": "Ivo Kell", "text": "The page stays with me until the ascent. Keep the path open.", "condition": {"flag": "rescue_committed_ivo"}, "fallback": "already", "next": "end"},
     "already": {
       "speaker": "An empty landing",
       "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",

@@ -6,6 +6,11 @@ class_name DoorwaySocket
 @export var socket_id: String = ""
 @export var is_secret: bool = false
 
+## The local walkable-surface elevation immediately inside this doorway.  It is authored by the
+## room blockout, not inferred from the room origin: split rooms have one elevated half while
+## retaining a single logical room transform.
+@export var landing_height: float = 0.0
+
 
 func get_socket_name() -> String:
 	if not socket_id.is_empty():

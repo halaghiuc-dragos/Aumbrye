@@ -93,11 +93,17 @@
         "feint_chance": { "type": "number", "minimum": 0, "maximum": 0.4 },
         "knockback": { "type": "number", "minimum": 0 },
         "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
+        "projectile_archetype": {
+          "type": "string",
+          "enum": ["arrow", "bolt_orb", "lobbed_item"]
+        },
         "attackBehavior": {
           "type": "string",
           "enum": ["projectile", "melee", "hazard"]
         },
         "lunge_distance": { "type": "number", "minimum": 0 },
+        "grab_duration": { "type": "number", "exclusiveMinimum": 0 },
+        "grab_drain_per_second": { "type": "number", "minimum": 0 },
         "no_hitbox": { "type": "boolean" },
         "spawn_hazard": { "$ref": "#/definitions/hazardSpawn" },
         "combo_followups": {
@@ -232,6 +238,25 @@
     "retreat_range": { "type": "number", "minimum": 0 },
     "retreat_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
     "projectile_speed": { "type": "number", "exclusiveMinimum": 0 },
+    "projectile_archetype": {
+      "type": "string",
+      "enum": ["arrow", "bolt_orb", "lobbed_item"]
+    },
+    "leaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "windup", "distance", "cooldown"],
+      "properties": {
+        "range": { "type": "number", "exclusiveMinimum": 0 },
+        "windup": { "type": "number", "exclusiveMinimum": 0 },
+        "distance": { "type": "number", "minimum": 0 },
+        "cooldown": { "type": "number", "exclusiveMinimum": 0 },
+        "damage": { "type": "number", "minimum": 0 },
+        "poise_damage": { "type": "number", "minimum": 0 },
+        "recovery": { "type": "number", "exclusiveMinimum": 0 },
+        "attackClass": { "$ref": "#/definitions/attackClass" }
+      }
+    },
     "block_mitigation": { "type": "number", "minimum": 0, "maximum": 1 },
     "block_reduction": {
       "anyOf": [

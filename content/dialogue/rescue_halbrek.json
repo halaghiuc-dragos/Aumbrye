@@ -16,10 +16,15 @@
             "not": {
               "flag": "lost_halbrek"
             }
+          },
+          {
+            "not": {
+              "flag": "rescue_committed_halbrek"
+            }
           }
         ]
       },
-      "fallback": "already",
+      "fallback": "committed",
       "choices": [
         {
           "text": "Walk behind me. Stay close.",
@@ -36,13 +41,9 @@
       "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "rescued_halbrek",
-          "value": true
-        },
-        {
-          "type": "record_rescue",
-          "npcId": "serjeant_halbrek"
+          "type": "set_rescue_state",
+          "npcId": "halbrek",
+          "state": "committed"
         },
         {
           "type": "play_sfx",
@@ -53,14 +54,21 @@
     },
     "left": {
       "speaker": "Serjeant Halbrek",
-      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "text": "Then go. I will keep this landing warm until you come back for me. That is not a joke, though it nearly was.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "lost_halbrek",
-          "value": true
+          "type": "set_rescue_state",
+          "npcId": "halbrek",
+          "state": "deferred"
         }
       ],
+      "next": "end"
+    },
+    "committed": {
+      "speaker": "Serjeant Halbrek",
+      "text": "I am behind you while this run lasts. Get us to the ascent and I will find the tower on my own feet.",
+      "condition": {"flag": "rescue_committed_halbrek"},
+      "fallback": "already",
       "next": "end"
     },
     "already": {

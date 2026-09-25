@@ -106,15 +106,13 @@ class CastleTierDifficultyProfile:
 		_tier = tier
 
 	func hp_multiplier(progress: int) -> float:
-		return (
-			CastleTierDifficultyScript.combined_hp_multiplier(_dungeon_id, _tier, progress)
-			* modifier_hp_factor()
+		return CastleTierDifficultyScript.combined_hp_multiplier(
+			_dungeon_id, _tier, progress, modifier_hp_factor()
 		)
 
 	func damage_multiplier(progress: int) -> float:
-		return (
-			CastleTierDifficultyScript.combined_damage_multiplier(_dungeon_id, _tier, progress)
-			* modifier_damage_factor()
+		return CastleTierDifficultyScript.combined_damage_multiplier(
+			_dungeon_id, _tier, progress, modifier_damage_factor()
 		)
 
 	func rare_drop_bonus(_progress: int) -> float:
@@ -128,10 +126,12 @@ class WavesDifficultyProfile:
 	extends DifficultyProfile
 
 	func hp_multiplier(progress: int) -> float:
-		return WavesDifficultyScript.hp_multiplier(progress) * modifier_hp_factor()
+		return WavesDifficultyScript.effective_hp_multiplier(progress, modifier_hp_factor())
 
 	func damage_multiplier(progress: int) -> float:
-		return WavesDifficultyScript.damage_multiplier(progress) * modifier_damage_factor()
+		return WavesDifficultyScript.effective_damage_multiplier(
+			progress, modifier_damage_factor()
+		)
 
 	func pressure(progress: int) -> float:
 		return clampf(float(maxi(1, progress) - 1) / WAVES_FULL_PRESSURE_WAVE, 0.0, 1.0)

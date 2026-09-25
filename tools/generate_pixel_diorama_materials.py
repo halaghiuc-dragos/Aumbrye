@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from generated_manifest import prepare_write, record_write
+from generated_manifest import write_generated_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
@@ -155,11 +155,14 @@ def write_surface_material(
     dry_run: bool,
 ) -> None:
     content = render_surface_material(surface_kind, color_base, color_shadow, color_accent)
-    if not prepare_write(path, content, force=force, dry_run=dry_run):
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    record_write(path, content)
+    write_generated_text(
+        path,
+        content,
+        generator=Path(__file__).resolve(),
+        sources=[Path(__file__).resolve()],
+        force=force,
+        dry_run=dry_run,
+    )
 
 
 def parse_args() -> argparse.Namespace:

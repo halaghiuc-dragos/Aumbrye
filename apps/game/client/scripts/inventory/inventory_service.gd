@@ -424,7 +424,7 @@ func format_slot_tooltip_bbcode(slot: Dictionary, include_name: bool = true) -> 
 	if condition != "":
 		lines.append(condition)
 	if def.has("description"):
-		lines.append(_escape_bbcode(str(def.get("description", ""))))
+		lines.append(_escape_bbcode(ContentText.description(def)))
 	var rule_text := str(def.get("ruleText", ""))
 	if rule_text != "":
 		lines.append("")
@@ -489,6 +489,87 @@ func format_slot_tooltip_bbcode(slot: Dictionary, include_name: bool = true) -> 
 		lines.append("")
 		lines.append("[i]%s[/i]" % _escape_bbcode(_comparison_caption(slot_name)))
 	return "\n".join(lines)
+
+
+## Compare a candidate equip against the live loadout using the first light attack from each weapon.
+## It is intentionally a neutral-stance preview; temporary procs, crits and situational perks are
+## not predictable equipment properties and are excluded from both sides.
+func damage_comparison_tooltip_bbcode(
+	candidate: Dictionary, source_inventory: GridInventory = null
+) -> String:
+	var preview_inventory := source_inventory if source_inventory != null else inventory
+	var item_id := str(candidate.get("itemId", ""))
+	var definition := get_item_def(item_id)
+	var target_slot := EquipmentHelper.slot_for_item_def(definition)
+	if target_slot == "":
+		return ""
+	var currently_equipped: Dictionary = preview_inventory.equipped.get(target_slot, {})
+	if not currently_equipped.is_empty() and str(currently_equipped.get("instanceId", "")) == str(candidate.get("instanceId", "")):
+		return ""
+	var current_weapon_path := preview_inventory.get_equipped_weapon_data_path()
+	var candidate_weapon_path := current_weapon_path
+	if target_slot == "weapon":
+		candidate_weapon_path = _weapon_data_path_for_definition(definition)
+	var current_weapon := ContentLoader.load_json(current_weapon_path)
+	var candidate_weapon := ContentLoader.load_json(candidate_weapon_path)
+	var current_attack := _opening_light_attack(current_weapon)
+	var candidate_attack := _opening_light_attack(candidate_weapon)
+	if current_attack.is_empty() or candidate_attack.is_empty():
+		return ""
+	var class_stats := get_class_stats()
+	var current_gear_stats: Dictionary = EquipmentHelper.aggregate_stats(
+		preview_inventory.equipped, Callable(AffixRoller, "get_affix_stat")
+	)
+	var current_stats := _merge_stat_dicts(current_gear_stats, class_stats)
+	var candidate_equipment := preview_inventory.equipped.duplicate(true)
+	candidate_equipment[target_slot] = candidate
+	var projected_gear_stats: Dictionary = EquipmentHelper.aggregate_stats(
+		candidate_equipment, Callable(AffixRoller, "get_affix_stat")
+	)
+	var projected_stats := _merge_stat_dicts(projected_gear_stats, class_stats)
+	var talent_stats := get_talent_stats()
+	var before := CombatStatModifiersScript.preview_attack_damage(
+		current_attack, current_weapon, current_stats, talent_stats, class_stats
+	)
+	var after := CombatStatModifiersScript.preview_attack_damage(
+		candidate_attack, candidate_weapon, projected_stats, talent_stats, class_stats
+	)
+	var before_damage := float(before.get("damage", 0.0))
+	var after_damage := float(after.get("damage", 0.0))
+	var delta := after_damage - before_damage
+	var delta_text := "%+.1f" % delta
+	var color := STAT_COLOR_EQUAL
+	if delta > 0.0001:
+		color = STAT_COLOR_BETTER
+	elif delta < -0.0001:
+		color = STAT_COLOR_WORSE
+	var lines := PackedStringArray([
+		tr("INV_DAMAGE_PREVIEW").format({
+			"before": "%.1f" % before_damage,
+			"after": "%.1f" % after_damage,
+			"delta": delta_text,
+		}),
+		tr("INV_DAMAGE_PREVIEW_SCOPE"),
+	])
+	if bool(after.get("flat_capped", false)):
+		lines.append("[color=%s]%s[/color]" % [CONDITION_NEUTRAL_COLOR, tr("INV_DAMAGE_CAP_NOTE")])
+	lines[0] = "[color=%s]%s[/color]" % [color, lines[0]]
+	return "\n".join(lines)
+
+
+func _weapon_data_path_for_definition(definition: Dictionary) -> String:
+	var base_id := str(definition.get("baseId", ""))
+	if base_id in ["shortbow", "longbow"]:
+		return "content/weapons/%s.json" % base_id
+	return "content/weapons/%s.json" % str(definition.get("weaponId", "sword_basic"))
+
+
+func _opening_light_attack(weapon_data: Dictionary) -> Dictionary:
+	var attacks: Variant = weapon_data.get("light_attacks", [])
+	if not attacks is Array or (attacks as Array).is_empty():
+		return {}
+	var first: Variant = (attacks as Array)[0]
+	return first if first is Dictionary else {}
 
 
 func _comparison_caption(slot_name: String) -> String:

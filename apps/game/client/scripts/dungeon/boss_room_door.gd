@@ -248,10 +248,10 @@ func _update_label() -> void:
 			_label.text = _locked_prompt()
 			_label.visible = true
 		State.CLOSED:
-			_label.text = InputGlyphService.format_interact_name("Enter the arena")
+			_label.text = InputGlyphService.format_interact_name(tr("BOSS_DOOR_ENTER_ARENA"))
 			_label.visible = true
 		State.SEALED:
-			_label.text = "The way back is sealed"
+			_label.text = tr("BOSS_DOOR_RETURN_SEALED")
 			_label.visible = true
 		_:
 			_label.visible = false
@@ -260,9 +260,9 @@ func _update_label() -> void:
 func _locked_prompt() -> String:
 	match _requirement:
 		"sigil":
-			return "Sealed — find the Boss Sigil"
+			return tr("BOSS_DOOR_FIND_SIGIL")
 		"all_keys":
-			return "Sealed — open every lock on this floor"
+			return tr("BOSS_DOOR_OPEN_LOCKS")
 		_:
 			return "Sealed"
 

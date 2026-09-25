@@ -38,6 +38,13 @@ func _ready() -> void:
 	_publish()
 
 
+func _exit_tree() -> void:
+	for player in [_wind_player, _rain_player]:
+		if player != null and is_instance_valid(player):
+			player.stop()
+			player.stream = null
+
+
 func _build_ambience() -> void:
 	_wind_player = _make_loop_player("WeatherWind", "res://assets/audio/sfx/weather_wind_loop.ogg")
 	_rain_player = _make_loop_player("WeatherRain", "res://assets/audio/sfx/weather_rain_loop.ogg")

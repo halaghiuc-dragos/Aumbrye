@@ -56,6 +56,7 @@ var _lowest_room_y := 0.0
 var _room_neighbors: Dictionary = {}
 var _outdoor_room := false
 var _courtyard_rain: Node3D
+var _map_landmark_revealers: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -67,6 +68,7 @@ func _ready() -> void:
 	_builder.boss_defeated.connect(_on_boss_defeated)
 	_builder.snapshot_dirty.connect(_persist_snapshot)
 	_builder.room_cleared.connect(_on_room_cleared)
+	get_tree().node_added.connect(_on_run_node_added)
 	var snapshot := _take_run_snapshot_meta()
 	WorldState.restore_flags(snapshot.get("worldFlags", {}))
 	var def := _resolve_dungeon_definition()
@@ -85,6 +87,7 @@ func _ready() -> void:
 	if not _builder.build_progress.is_connected(report_build):
 		_builder.build_progress.connect(report_build)
 	await _builder.build_from_definition(self, _player, def, true)
+	_bind_map_landmark_revealers()
 	if _builder.build_progress.is_connected(report_build):
 		_builder.build_progress.disconnect(report_build)
 	SceneTransition.finish(get_tree())
@@ -199,6 +202,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	_update_map_landmark_revealers()
 	if _player == null:
 		return
 	if _snapshot_dirty:
@@ -231,6 +235,10 @@ func _physics_process(_delta: float) -> void:
 func _wire_run_ui(def: Dictionary) -> void:
 	_dungeon_def = def
 	_hud = get_node_or_null(hud_path) as Control
+	if _hud and _hud.has_signal("map_discovery_changed"):
+		var map_changed := Callable(self, "_on_map_discovery_changed")
+		if not _hud.is_connected("map_discovery_changed", map_changed):
+			_hud.connect("map_discovery_changed", map_changed)
 	if _hud and _hud.has_method("configure_minimap"):
 		_hud.call("configure_minimap", def)
 	if _hud and _hud.has_method("set_minimap_floor_number"):
@@ -293,6 +301,7 @@ func _notify_room(room_id: String) -> void:
 	_update_branch_previews(room_id)
 	_update_objective_for_room(room_id)
 	_update_objective_text(room_id)
+	_persist_snapshot(true)
 	if _builder and _builder.has_method("wake_ambushers"):
 		_builder.call("wake_ambushers", room_id)
 	_maybe_bind_miniboss_bar(room_id)
@@ -436,6 +445,7 @@ func _update_branch_previews(room_id: String) -> void:
 func _on_room_cleared(room_id: String) -> void:
 	if _hud and _hud.has_method("mark_room_cleared"):
 		_hud.call("mark_room_cleared", room_id)
+	_persist_snapshot()
 
 
 func _announce_floor_entry(def: Dictionary) -> void:
@@ -742,6 +752,9 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 	if rejected > 0:
 		push_warning("CastleRun: dropped %d invalid world flag(s) from snapshot" % rejected)
 	_builder.apply_snapshot(snapshot)
+	var map_discovery: Variant = snapshot.get("mapDiscovery", {})
+	if map_discovery is Dictionary and _hud and _hud.has_method("import_map_discovery_state"):
+		_hud.call("import_map_discovery_state", map_discovery)
 	_boss_defeated = snapshot.get("bossDefeated", false)
 	var door_state := str(snapshot.get("bossDoorState", ""))
 	if door_state == "":
@@ -880,6 +893,11 @@ func _capture_run_snapshot() -> Dictionary:
 		"lootCollected": RunFlow.get_loot_collected(),
 		"lootClaimedInstanceIds": RunFlow.get_loot_claimed_instance_ids(),
 		"worldFlags": WorldState.all_flags(),
+		"mapDiscovery": (
+			_hud.call("export_map_discovery_state")
+			if _hud and _hud.has_method("export_map_discovery_state")
+			else {}
+		),
 	}
 
 
@@ -901,7 +919,7 @@ func persist_bonfire_checkpoint() -> void:
 	LocalSave.autosave_checkpoint()
 
 
-func _persist_snapshot() -> void:
+func _persist_snapshot(defer_write: bool = false) -> void:
 	if not _should_persist_snapshot():
 		return
 	var snapshot := _capture_run_snapshot()
@@ -912,7 +930,56 @@ func _persist_snapshot() -> void:
 		return
 	active["schemaVersion"] = SaveMigrator.CURRENT_VERSION
 	active["snapshot"] = snapshot
-	LocalSave.set_active_run(active)
+	LocalSave.set_active_run(active, not defer_write)
+
+
+func _on_map_discovery_changed() -> void:
+	_persist_snapshot(true)
+
+
+func _on_run_node_added(node: Node) -> void:
+	if node.is_in_group("map_landmark_revealer"):
+		_bind_map_landmark_revealer(node)
+
+
+func _bind_map_landmark_revealers() -> void:
+	for node in get_tree().get_nodes_in_group("map_landmark_revealer"):
+		_bind_map_landmark_revealer(node)
+
+
+func _bind_map_landmark_revealer(node: Node) -> void:
+	if not node is Node3D or not node.has_meta("map_landmark_room_id"):
+		return
+	var room_id := str(node.get_meta("map_landmark_room_id"))
+	if room_id == "":
+		return
+	for entry in _map_landmark_revealers:
+		if entry.get("node") == node:
+			return
+	_map_landmark_revealers.append({
+		"node": node,
+		"room_id": room_id,
+		"distance": float(node.get_meta("map_landmark_reveal_distance", 8.0)),
+	})
+
+
+func _update_map_landmark_revealers() -> void:
+	if _player == null or _hud == null or not _hud.has_method("reveal_landmark_room"):
+		return
+	for index in range(_map_landmark_revealers.size() - 1, -1, -1):
+		var entry := _map_landmark_revealers[index]
+		var node: Variant = entry.get("node")
+		if not is_instance_valid(node):
+			_map_landmark_revealers.remove_at(index)
+			continue
+		var landmark := node as Node3D
+		var player_xz := Vector2(_player.global_position.x, _player.global_position.z)
+		var landmark_xz := Vector2(landmark.global_position.x, landmark.global_position.z)
+		if player_xz.distance_to(landmark_xz) > float(entry.get("distance", 8.0)):
+			continue
+		if bool(_hud.call("reveal_landmark_room", str(entry.get("room_id", "")))):
+			_persist_snapshot(true)
+		_map_landmark_revealers.remove_at(index)
 
 
 ## The umbral the shard carries. A separate offer key from the opening umbral so listening to a

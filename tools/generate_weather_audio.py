@@ -15,12 +15,13 @@ What matters for each:
 * **murmurs** — formant-filtered noise bursts at speech cadence. Deliberately wordless and short;
   anything closer to actual speech turns ten shopkeepers into ten looping voice lines.
 
-Usage:  python tools/generate_weather_audio.py [--only name,name]
+Usage:  python tools/generate_weather_audio.py [--only name,name] [--dry-run] [--force]
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import pathlib
 import sys
 
@@ -28,6 +29,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import audio_synth as A  # noqa: E402
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SFX_DIR = ROOT / "apps/game/client/assets/audio/sfx"
@@ -118,16 +120,33 @@ BUILDERS = {
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="")
+    parser.add_argument("--dry-run", action="store_true", help="render and validate without publishing")
+    parser.add_argument("--force", action="store_true", help="explicitly replace unowned/manual assets")
+    parser.add_argument("--seed", type=int, default=0x57EA, help="base seed for stable per-asset randomness")
     args = parser.parse_args()
     wanted = [n for n in args.only.split(",") if n] or list(BUILDERS)
+    unknown = sorted(set(wanted) - set(BUILDERS))
+    if unknown:
+        print("unknown asset(s): " + ", ".join(unknown), file=sys.stderr)
+        return 1
+    outputs: list[tuple[pathlib.Path, bytes]] = []
     for name in wanted:
-        if name not in BUILDERS:
-            print(f"unknown asset {name}", file=sys.stderr)
-            return 1
-        rng = np.random.default_rng(abs(hash(name)) % (2**32))
+        seed_bytes = hashlib.sha256(f"{args.seed}:{name}".encode("utf-8")).digest()[:4]
+        rng = np.random.default_rng(int.from_bytes(seed_bytes, "big"))
         sig = BUILDERS[name](rng)
-        path = A.write_ogg(SFX_DIR / f"{name}.ogg", sig)
-        print(f"wrote {path}")
+        path = SFX_DIR / f"{name}.ogg"
+        encoded = A.encode_ogg(sig)
+        outputs.append((path, encoded))
+        print(f"{name}: {len(encoded)} bytes")
+    written = write_generated_bytes_set(
+        outputs,
+        generator=pathlib.Path(__file__).resolve(),
+        sources=[pathlib.Path(__file__).resolve().parent / "audio_synth.py"],
+        force=args.force,
+        dry_run=args.dry_run,
+        seed=args.seed,
+    )
+    print(f"{'validated' if args.dry_run else 'published'} {len(outputs)} candidates; {len(written)} file(s) written")
     return 0
 
 

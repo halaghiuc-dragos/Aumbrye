@@ -4,8 +4,9 @@ The game had no menu music at all — `play_menu_music()` only set oscillator fr
 fallback tone generator — and every biome's four music layers were six-to-eight-second stubs that
 become maddening inside a minute. This module is the instrument rack the generators draw on.
 
-Everything is float32 mono or stereo in [-1, 1] at SAMPLE_RATE. Write with `write_ogg`, which goes
-through ffmpeg so the result is real Vorbis rather than a WAV with the wrong extension.
+Everything is float32 mono or stereo in [-1, 1] at SAMPLE_RATE. Encode Ogg in memory with
+`encode_ogg`; `write_ogg` is a guarded convenience publisher that requires generator/source
+ownership metadata and writes through the generated-asset registry.
 
 Design notes that matter for the result:
 
@@ -20,10 +21,10 @@ Design notes that matter for the result:
 from __future__ import annotations
 
 import math
+import io
 import pathlib
 import shutil
 import subprocess
-import tempfile
 import wave
 
 import numpy as np
@@ -515,7 +516,51 @@ def _ffmpeg() -> str | None:
     return exe
 
 
-def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 7) -> pathlib.Path:
+def encode_ogg(sig: np.ndarray, quality: int = 7) -> bytes:
+    """Encode float audio as Ogg Vorbis bytes without touching the filesystem."""
+    data = np.asarray(sig, dtype=np.float32)
+    channels = 1 if data.ndim == 1 else data.shape[1]
+    pcm = (np.clip(data, -1.0, 1.0) * 32767.0).astype("<i2")
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, "wb") as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(SAMPLE_RATE)
+        wav_file.writeframes(pcm.tobytes())
+    wav_bytes = wav_buffer.getvalue()
+    exe = _ffmpeg()
+    if exe is not None:
+        result = subprocess.run(
+            [exe, "-y", "-loglevel", "error", "-i", "pipe:0", "-c:a", "libvorbis",
+             "-q:a", str(quality), "-f", "ogg", "pipe:1"],
+            input=wav_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        encoded = result.stdout
+    else:
+        import soundfile as sf
+
+        target = io.BytesIO()
+        sf.write(target, np.clip(data, -1.0, 1.0), SAMPLE_RATE, format="OGG", subtype="VORBIS")
+        encoded = target.getvalue()
+    if len(encoded) < 28 or encoded[:4] != b"OggS":
+        raise ValueError("Ogg encoder returned an invalid or empty stream")
+    return encoded
+
+
+def write_ogg(
+    path: str | pathlib.Path,
+    sig: np.ndarray,
+    quality: int = 7,
+    *,
+    generator: pathlib.Path | None = None,
+    sources: list[pathlib.Path] | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+    seed: int | None = None,
+) -> pathlib.Path:
     """Write float audio as Ogg Vorbis. Mono in, mono out; (n, 2) in, stereo out.
 
     Prefers ffmpeg, because `-q:a` maps directly onto the quality argument and its encoder is the
@@ -529,35 +574,21 @@ def write_ogg(path: str | pathlib.Path, sig: np.ndarray, quality: int = 7) -> pa
     high-frequency detail that separates a snow footstep from a generic crunch was being smeared
     into a warble. The bank is a few megabytes either way.
     """
-    path = pathlib.Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = np.asarray(sig, dtype=np.float32)
-    if data.ndim == 1:
-        channels = 1
-    else:
-        channels = data.shape[1]
-    exe = _ffmpeg()
-    if exe is None:
-        import soundfile as sf  # imported lazily: only the fallback path needs it
+    if generator is None or not sources:
+        raise ValueError("write_ogg requires generator and source paths for ownership tracking")
+    try:
+        from generated_manifest import write_generated_bytes
+    except ModuleNotFoundError:
+        from tools.generated_manifest import write_generated_bytes
 
-        sf.write(str(path), np.clip(data, -1.0, 1.0), SAMPLE_RATE, format="OGG", subtype="VORBIS")
-        return path
-    pcm = np.clip(data, -1.0, 1.0)
-    pcm = (pcm * 32767.0).astype("<i2")
-    with tempfile.TemporaryDirectory() as tmp:
-        wav_path = pathlib.Path(tmp) / "render.wav"
-        with wave.open(str(wav_path), "wb") as w:
-            w.setnchannels(channels)
-            w.setsampwidth(2)
-            w.setframerate(SAMPLE_RATE)
-            w.writeframes(pcm.tobytes())
-        subprocess.run(
-            [
-                exe, "-y", "-loglevel", "error",
-                "-i", str(wav_path),
-                "-c:a", "libvorbis", "-q:a", str(quality),
-                str(path),
-            ],
-            check=True,
-        )
+    path = pathlib.Path(path)
+    write_generated_bytes(
+        path,
+        encode_ogg(sig, quality),
+        generator=pathlib.Path(generator),
+        sources=[pathlib.Path(source) for source in sources],
+        force=force,
+        dry_run=dry_run,
+        seed=seed,
+    )
     return path

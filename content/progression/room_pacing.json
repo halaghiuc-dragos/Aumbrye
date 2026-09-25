@@ -27,6 +27,7 @@
   },
   "guarantees": {
     "minRewardRooms": 1,
+    "minLoreRooms": 2,
     "minRestRooms": 1,
     "restWithinOfBoss": 3,
     "maxConsecutiveCombat": 2

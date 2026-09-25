@@ -152,6 +152,8 @@ func _ensure_socket_completeness(blockout: CastleBlockout) -> void:
 		socket.position = RoomTemplateCatalogScript.socket_wall_position(
 			direction, half_w, half_d, _door_offset_for(blockout, direction)
 		)
+		socket.landing_height = blockout.socket_landing_height(direction)
+		socket.position.y = socket.landing_height
 
 
 func _ensure_marker_contract(blockout: CastleBlockout, biome_id: String) -> void:

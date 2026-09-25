@@ -165,12 +165,9 @@ static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> boo
 			direction = (target_pos - origin).normalized()
 	elif player.has_method("get_facing_direction"):
 		direction = player.call("get_facing_direction")
-	var projectile: Node3D = ThrowableProjectileScene.instantiate() as Node3D
-	var container := ProjectileContainerScript.get_or_create(player)
-	if container:
-		container.add_child(projectile)
-	else:
-		player.get_tree().current_scene.add_child(projectile)
+	var projectile: Node3D = ProjectileContainerScript.acquire(player, ThrowableProjectileScene)
+	if projectile == null:
+		return false
 	projectile.global_position = origin
 	projectile.call(
 		"configure",

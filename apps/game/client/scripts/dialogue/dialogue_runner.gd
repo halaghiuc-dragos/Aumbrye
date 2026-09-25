@@ -9,6 +9,7 @@ signal action_failed(message: String)
 
 const RELATIONSHIP_FLAG_PREFIX := "rel_"
 const STORY_BEAT_FLAG := "story_beat"
+const DungeonQuestCatalogScript := preload("res://scripts/quests/dungeon_quest_catalog.gd")
 
 const UI_ACTIONS := [
 	"open_blacksmith",
@@ -21,6 +22,8 @@ var _dialogue: Dictionary = {}
 var _current_node_id: String = ""
 var _active := false
 var _presented_choices: Dictionary = {}
+var _ignore_conditions := false
+var _suppressed_action_types: Dictionary = {}
 
 enum StartResult { FAILED, COMPLETED, OPENED }
 
@@ -29,15 +32,24 @@ func is_active() -> bool:
 	return _active
 
 
-func start(dialogue_id: String) -> StartResult:
+func start(
+	dialogue_id: String,
+	start_node_override: String = "",
+	ignore_conditions: bool = false,
+	suppressed_action_types: Array[String] = []
+) -> StartResult:
 	var candidate := DialogueCatalog.get_dialogue(dialogue_id)
 	if candidate.is_empty():
 		return StartResult.FAILED
-	var start_node_id := str(candidate.get("startNode", "start"))
+	var start_node_id := start_node_override if start_node_override != "" else str(candidate.get("startNode", "start"))
 	var nodes: Variant = candidate.get("nodes", {})
 	if not nodes is Dictionary or not (nodes as Dictionary).get(start_node_id) is Dictionary:
 		return StartResult.FAILED
 	_dialogue = candidate
+	_ignore_conditions = ignore_conditions
+	_suppressed_action_types.clear()
+	for action_type in suppressed_action_types:
+		_suppressed_action_types[action_type] = true
 	_current_node_id = start_node_id
 	_active = true
 	_advance_to_node(_current_node_id)
@@ -92,6 +104,8 @@ func end_dialogue() -> void:
 	_dialogue = {}
 	_current_node_id = ""
 	_presented_choices.clear()
+	_ignore_conditions = false
+	_suppressed_action_types.clear()
 	dialogue_ended.emit()
 
 
@@ -108,7 +122,7 @@ func _advance_to_node(node_id: String) -> void:
 		if node.is_empty():
 			end_dialogue()
 			return
-		if not DialogueConditions.evaluate(node.get("condition")):
+		if not _conditions_met(node.get("condition")):
 			var fallback: String = str(node.get("fallback", ""))
 			if fallback != "":
 				current_id = fallback
@@ -154,7 +168,7 @@ func _get_visible_choices(node: Dictionary, node_id: String = "") -> Array:
 	var authored_choices: Array = node.get("choices", [])
 	for choice_index in authored_choices.size():
 		var choice: Variant = authored_choices[choice_index]
-		if choice is Dictionary and DialogueConditions.evaluate(choice.get("condition")):
+		if choice is Dictionary and _conditions_met(choice.get("condition")):
 			var presented := (choice as Dictionary).duplicate(true)
 			presented["_choiceId"] = str(
 				presented.get("id", "%s:%d" % [identity_node, choice_index])
@@ -167,9 +181,20 @@ func _apply_actions(actions: Variant) -> bool:
 	if not actions is Array:
 		return true
 	var inventory_actions: Array[Dictionary] = []
+	var payment_receipts: Array[String] = []
 	for raw in actions:
-		if raw is Dictionary and str(raw.get("type", "")) in ["give_item", "take_item"]:
-			inventory_actions.append(raw)
+		if not raw is Dictionary:
+			continue
+		var action: Dictionary = raw
+		var action_type := str(action.get("type", ""))
+		if action_type in ["give_item", "take_item"]:
+			inventory_actions.append(action)
+		elif action_type == "grant_dungeon_payment":
+			var payment := _payment_action(action)
+			if payment.is_empty():
+				return false
+			inventory_actions.append(payment)
+			payment_receipts.append(str(payment.get("receiptFlag", "")))
 	if not inventory_actions.is_empty():
 		var inv := InventoryService.inventory
 		var working := GridInventory.new(inv.grid_width, inv.grid_height)
@@ -187,12 +212,35 @@ func _apply_actions(actions: Variant) -> bool:
 					action_failed.emit("Inventory is full. Make room and try again.")
 					return false
 		inv.from_save_dict(working.to_save_dict())
+		for receipt_flag in payment_receipts:
+			CharacterService.set_flag(receipt_flag, true)
 	for action in actions:
 		if action is Dictionary:
-			if str(action.get("type", "")) in ["give_item", "take_item"]:
+			if _suppressed_action_types.has(str((action as Dictionary).get("type", ""))):
+				continue
+			if str(action.get("type", "")) in ["give_item", "take_item", "grant_dungeon_payment"]:
 				continue
 			_execute_action(action)
 	return true
+
+
+func _payment_action(action: Dictionary) -> Dictionary:
+	var quest_id := str(action.get("questId", ""))
+	var quest := DungeonQuestCatalogScript.quest_for_id(quest_id)
+	var delivery := DungeonQuestCatalogScript.delivery_for_quest(quest)
+	var item_id := str(delivery.get("itemId", ""))
+	var receipt_flag := str(delivery.get("receiptFlag", ""))
+	if str(delivery.get("kind", "")) != "npc_payment" or item_id == "" or receipt_flag == "":
+		action_failed.emit("This payment is not configured correctly.")
+		return {}
+	if CharacterService.is_flag_truthy(receipt_flag):
+		action_failed.emit("That payment has already been received.")
+		return {}
+	return {"type": "give_item", "itemId": item_id, "quantity": 1, "receiptFlag": receipt_flag}
+
+
+func _conditions_met(condition: Variant) -> bool:
+	return _ignore_conditions or DialogueConditions.evaluate(condition)
 
 
 func _execute_action(action: Dictionary) -> void:
@@ -232,6 +280,8 @@ func _execute_action(action: Dictionary) -> void:
 			QuestService.register_discovery(str(action.get("discoveryId", "")))
 		"record_rescue":
 			QuestService.register_rescue(str(action.get("npcId", "")))
+		"set_rescue_state":
+			QuestService.set_rescue_state(str(action.get("npcId", "")), str(action.get("state", "")))
 		_:
 			if action_type not in UI_ACTIONS:
 				push_error("DialogueRunner: unrecognized action type '%s'" % action_type)

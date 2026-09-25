@@ -16,10 +16,11 @@
             "not": {
               "flag": "lost_veil"
             }
-          }
+          },
+          {"not": {"flag": "rescue_committed_veil"}}
         ]
       },
-      "fallback": "already",
+      "fallback": "committed",
       "choices": [
         {
           "text": "Walk behind me. Stay close.",
@@ -33,16 +34,12 @@
     },
     "taken": {
       "speaker": "The Widow",
-      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "text": "Then the stair is ours until the ascent. I will not slow you if you do not leave me behind.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "rescued_veil",
-          "value": true
-        },
-        {
-          "type": "record_rescue",
-          "npcId": "widow_of_the_stair"
+          "type": "set_rescue_state",
+          "npcId": "veil",
+          "state": "committed"
         },
         {
           "type": "play_sfx",
@@ -53,16 +50,17 @@
     },
     "left": {
       "speaker": "The Widow",
-      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "text": "Then take your descent. The landing remains mine, and I will be here when you choose ascent.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "lost_veil",
-          "value": true
+          "type": "set_rescue_state",
+          "npcId": "veil",
+          "state": "deferred"
         }
       ],
       "next": "end"
     },
+    "committed": {"speaker": "The Widow", "text": "The landing is yours until the ascent. Do not make me regret lending it.", "condition": {"flag": "rescue_committed_veil"}, "fallback": "already", "next": "end"},
     "already": {
       "speaker": "An empty landing",
       "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",

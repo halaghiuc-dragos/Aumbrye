@@ -5,6 +5,8 @@ using Aumbrye.Application.Abstractions;
 using Aumbrye.Domain.Entities;
 using Aumbrye.Procedural.Biome;
 using Aumbrye.Procedural.Generation;
+using Aumbrye.Shared.Contracts.Leaderboards;
+using Aumbrye.Shared.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -120,6 +122,9 @@ public class RunService : IRunService
             Seed = baseSeed,
             Tier = tier,
             PlayerLevelSnapshot = playerLevel,
+            ClientVersionSnapshot = ApiVersions.ExpectedClientVersion,
+            Mode = "dungeon",
+            Ruleset = RankedLeaderboardContract.Ruleset,
             Status = RunStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow,
             DefinitionChecksum = checksum,
@@ -132,7 +137,7 @@ public class RunService : IRunService
         await _cache.SetAsync(runId, 1, json, CacheTtl, ct);
 
         ApiMetrics.RunsCreated.Add(1);
-        return new CreateRunResult(true, runId, baseSeed, biomeId, json);
+        return new CreateRunResult(true, runId, baseSeed, playerLevel, ApiVersions.ExpectedClientVersion, biomeId, json);
     }
 
     public async Task<DungeonDefinitionResult> GetDungeonDefinitionAsync(
@@ -174,14 +179,17 @@ public class RunService : IRunService
         if (input.Outcome == "escaped" && !input.BossDefeated)
             return new CompleteRunResult(false, runId, Error: "Boss must be defeated to escape.");
 
-		if (input.Outcome == "escaped" && !input.FinalObjectiveCompleted)
+        if (input.Outcome == "escaped" && !input.FinalObjectiveCompleted)
 			return new CompleteRunResult(false, runId, Error: "Final objective must be completed to escape.");
-		if (input.Mode is not ("dungeon" or "endless" or "waves"))
-			return new CompleteRunResult(false, runId, Error: "Invalid run mode.");
+		// The current offline client reports boss/objective state directly. Do not promote these
+		// claims into ranked progression; only a server-authoritative encounter verifier may set
+		// RankedProgressionVerified.
+		if (input.Mode != run.Mode)
+			return new CompleteRunResult(false, runId, Error: "Run mode cannot be changed at completion.");
 		if (input.Assists < 0 || input.Assists > 16)
 			return new CompleteRunResult(false, runId, Error: "Invalid assist count.");
-		if (string.IsNullOrWhiteSpace(input.Ruleset) || input.Ruleset.Length > 64)
-			return new CompleteRunResult(false, runId, Error: "Invalid ruleset.");
+		if (!string.Equals(input.Ruleset, run.Ruleset, StringComparison.Ordinal))
+			return new CompleteRunResult(false, runId, Error: "Run ruleset cannot be changed at completion.");
 
         if (input.ElapsedSeconds < 0 || input.ElapsedSeconds > 86_400)
             return new CompleteRunResult(false, runId, Error: "Invalid elapsed time.");
@@ -252,8 +260,8 @@ public class RunService : IRunService
                     .SetProperty(r => r.CompletedAt, now)
                     .SetProperty(r => r.ElapsedSeconds, input.ElapsedSeconds)
                     .SetProperty(r => r.Outcome, input.Outcome)
-                    .SetProperty(r => r.Mode, input.Mode)
                     .SetProperty(r => r.FinalObjectiveCompleted, input.FinalObjectiveCompleted)
+                    .SetProperty(r => r.RankedProgressionVerified, false)
                     .SetProperty(r => r.Assists, input.Assists)
                     .SetProperty(r => r.Ruleset, input.Ruleset),
                 ct);

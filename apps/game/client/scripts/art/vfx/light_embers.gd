@@ -17,11 +17,18 @@ static func attach(
 	count_scale: float = 1.0,
 	spread_scale: float = 1.0
 ) -> GPUParticles3D:
+	var existing := parent.get_node_or_null(NODE_NAME) as GPUParticles3D
 	if PixelDioramaSettings.particle_quality <= 0:
+		if existing:
+			existing.emitting = false
+			existing.hide()
 		return null
 	var assets := _assets(tint, spread_scale)
-	var embers := GPUParticles3D.new()
-	embers.name = NODE_NAME
+	var embers := existing
+	if embers == null:
+		embers = GPUParticles3D.new()
+		embers.name = NODE_NAME
+		parent.add_child(embers)
 	embers.position = pos
 	embers.amount = maxi(
 		2,
@@ -37,7 +44,8 @@ static func attach(
 	)
 	embers.draw_pass_1 = assets["mesh"]
 	embers.process_material = assets["process"]
-	parent.add_child(embers)
+	embers.show()
+	embers.restart()
 	return embers
 
 

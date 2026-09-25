@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SY-07 — warn on a user-facing string literal that never went through `tr()`.
+ * SY-07 — reject a user-facing string literal that never went through `tr()`.
  *
  * `strings.csv` has 740 keys and every `tr()` call in code resolves — the gap SY-07 found was
  * narrower: `Label.text`, `Label3D.text` and `Button.text` assignments built as plain string
@@ -10,9 +10,9 @@
  * it cannot see through a helper function that builds text elsewhere, and short technical strings
  * ("", "OK", node names) are exactly what "longer than two characters" is there to filter out.
  *
- * Warn-only, per the plan text — some literals below the threshold are legitimately debug-only or
- * pre-formatted from data (not prose a player reads), and a heuristic this cheap will always have
- * some of those. Never fails the build.
+ * Formatting-only separators and debug-only names are allowlisted below. Every remaining match is
+ * a player-facing phrase and fails the content gate, so a new screen cannot silently bypass the
+ * English/Romanian tables.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve, dirname } from "node:path";
@@ -32,6 +32,9 @@ const SKIP_PATTERNS = [
   /^\d+(\.\d+)?$/, // a bare number
   /^%[sd.]/, // a format placeholder alone
   /^res:\/\//, // a resource path
+  /^[\s|·→\[\]%.0-9sd]+$/u, // punctuation/separators and format-only fragments
+  /^ProbeFlow(?:\d+|%d)$/, // debug probe node name
+  /^x%d$/, // compact status-stack counter; the number itself is locale-neutral
 ];
 
 function collectGdFiles(dir) {
@@ -83,9 +86,9 @@ function main() {
   if (total === 0) {
     console.log("OK: no untranslated Label/Label3D/Button text literals found");
   } else {
-    console.log(`WARN: ${total} untranslated text literal(s) found (see above) -- not a failure`);
+    console.error(`FAIL: ${total} untranslated text literal(s) found (see above)`);
   }
-  process.exit(0);
+  process.exit(total === 0 ? 0 : 1);
 }
 
 main();

@@ -28,11 +28,16 @@ Usage:
     python tools/generate_music.py                # everything
     python tools/generate_music.py --only title   # one target
     python tools/generate_music.py --list
+    python tools/generate_music.py --only title --dry-run --force
+
+Tracks use stable digest-derived seeds. Candidate Ogg files are staged and ownership-checked;
+`--force` is required to replace unregistered/manual bytes.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
 import pathlib
 import sys
@@ -42,6 +47,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import audio_synth as A  # noqa: E402
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUDIO = ROOT / "apps/game/client/assets/audio"
@@ -306,9 +312,14 @@ def targets() -> dict:
     return out
 
 
-def render_one(name: str, seconds: float, kind: str) -> np.ndarray:
-    # Seeded per track so a re-run reproduces the same soundtrack byte for byte.
-    rng = np.random.default_rng(abs(hash(name)) % (2**32))
+def _track_seed(name: str, base_seed: int) -> int:
+    digest = hashlib.sha256(f"{base_seed}:{name}".encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "big")
+
+
+def render_one(name: str, seconds: float, kind: str, base_seed: int = 0xA6B) -> np.ndarray:
+    # A stable digest avoids Python's process-randomized hash salt changing the arrangement.
+    rng = np.random.default_rng(_track_seed(name, base_seed))
     if kind == "title":
         return title_theme(seconds, rng)
     if kind == "hub":
@@ -326,6 +337,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", action="append", help="render just these targets (repeatable)")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--dry-run", action="store_true", help="render and validate without publishing")
+    ap.add_argument("--force", action="store_true", help="explicitly replace unowned/manual assets")
+    ap.add_argument("--seed", type=int, default=0xA6B, help="base seed for reproducible per-track seeds")
     args = ap.parse_args()
 
     all_targets = targets()
@@ -341,17 +355,28 @@ def main() -> int:
         return 1
 
     total_start = time.time()
+    outputs: list[tuple[pathlib.Path, bytes]] = []
     for name in selected:
         path, secs, kind = all_targets[name]
         start = time.time()
-        sig = render_one(name, secs, kind)
-        A.write_ogg(path, sig, quality=5)
-        size = path.stat().st_size
+        sig = render_one(name, secs, kind, args.seed)
+        encoded = A.encode_ogg(sig, quality=5)
+        outputs.append((path, encoded))
+        size = len(encoded)
         print(
             f"  {name:<34} {secs:5.0f}s  {size / 1024:7.1f} KiB"
             f"  peak {float(np.max(np.abs(sig))):.2f}  ({time.time() - start:.1f}s)"
         )
     print(f"\nrendered {len(selected)} tracks in {time.time() - total_start:.0f}s")
+    published = write_generated_bytes_set(
+        outputs,
+        generator=pathlib.Path(__file__).resolve(),
+        sources=[pathlib.Path(__file__).resolve().parent / "audio_synth.py"],
+        force=args.force,
+        dry_run=args.dry_run,
+        seed=args.seed,
+    )
+    print(f"{'validated' if args.dry_run else 'published'} {len(outputs)} candidates; {len(published)} file(s) written")
     return 0
 
 

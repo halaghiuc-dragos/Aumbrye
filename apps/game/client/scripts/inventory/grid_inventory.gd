@@ -4,6 +4,7 @@ class_name GridInventory
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
+const ContentTextScript := preload("res://scripts/content/content_text.gd")
 
 const DEFAULT_WIDTH := 10
 const DEFAULT_HEIGHT := 6
@@ -131,7 +132,7 @@ func get_slot_display_name(slot: Dictionary) -> String:
 	var def := get_item_def(slot.get("itemId", ""))
 	if slot.get("itemId", "") == "dungeon_key" and slot.has("keyLabel"):
 		return str(slot.get("keyLabel", "Dungeon Key"))
-	var name: String = def.get("name", slot.get("itemId", "?"))
+	var name := ContentTextScript.name(def, str(slot.get("itemId", "?")))
 	# The neutral condition is left unsaid. Naming every ordinary drop "Sturdy" would make the
 	# word noise, and the point of the condition is that it stands out when it is not ordinary.
 	var quality: String = str(slot.get("quality", ""))

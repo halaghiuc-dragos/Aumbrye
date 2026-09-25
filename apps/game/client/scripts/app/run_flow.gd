@@ -71,6 +71,8 @@ var last_run_results: Dictionary = {}
 var current_run_id: String = ""
 var current_dungeon_definition: Dictionary = {}
 var current_seed: int = 0
+var current_player_level_snapshot: int = 1
+var current_client_version_snapshot := "legacy-unknown"
 var current_generator: String = ""
 var current_tier_seed: int = 0
 var current_generation_seed: int = 0
@@ -253,6 +255,8 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 	current_dungeon_definition = {}
 	current_run_id = ""
 	current_seed = 0
+	current_player_level_snapshot = clampi(ProgressionService.level if ProgressionService else 1, 1, 1000)
+	current_client_version_snapshot = ApiConfig.CLIENT_VERSION
 	current_generator = ""
 	current_tier_seed = 0
 	current_generation_seed = 0
@@ -277,6 +281,8 @@ func _start_mode_run(mode: String, biome_id: String, run_seed: Variant, start_fl
 		return
 
 	current_dungeon_definition = gen.get("definition", {})
+	current_player_level_snapshot = clampi(int(gen.get("player_level", current_player_level_snapshot)), 1, 1000)
+	current_client_version_snapshot = str(gen.get("client_version", current_client_version_snapshot))
 	current_run_id = str(gen.get("run_id", ""))
 	current_generator = str(gen.get("generator", "gdscript"))
 	current_tier_seed = int(gen.get("tier_seed", 0))
@@ -327,7 +333,7 @@ func _generate_dungeon(biome_id: String, run_seed: Variant, floor_index: int = 1
 		floor_index,
 		run_mode,
 		current_dungeon_tier,
-		ProgressionService.level if ProgressionService else 1,
+		current_player_level_snapshot,
 		false, false, false, max_floors
 	)
 
@@ -347,6 +353,8 @@ func _try_online_generate(biome_id: String, run_seed: Variant, floor_index: int 
 		"ok": true,
 		"definition": definition,
 		"run_id": run_id,
+		"player_level": int(created.get("body", {}).get("playerLevel", 1)),
+		"client_version": str(created.get("body", {}).get("clientVersion", "legacy-unknown")),
 		"input_seed": run_seed,
 		"generation_seed": definition.get("seed", run_seed),
 		"floor_index": floor_index,
@@ -361,6 +369,8 @@ func _restore_castle_run(saved: Dictionary) -> void:
 	current_run_id = str(saved.get("runId", ""))
 	current_biome_id = str(saved.get("biomeId", DEFAULT_BIOME))
 	current_seed = int(saved.get("seed", 0))
+	current_player_level_snapshot = clampi(int(saved.get("playerLevelSnapshot", _pending_snapshot.get("playerLevelSnapshot", ProgressionService.level if ProgressionService else 1))), 1, 1000)
+	current_client_version_snapshot = str(saved.get("clientVersionSnapshot", _pending_snapshot.get("clientVersionSnapshot", "legacy-unknown")))
 	run_mode = str(saved.get("runMode", RM.MODE_CASTLE))
 	current_floor = int(saved.get("currentFloor", 1))
 	max_floors = int(
@@ -489,6 +499,8 @@ func _enter_run() -> void:
 		"runMode": run_mode,
 		"runId": current_run_id,
 		"seed": current_seed,
+		"playerLevelSnapshot": current_player_level_snapshot,
+		"clientVersionSnapshot": current_client_version_snapshot,
 		"biomeId": current_biome_id,
 		"dungeonId": current_dungeon_id,
 		"dungeonTier": current_dungeon_tier,
@@ -502,6 +514,7 @@ func _enter_run() -> void:
 		"tier_seed": current_tier_seed,
 		"generation_seed": current_generation_seed,
 		"generationWarnings": current_generation_warnings.duplicate(),
+		"floorDefinitions": {str(current_floor): _floor_definition_record(definition_copy)},
 	}
 	if _is_continue and not _pending_snapshot.is_empty():
 		active_run["snapshot"] = _pending_snapshot.duplicate(true)
@@ -919,6 +932,7 @@ func _finish_run(
 	else:
 		LocalSave.clear_active_run()
 	LocalSave.autosave_checkpoint()
+	QuestService.resolve_committed_rescues(outcome)
 	QuestService.register_run_outcome(outcome, {"run_mode": run_mode})
 	MerchantService.restock_all()
 	# Progress has moved as far as it is going to for this run — open anything it earned before
@@ -1203,6 +1217,10 @@ func set_pending_descent_pact(pact_id: String) -> void:
 	_pending_descent_pact = pact_id
 
 
+func get_base_run_modifiers() -> Array[String]:
+	return _base_run_modifiers.duplicate()
+
+
 func consume_pending_region_card() -> bool:
 	if not _pending_region_card:
 		return false
@@ -1285,6 +1303,16 @@ func _resolve_floor_definition(floor_index: int) -> Dictionary:
 	var cached := _get_cached_floor_definition(floor_index)
 	if not cached.is_empty():
 		return cached
+	var persisted: Variant = LocalSave.get_active_run().get("floorDefinitions", {}).get(str(floor_index), {})
+	if persisted is Dictionary and not (persisted as Dictionary).is_empty():
+		var saved_entry: Dictionary = persisted as Dictionary
+		var saved_definition: Variant = saved_entry.get("definition", saved_entry)
+		if saved_definition is Dictionary:
+			var definition: Dictionary = saved_definition as Dictionary
+			var expected_hash := str(saved_entry.get("definitionHash", ""))
+			if expected_hash == "" or expected_hash == JSON.stringify(definition).sha256_text():
+				return definition.duplicate(true)
+			push_warning("RunFlow: rejected corrupted saved floor definition %d" % floor_index)
 	var gen := await _generate_dungeon(current_biome_id, current_seed, floor_index)
 	if gen.get("ok", false):
 		return gen.get("definition", {})
@@ -1295,11 +1323,14 @@ func _build_floor_transition_snapshot(ascending: bool) -> Dictionary:
 	var floors: Dictionary = LocalSave.get_active_run().get("floorSnapshots", {})
 	var snapshot: Dictionary = floors.get(str(current_floor), {}).duplicate(true)
 	snapshot.merge({
+		"snapshotVersion": 1,
 		"player": PlayerRunState.capture(get_tree().get_first_node_in_group("player")),
 		"elapsedSeconds": get_run_elapsed_seconds(),
 		"floorTransition": true,
 		"ascending": ascending,
 		"currentFloor": current_floor,
+		"playerLevelSnapshot": current_player_level_snapshot,
+		"clientVersionSnapshot": current_client_version_snapshot,
 		"bossDefeated": _boss_defeated,
 		"clearedFloors": _cleared_floors.duplicate(),
 		"killCount": _kill_count,
@@ -1321,12 +1352,15 @@ func _persist_active_run() -> void:
 			"biomeId": current_biome_id,
 		}
 	active["runMode"] = run_mode
+	active["playerLevelSnapshot"] = current_player_level_snapshot
+	active["clientVersionSnapshot"] = current_client_version_snapshot
 	active["currentFloor"] = current_floor
 	active["dungeonTier"] = current_dungeon_tier
 	active["difficultyTier"] = current_difficulty_tier
 	active["dungeonId"] = current_dungeon_id
 	active["maxFloors"] = max_floors
 	active["dungeonDefinition"] = current_dungeon_definition.duplicate(true)
+	_remember_floor_definition(active, current_floor, current_dungeon_definition)
 	active["clearedFloors"] = _cleared_floors.duplicate()
 	active["generator"] = current_generator
 	active["input_seed"] = current_seed
@@ -1356,13 +1390,48 @@ func _stash_current_floor_in_cache() -> void:
 		return
 	_bind_run_cache()
 	FloorDefinitionCache.store_floor_cache(current_floor, current_dungeon_definition)
+	var active := LocalSave.get_active_run()
+	_remember_floor_definition(active, current_floor, current_dungeon_definition)
 	var castle := get_tree().get_first_node_in_group("castle_run")
 	if castle and castle.has_method("_capture_run_snapshot"):
-		var active := LocalSave.get_active_run()
 		var floors: Dictionary = active.get("floorSnapshots", {})
 		floors[str(current_floor)] = castle.call("_capture_run_snapshot")
 		active["floorSnapshots"] = floors
-		LocalSave.set_active_run(active, false)
+	LocalSave.set_active_run(active, false)
+
+
+func _remember_floor_definition(active: Dictionary, floor_index: int, definition: Dictionary) -> void:
+	if definition.is_empty() or floor_index < 1:
+		return
+	var definitions: Dictionary = active.get("floorDefinitions", {})
+	definitions[str(floor_index)] = _floor_definition_record(definition)
+	active["floorDefinitions"] = definitions
+
+
+func _floor_definition_record(definition: Dictionary) -> Dictionary:
+	var copy := definition.duplicate(true)
+	var generator_source := ""
+	if current_generator == "gdscript":
+		generator_source = FileAccess.get_file_as_string("res://scripts/dungeon/local_procgen.gd")
+	var generator_hash := (current_generator + "\n" + generator_source).sha256_text()
+	# The immutable definition is the content actually used to build this floor. Hashing it with the
+	# declared bundle version catches both a damaged saved record and content/version drift without
+	# asking a revisit to regenerate an older floor from whatever happens to ship today.
+	var content_hash := JSON.stringify({
+		"contentVersion": ApiConfig.CONTENT_VERSION,
+		"biomeId": current_biome_id,
+		"dungeonId": current_dungeon_id,
+		"definition": copy,
+	}).sha256_text()
+	return {
+		"recordVersion": 1,
+		"definition": copy,
+		"definitionHash": JSON.stringify(copy).sha256_text(),
+		"contentVersion": ApiConfig.CONTENT_VERSION,
+		"contentHash": content_hash,
+		"generator": current_generator,
+		"generatorHash": generator_hash,
+	}
 
 
 func _get_cached_floor_definition(floor_index: int) -> Dictionary:
@@ -1439,7 +1508,7 @@ func get_current_objective() -> String:
 			return _tr_fmt("PAUSE_OBJECTIVE_WAVES", [WavesRunService.current_wave])
 		RM.MODE_CASTLE, RM.MODE_ENDLESS:
 			if _boss_defeated and _cleared_floors.has(current_floor):
-				return "Enter the portal and bring your loot home." if is_final_floor() else tr("PAUSE_OBJECTIVE_STAIRS")
+				return tr("PAUSE_OBJECTIVE_FINAL_PORTAL") if is_final_floor() else tr("PAUSE_OBJECTIVE_STAIRS")
 			if _boss_fight_active or not _boss_defeated:
 				return tr("PAUSE_OBJECTIVE_BOSS")
 			return tr("PAUSE_OBJECTIVE_EXPLORE")
@@ -1613,12 +1682,15 @@ func _cloud_finalize_run(
 	run_id: String, outcome: String, elapsed: float, boss_defeated: bool, loot_instance_ids: Array
 ) -> void:
 	var finished_floor := current_floor
+	var submit_ranked := _should_submit_ranked(outcome, boss_defeated)
 	CloudOutboxScript.enqueue(
-		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count,
+		submit_ranked
 	)
 	LocalSave.autosave()
 	_cloud_finalize_run_async(
-		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count
+		run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, _kill_count,
+		submit_ranked
 	)
 
 
@@ -1629,7 +1701,8 @@ func _cloud_finalize_run_async(
 	boss_defeated: bool,
 	loot_instance_ids: Array,
 	finished_floor: int,
-	kills: int
+	kills: int,
+	submit_ranked: bool
 ) -> void:
 	if not ApiConfig.cloud_calls_enabled():
 		return
@@ -1638,7 +1711,11 @@ func _cloud_finalize_run_async(
 			run_id, outcome, elapsed, boss_defeated, loot_instance_ids, finished_floor, kills
 		)
 		if result.get("ok", false):
-			CloudOutboxScript.resolve(run_id)
+			var submitted_or_not_needed := true
+			if submit_ranked:
+				submitted_or_not_needed = await _submit_leaderboard_async(run_id)
+			if submitted_or_not_needed:
+				CloudOutboxScript.resolve(run_id)
 		else:
 			if CrashLogger:
 				CrashLogger.log_warning(
@@ -1670,13 +1747,19 @@ func _handle_escape_meta(elapsed: float, boss_defeated: bool) -> void:
 			AchievementService.unlock("ten_floor_clear")
 		if elapsed < SPEED_CLEAR_MAX_SECONDS:
 			AchievementService.unlock("speed_clear")
+func _should_submit_ranked(outcome: String, boss_defeated: bool) -> bool:
+	if outcome != RunLifecycle.OUTCOME_ESCAPED or not boss_defeated:
+		return false
+	if run_mode != RM.MODE_CASTLE or _active_alternate_mode != "":
+		return false
 	LeaderboardSettings.load_from_save()
-	if LeaderboardSettings.opt_in:
-		_submit_leaderboard_async(current_biome_id, current_dungeon_tier, elapsed)
+	return LeaderboardSettings.opt_in
 
 
-func _submit_leaderboard_async(_biome_id: String, _tier: int, _elapsed: float) -> void:
-	var lb := await ApiClient.submit_leaderboard(current_run_id, true)
+func _submit_leaderboard_async(run_id: String) -> bool:
+	if run_id == "":
+		return false
+	var lb := await ApiClient.submit_leaderboard(run_id, true)
 	last_run_results["leaderboard_submit_attempted"] = true
 	last_run_results["leaderboard_submit_ok"] = lb.get("ok", false)
 	if not lb.get("ok", false):
@@ -1685,6 +1768,7 @@ func _submit_leaderboard_async(_biome_id: String, _tier: int, _elapsed: float) -
 	last_run_results["leaderboard_submitted"] = submitted
 	if AchievementService and submitted:
 		AchievementService.unlock("leaderboard_submit")
+	return bool(lb.get("ok", false))
 
 
 func _mark_dungeon_cleared(dungeon_id: String) -> void:

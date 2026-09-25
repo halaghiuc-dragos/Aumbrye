@@ -1,5 +1,7 @@
 extends Control
 
+signal map_discovery_changed
+
 ## HD-01: the HUD is owned by this script; a run scene (`castle_run.gd`, `waves_run.gd`) may only
 ## call its public methods, never draw its own status panel. The mode-neutral contract every run
 ## scene owes a call to, so the same information appears in the same place in every mode:
@@ -509,7 +511,7 @@ func _ensure_combat_readouts() -> void:
 		_two_hand_swatch.name = "TwoHand"
 		_two_hand_swatch.custom_minimum_size = Vector2(10, 14)
 		_two_hand_swatch.color = Color(0.8, 0.78, 0.7, 1.0)
-		_two_hand_swatch.tooltip_text = "Two-handed"
+		_two_hand_swatch.tooltip_text = tr("COMBAT_TWO_HANDED")
 		_two_hand_swatch.visible = false
 		_stance_row.add_child(_two_hand_swatch)
 		_infusion_swatch = ColorRect.new()
@@ -1309,9 +1311,25 @@ func set_radar_spawn_markers(markers: Array) -> void:
 		_minimap.call("set_radar_spawn_markers", markers)
 
 
+func set_radar_objective_marker(marker: Node3D) -> void:
+	if _minimap and _minimap.has_method("set_radar_objective_marker"):
+		_minimap.call("set_radar_objective_marker", marker)
+
+
+func remove_radar_spawn_marker(marker: Node3D) -> void:
+	if _minimap and _minimap.has_method("remove_radar_spawn_marker"):
+		_minimap.call("remove_radar_spawn_marker", marker)
+
+
 func mark_room_visited(room_id: String) -> void:
 	if _minimap and _minimap.has_method("mark_visited"):
 		_minimap.call("mark_visited", room_id)
+
+
+func reveal_landmark_room(room_id: String) -> bool:
+	if _minimap and _minimap.has_method("reveal_landmark_room"):
+		return bool(_minimap.call("reveal_landmark_room", room_id))
+	return false
 
 
 func set_current_room(room_id: String) -> void:
@@ -1322,6 +1340,17 @@ func set_current_room(room_id: String) -> void:
 func mark_room_cleared(room_id: String) -> void:
 	if _minimap and _minimap.has_method("mark_cleared"):
 		_minimap.call("mark_cleared", room_id)
+
+
+func export_map_discovery_state() -> Dictionary:
+	if _minimap and _minimap.has_method("export_discovery_state"):
+		return _minimap.call("export_discovery_state")
+	return {}
+
+
+func import_map_discovery_state(state: Dictionary) -> void:
+	if _minimap and _minimap.has_method("import_discovery_state"):
+		_minimap.call("import_discovery_state", state)
 
 
 func set_minimap_fog_of_war(enabled: bool) -> void:
@@ -1471,8 +1500,11 @@ func _open_map_overlay() -> void:
 func _close_map_overlay() -> void:
 	if _map_overlay == null or not _map_overlay.visible:
 		return
+	if _map_overlay_minimap and _minimap and _map_overlay_minimap.has_method("export_discovery_state"):
+		_minimap.call("import_discovery_state", _map_overlay_minimap.call("export_discovery_state"))
 	_map_overlay.visible = false
 	MenuStack.pop(_map_overlay)
+	map_discovery_changed.emit()
 
 
 func _init_map_overlay() -> void:
@@ -1505,19 +1537,30 @@ func set_branch_previews(hints: Array) -> void:
 		return
 	var reward_count := 0
 	var danger_count := 0
+	var unknown_count := 0
 	for hint in hints:
 		if not hint is Dictionary:
+			continue
+		if int(hint.get("clueQuality", 0)) < 2:
+			unknown_count += 1
 			continue
 		match str(hint.get("hint", "")):
 			"reward":
 				reward_count += 1
 			"danger":
 				danger_count += 1
+			_:
+				unknown_count += 1
 	var parts: PackedStringArray = []
+	if unknown_count > 0:
+		parts.append(tr("HUD_BRANCH_UNCLASSIFIED") % unknown_count)
 	if reward_count > 0:
 		parts.append(tr("HUD_BRANCH_REWARD") % reward_count)
 	if danger_count > 0:
 		parts.append(tr("HUD_BRANCH_DANGER") % danger_count)
+	if parts.is_empty():
+		_branch_banner.visible = false
+		return
 	_branch_banner.text = tr("HUD_BRANCH_AHEAD") % ", ".join(parts)
 	_branch_banner.visible = true
 

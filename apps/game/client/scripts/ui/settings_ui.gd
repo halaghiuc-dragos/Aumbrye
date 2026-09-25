@@ -72,10 +72,53 @@ func _on_locale_changed() -> void:
 		_discard_ui()
 		return
 	var page := _active_page_idx
+	var scroll_position := _scroll.scroll_vertical if _scroll else 0
+	var focus_owner := get_viewport().gui_get_focus_owner() if get_viewport() else null
+	var focus_setting_id := ""
+	var focus_row_itself := false
+	var focused_tab_index := -1
+	var focus_ancestor: Node = focus_owner
+	while focus_ancestor and focus_ancestor != self:
+		if focus_ancestor is SettingsRow:
+			focus_setting_id = (focus_ancestor as SettingsRow).get_setting_id()
+			focus_row_itself = focus_owner == focus_ancestor
+			break
+		focus_ancestor = focus_ancestor.get_parent()
+	if focused_tab_index < 0:
+		focused_tab_index = _tab_buttons.find(focus_owner)
 	_discard_ui()
+	_active_page_idx = page
 	_build_ui_if_needed()
 	_recenter_panel()
 	_select_page(page)
+	_restore_locale_focus.call_deferred(
+		page, focus_setting_id, focus_row_itself, focused_tab_index, scroll_position
+	)
+
+
+func _restore_locale_focus(
+	page: int,
+	setting_id: String,
+	focus_row_itself: bool,
+	tab_index: int,
+	scroll_position: int
+) -> void:
+	await get_tree().process_frame
+	if not _open or page != _active_page_idx:
+		return
+	if _scroll:
+		_scroll.scroll_vertical = scroll_position
+	if setting_id != "":
+		var rows: Array = _rows_by_page.get(SettingsSchemaScript.PAGES[page], [])
+		for row in rows:
+			if not row is SettingsRow or (row as SettingsRow).get_setting_id() != setting_id:
+				continue
+			var target: Control = row if focus_row_itself else (row as SettingsRow).get_widget()
+			if target and target.is_visible_in_tree() and target.focus_mode != Control.FOCUS_NONE:
+				target.grab_focus()
+				return
+	if tab_index >= 0 and tab_index < _tab_buttons.size():
+		_tab_buttons[tab_index].grab_focus()
 
 
 func _discard_ui() -> void:

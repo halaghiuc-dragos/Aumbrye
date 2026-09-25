@@ -81,6 +81,7 @@ var _middle_drag := false
 var _drag_last := Vector2.ZERO
 var _icon_atlas: Texture2D
 var _cleared: Dictionary = {}
+var _manual_pins: Dictionary = {}
 var _fog_of_war := false
 var _floor_number := 0
 
@@ -93,10 +94,12 @@ const COLOR_FLOOR_LABEL := Color(0.88, 0.85, 0.78, 0.95)
 ## amber. Reuses `_map_point()` by pointing `_bounds` at a fixed square instead of the graph's.
 var _radar_mode := false
 var _radar_spawn_markers: Array[Node3D] = []
+var _radar_objective_marker: Node3D
 var _radar_pulse := 0.0
 const COLOR_RADAR_BOUNDS := Color(0.35, 0.33, 0.30, 0.7)
 const COLOR_RADAR_ENEMY := Color(0.71, 0.17, 0.19, 1.0)
 const COLOR_RADAR_SPAWN := Color(0.98, 0.68, 0.20, 1.0)
+const COLOR_RADAR_OBJECTIVE := Color(0.28, 0.95, 0.78, 1.0)
 const RADAR_ENEMY_DOT := 2.5
 const RADAR_SPAWN_DOT := 3.0
 
@@ -104,6 +107,7 @@ const RADAR_SPAWN_DOT := 3.0
 func configure(definition: Dictionary) -> void:
 	_radar_mode = false
 	_radar_spawn_markers.clear()
+	_radar_objective_marker = null
 	_radar_pulse = 0.0
 	_fog_of_war = false
 	_rooms = definition.get("rooms", [])
@@ -111,6 +115,7 @@ func configure(definition: Dictionary) -> void:
 	_branch_previews = definition.get("branchPreviews", [])
 	_reveal.clear()
 	_cleared.clear()
+	_manual_pins.clear()
 	_current_room_id = ""
 	_build_caches()
 	_recompute_bounds()
@@ -136,6 +141,19 @@ func set_radar_spawn_markers(markers: Array) -> void:
 	queue_redraw()
 
 
+func remove_radar_spawn_marker(marker: Node3D) -> void:
+	var index := _radar_spawn_markers.find(marker)
+	if index < 0:
+		return
+	_radar_spawn_markers.remove_at(index)
+	queue_redraw()
+
+
+func set_radar_objective_marker(marker: Node3D) -> void:
+	_radar_objective_marker = marker
+	queue_redraw()
+
+
 ## HD-10: shown in the map corner so the floor number is legible without opening the overlay.
 func set_floor_number(floor_number: int) -> void:
 	_floor_number = floor_number
@@ -154,6 +172,17 @@ func mark_visited(room_id: String) -> void:
 		if get_reveal_tier(neighbor) < RevealTier.SEEN:
 			_reveal[neighbor] = RevealTier.SEEN
 	queue_redraw()
+
+
+## Reveal the outline of a known room without disclosing its contents or marking it explored.
+## Used only when an authored in-world landmark gives the player evidence of that location.
+func reveal_landmark_room(room_id: String) -> bool:
+	if not _room_by_id.has(room_id):
+		return false
+	if get_reveal_tier(room_id) < RevealTier.SEEN:
+		_reveal[room_id] = RevealTier.SEEN
+		queue_redraw()
+	return true
 
 
 func set_current_room(room_id: String) -> void:
@@ -181,6 +210,21 @@ func mark_cleared(room_id: String) -> void:
 	queue_redraw()
 
 
+func toggle_manual_pin(room_id: String) -> bool:
+	if not _room_by_id.has(room_id) or get_reveal_tier(room_id) < RevealTier.VISITED:
+		return false
+	if _manual_pins.has(room_id):
+		_manual_pins.erase(room_id)
+	else:
+		_manual_pins[room_id] = true
+	queue_redraw()
+	return true
+
+
+func is_manually_pinned(room_id: String) -> bool:
+	return _manual_pins.has(room_id)
+
+
 func set_fog_of_war(enabled: bool) -> void:
 	if _fog_of_war == enabled:
 		return
@@ -202,6 +246,7 @@ func export_state() -> Dictionary:
 		},
 		"reveal": _reveal.duplicate(),
 		"cleared": _cleared.duplicate(),
+		"manual_pins": _manual_pins.duplicate(),
 		"current_room_id": _current_room_id,
 		"fog_of_war": _fog_of_war,
 		"floor_number": _floor_number,
@@ -210,11 +255,46 @@ func export_state() -> Dictionary:
 	}
 
 
+func export_discovery_state() -> Dictionary:
+	return {
+		"reveal": _reveal.duplicate(),
+		"cleared": _cleared.duplicate(),
+		"manual_pins": _manual_pins.duplicate(),
+	}
+
+
+func import_discovery_state(state: Dictionary) -> void:
+	_reveal.clear()
+	_cleared.clear()
+	_manual_pins.clear()
+	var reveal: Variant = state.get("reveal", {})
+	if reveal is Dictionary:
+		for room_id in reveal:
+			if not _room_by_id.has(str(room_id)):
+				continue
+			var tier := clampi(int(reveal[room_id]), RevealTier.UNKNOWN, RevealTier.VISITED)
+			if tier > RevealTier.UNKNOWN:
+				_reveal[str(room_id)] = tier
+	var cleared: Variant = state.get("cleared", {})
+	if cleared is Dictionary:
+		for room_id in cleared:
+			if _room_by_id.has(str(room_id)) and get_reveal_tier(str(room_id)) >= RevealTier.VISITED:
+				_cleared[str(room_id)] = true
+	var pins: Variant = state.get("manual_pins", {})
+	if pins is Dictionary:
+		for room_id in pins:
+			if _room_by_id.has(str(room_id)) and get_reveal_tier(str(room_id)) >= RevealTier.VISITED:
+				_manual_pins[str(room_id)] = true
+	queue_redraw()
+
+
 func import_state(state: Dictionary) -> void:
 	configure(state.get("definition", {}))
 	_reveal = state.get("reveal", {}).duplicate()
 	var cleared: Variant = state.get("cleared", {})
 	_cleared = (cleared as Dictionary).duplicate() if cleared is Dictionary else {}
+	var manual_pins: Variant = state.get("manual_pins", {})
+	_manual_pins = (manual_pins as Dictionary).duplicate() if manual_pins is Dictionary else {}
 	_current_room_id = str(state.get("current_room_id", ""))
 	_fog_of_war = bool(state.get("fog_of_war", false))
 	_floor_number = int(state.get("floor_number", 0))
@@ -280,7 +360,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			var room_id := _room_at_map_point(mb.position)
+			if room_id != "":
+				toggle_manual_pin(room_id)
+				get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
 			_zoom = clampf(_zoom * 1.1, ZOOM_MIN, ZOOM_MAX)
 			queue_redraw()
 			get_viewport().set_input_as_handled()
@@ -328,6 +413,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 0.18, 0.16), false, 1.0)
 	_draw_edges(map_rect)
 	_draw_rooms(map_rect)
+	_draw_manual_pins(map_rect)
 	_draw_stairs_outline(map_rect)
 	_draw_branch_previews(map_rect)
 	_draw_player_marker(map_rect)
@@ -461,6 +547,37 @@ func _draw_stairs_outline(map_rect: Rect2) -> void:
 		return
 
 
+func _draw_manual_pins(map_rect: Rect2) -> void:
+	for room_id in _manual_pins:
+		if get_reveal_tier(str(room_id)) < RevealTier.VISITED:
+			continue
+		var center := _map_point(_room_center(str(room_id)), map_rect) + Vector2(0, -7)
+		var r := 3.5
+		var points := PackedVector2Array()
+		for i in range(10):
+			var radius := r if i % 2 == 0 else r * 0.45
+			var angle := -PI * 0.5 + TAU * float(i) / 10.0
+			points.append((center + Vector2(cos(angle), sin(angle)) * radius).floor())
+		draw_colored_polygon(points, Color(0.35, 0.82, 1.0, 1.0))
+
+
+func _room_at_map_point(point: Vector2) -> String:
+	if not _overlay_mode:
+		return ""
+	var map_rect := _content_rect()
+	for room_def in _rooms:
+		if not room_def is Dictionary:
+			continue
+		var room_id := str(room_def.get("id", ""))
+		if get_reveal_tier(room_id) < RevealTier.VISITED:
+			continue
+		var center := _map_point(_room_center(room_id), map_rect)
+		var half_size := _room_pixel_size(room_def, map_rect) * 0.5
+		if Rect2(center - half_size, half_size * 2.0).grow(3.0).has_point(point):
+			return room_id
+	return ""
+
+
 ## HD-10: the floor number in the minimap corner, so it reads without opening the map overlay.
 func _draw_floor_number() -> void:
 	if _floor_number <= 0:
@@ -525,6 +642,21 @@ func _draw_radar(map_rect: Rect2) -> void:
 			continue
 		var point := _map_point(Vector2(marker.global_position.x, marker.global_position.z), map_rect)
 		draw_circle(point, RADAR_SPAWN_DOT * pulse_scale, COLOR_RADAR_SPAWN)
+	if is_instance_valid(_radar_objective_marker) and _radar_objective_marker.visible:
+		var objective_point := _map_point(
+			Vector2(_radar_objective_marker.global_position.x, _radar_objective_marker.global_position.z),
+			map_rect
+		)
+		var objective_size := 4.5 * pulse_scale
+		draw_colored_polygon(
+			PackedVector2Array([
+				objective_point + Vector2(0.0, -objective_size),
+				objective_point + Vector2(objective_size, 0.0),
+				objective_point + Vector2(0.0, objective_size),
+				objective_point + Vector2(-objective_size, 0.0),
+			]),
+			COLOR_RADAR_OBJECTIVE
+		)
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if not (enemy is Node3D) or not is_instance_valid(enemy):
 			continue
@@ -685,10 +817,13 @@ func _draw_branch_previews(map_rect: Rect2) -> void:
 		var center := _map_point(_room_center(to_id), map_rect)
 		if center == Vector2.ZERO and _room_center(to_id) == Vector2.INF:
 			continue
-		var hint := str(preview.get("hint", "danger"))
-		if hint == "reward":
+		var hint := str(preview.get("hint", "unknown"))
+		var clue_quality := int(preview.get("clueQuality", 0))
+		if clue_quality < 2 or hint == "unknown":
+			draw_circle(center, 3.0, Color(0.72, 0.72, 0.68, 0.65), false, 1.0)
+		elif hint == "reward":
 			draw_circle(center, 3.0, Color(0.95, 0.78, 0.2, 0.95))
-		else:
+		elif hint == "danger":
 			var half := 3.0
 			draw_colored_polygon(
 				PackedVector2Array(

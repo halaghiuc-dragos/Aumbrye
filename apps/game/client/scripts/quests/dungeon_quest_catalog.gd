@@ -27,6 +27,19 @@ static func quest_for_dialogue(dialogue_id: String) -> Dictionary:
 	return {}
 
 
+static func quest_for_id(quest_id: String) -> Dictionary:
+	_ensure_loaded()
+	for quest in _quests:
+		if str(quest.get("questId", "")) == quest_id:
+			return quest
+	return {}
+
+
+static func delivery_for_quest(quest: Dictionary) -> Dictionary:
+	var delivery: Variant = quest.get("delivery", {})
+	return (delivery as Dictionary).duplicate(true) if delivery is Dictionary else {}
+
+
 static func clear_cache() -> void:
 	_quests.clear()
 

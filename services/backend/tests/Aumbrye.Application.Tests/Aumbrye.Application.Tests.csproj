@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Aumbrye.Application.Tests</RootNamespace>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Aumbrye.Application\Aumbrye.Application.csproj" />
+    <ProjectReference Include="..\..\src\Aumbrye.Infrastructure\Aumbrye.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Aumbrye.Api\Aumbrye.Api.csproj" />
+  </ItemGroup>
+</Project>

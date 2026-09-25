@@ -43,6 +43,19 @@
         "milestone_bonus": { "type": "integer", "minimum": 0 }
       }
     },
+    "encounter_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_ranged_ratio", "max_long_reach_ratio", "max_fast_ratio", "max_control_ratio", "min_melee_count", "max_average_threat_cost"],
+      "properties": {
+        "max_ranged_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_long_reach_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_fast_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_control_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_melee_count": { "type": "integer", "minimum": 0 },
+        "max_average_threat_cost": { "type": "number", "minimum": 0 }
+      }
+    },
     "base_roster": {
       "type": "array",
       "minItems": 1,

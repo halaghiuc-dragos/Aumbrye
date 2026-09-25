@@ -69,6 +69,7 @@ static func generate(
 	var last_reason := ""
 	var best_result: Dictionary = {}
 	var best_score := -INF
+	var candidate_diagnostics: Array[Dictionary] = []
 	for attempt in SEED_SALTS.size():
 		var attempt_seed := floor_seed if attempt == 0 else floor_seed ^ SEED_SALTS[attempt]
 		var gd_result := DungeonProcgenScript.generate(
@@ -84,6 +85,14 @@ static func generate(
 			last_reason = RoomGraphGeneratorScript.last_validate_reason()
 			if last_reason == "":
 				last_reason = str(gd_result.get("error", "generation_failed"))
+			candidate_diagnostics.append(
+				{
+					"attempt": attempt + 1,
+					"seed": attempt_seed,
+					"status": "generation_failed",
+					"reason": last_reason,
+				}
+			)
 			continue
 		var definition: Dictionary = gd_result.get("definition", {})
 		var validation: Dictionary = DungeonDefinitionValidatorScript.validate(definition)
@@ -96,6 +105,16 @@ static func generate(
 			)
 		if validation.get("ok", false):
 			var experience := _experience_score(definition, attempt + 1)
+			candidate_diagnostics.append(
+				{
+					"attempt": attempt + 1,
+					"seed": attempt_seed,
+					"status": "valid",
+					"score": experience.get("score", 0.0),
+					"quality": experience.duplicate(true),
+					"warnings": all_warnings.duplicate(true),
+				}
+			)
 			var result := {
 				"ok": true,
 				"definition": definition,
@@ -114,12 +133,35 @@ static func generate(
 				best_score = score
 				best_result = result
 			if score >= 8.0:
+				result["generation_diagnostics"] = _generation_diagnostics(
+					base_seed, biome_id, floor_index, dungeon_tier, candidate_diagnostics,
+					attempt + 1, int(result["generation_seed"]), experience, "quality_threshold"
+				)
 				print("[LocalProcgen] selected attempt %d: %s" % [attempt + 1, experience])
 				return result
 			continue
 		var errors: Array = validation.get("errors", [])
 		last_reason = str(errors[0]) if not errors.is_empty() else "validation_failed"
+		candidate_diagnostics.append(
+			{
+				"attempt": attempt + 1,
+				"seed": attempt_seed,
+				"status": "definition_rejected",
+				"reason": last_reason,
+			}
+		)
 	if not best_result.is_empty():
+		best_result["generation_diagnostics"] = _generation_diagnostics(
+			base_seed,
+			biome_id,
+			floor_index,
+			dungeon_tier,
+			candidate_diagnostics,
+			int(best_result["attempts"]),
+			int(best_result["generation_seed"]),
+			best_result["selection"],
+			"highest_quality_after_attempt_budget"
+		)
 		print("[LocalProcgen] selected best candidate: %s" % best_result.get("selection", {}))
 		return best_result
 
@@ -131,6 +173,17 @@ static func generate(
 			cli_result["input_seed"] = base_seed
 			cli_result["tier_seed"] = tier_seed
 			cli_result["generator"] = "cli"
+			cli_result["generation_diagnostics"] = _generation_diagnostics(
+				base_seed,
+				biome_id,
+				floor_index,
+				dungeon_tier,
+			candidate_diagnostics,
+				0,
+				int(cli_result.get("generation_seed", floor_seed)),
+				{},
+				"cli_fallback"
+		)
 		return cli_result
 
 	return {
@@ -141,6 +194,43 @@ static func generate(
 		"input_seed": base_seed,
 		"tier_seed": tier_seed,
 		"generation_seed": floor_seed,
+		"generation_diagnostics": _generation_diagnostics(
+			base_seed, biome_id, floor_index, dungeon_tier, candidate_diagnostics, 0, floor_seed, {},
+			"no_valid_candidate"
+		),
+	}
+
+
+static func _generation_diagnostics(
+	base_seed: int,
+	biome_id: String,
+	floor_index: int,
+	tier: int,
+	candidates: Array[Dictionary],
+	selected_attempt: int,
+	selected_seed: int,
+	selected_quality: Dictionary,
+	selection_reason: String
+) -> Dictionary:
+	var failure_count := 0
+	for candidate in candidates:
+		if str(candidate.get("status", "")) != "valid":
+			failure_count += 1
+	return {
+		"inputSeed": base_seed,
+		"biomeId": biome_id,
+		"floorIndex": floor_index,
+		"tier": tier,
+		"candidateCount": candidates.size(),
+		"failedCandidateCount": failure_count,
+		"candidateFailureRate": (
+			float(failure_count) / float(candidates.size()) if not candidates.is_empty() else 0.0
+		),
+		"selectedAttempt": selected_attempt,
+		"selectedSeed": selected_seed,
+		"selectionReason": selection_reason,
+		"selectedQuality": selected_quality.duplicate(true),
+		"candidates": candidates.duplicate(true),
 	}
 
 

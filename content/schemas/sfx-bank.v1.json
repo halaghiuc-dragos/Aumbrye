@@ -47,6 +47,17 @@
         "pitch_jitter": { "type": "number", "minimum": 0, "maximum": 1 },
         "max_concurrent": { "type": "integer", "minimum": 1 },
         "cooldown_ms": { "type": "integer", "minimum": 0 },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "spatial": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unit_size": { "type": "number", "minimum": 0.5 },
+            "max_distance": { "type": "number", "minimum": 0.5 },
+            "occlusion": { "type": "boolean" },
+            "occluded_volume_db": { "type": "number" }
+          }
+        },
         "fallback_tone": { "$ref": "#/$defs/fallbackTone" }
       }
     }

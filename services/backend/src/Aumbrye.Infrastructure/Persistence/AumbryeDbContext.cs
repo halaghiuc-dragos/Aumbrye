@@ -56,6 +56,8 @@ public class AumbryeDbContext : DbContext
             e.HasIndex(x => new { x.AccountId, x.Status });
             e.Property(x => x.BiomeId).HasMaxLength(64);
             e.Property(x => x.DefinitionChecksum).HasMaxLength(128);
+            e.Property(x => x.RankedProgressionVerified).HasDefaultValue(false);
+            e.Property(x => x.ClientVersionSnapshot).HasMaxLength(64).HasDefaultValue("legacy-unknown");
             e.Property(x => x.Outcome).HasMaxLength(16);
             e.Property(x => x.Mode).HasMaxLength(32);
             e.Property(x => x.Ruleset).HasMaxLength(64);

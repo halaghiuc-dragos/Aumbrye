@@ -1,11 +1,9 @@
-import fs from "fs";
 import path from "path";
 import zlib from "zlib";
+import { fileURLToPath } from "node:url";
+import { publishGeneratedAssetSet } from "../scripts/tools/generated_asset_set.mjs";
 
-const ROOT = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, "$1"),
-  ".."
-);
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PNG_OUT = path.join(ROOT, "apps/game/client/assets/ui/input_glyphs.png");
 const JSON_OUT = path.join(ROOT, "content/ui/input_glyph_atlas.json");
 
@@ -184,8 +182,7 @@ entries.forEach((e, idx) => {
 const unknown = cells.__unknownCell;
 delete cells.__unknownCell;
 
-fs.mkdirSync(path.dirname(PNG_OUT), { recursive: true });
-fs.writeFileSync(PNG_OUT, encodePng(canvas));
+const png = encodePng(canvas);
 
 const manifest = {
   schemaVersion: 1,
@@ -196,8 +193,19 @@ const manifest = {
   unknown,
   cells,
 };
-const eol = fs.existsSync(JSON_OUT) && fs.readFileSync(JSON_OUT, "utf8").includes("\r\n") ? "\r\n" : "\n";
-fs.writeFileSync(JSON_OUT, JSON.stringify(manifest, null, 2).replace(/\n/g, eol) + eol);
+const published = publishGeneratedAssetSet({
+  repoRoot: ROOT,
+  manifestPath: path.join(ROOT, "tools/.generated-manifest.json"),
+  generatorPath: fileURLToPath(import.meta.url),
+  sourcePaths: [],
+  outputs: [
+    { path: PNG_OUT, buffer: png },
+    { path: JSON_OUT, buffer: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`) },
+  ],
+  force: process.argv.includes("--force"),
+  dryRun: process.argv.includes("--dry-run"),
+});
 
 console.log("png:", PNG_OUT.split(/[\\/]/).pop(), canvas.w + "x" + canvas.h);
 console.log("cells:", Object.keys(cells).length, "rows:", rows);
+console.log(process.argv.includes("--dry-run") ? "outputs validated:" : "outputs published:", published.length);

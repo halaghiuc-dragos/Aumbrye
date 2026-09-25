@@ -22,22 +22,22 @@ const MODIFIER_RICH_VEINS := "rich_veins"
 const MODIFIER_BOSS_HOARD := "boss_hoard"
 
 const DESCRIPTIONS := {
-	MODIFIER_ELITE_PACKS: "Elite packs — some rooms keep a stronger one.",
-	MODIFIER_ELITE_VIGIL: "Vigil — a warden walks every floor.",
-	MODIFIER_ARMOURED_FOES: "Armoured — tougher, and slower to swing.",
-	MODIFIER_FRENZIED_FOES: "Frenzied — they recover between blows far quicker.",
-	MODIFIER_VOLATILE_FOES: "Volatile — thinner, and they hit far harder.",
-	MODIFIER_RELENTLESS_FOES: "Relentless — they close the distance and do not stop.",
-	MODIFIER_NO_REST: "No rest — the hearths have gone out.",
-	MODIFIER_STARVED_HEARTH: "Starved hearth — what rest remains gives little back.",
-	MODIFIER_SEALED_DOORS: "Sealed doors — every lock takes two keys.",
-	MODIFIER_BARRED_WAYS: "Barred ways — more of the floor is locked away.",
-	MODIFIER_FOG_OF_WAR: "Unlit — the map learns nothing you have not walked.",
-	MODIFIER_HOSTILE_HALLS: "Hostile halls — the quiet rooms are gone.",
-	MODIFIER_THICK_TRAPS: "Old malice — the floor is laid with traps.",
-	MODIFIER_NO_MERCHANT: "No market — nobody trades this deep.",
-	MODIFIER_RICH_VEINS: "Rich veins — the vaults hold more.",
-	MODIFIER_BOSS_HOARD: "Hoard — the floor boss keeps something worth taking.",
+	MODIFIER_ELITE_PACKS: "MODIFIER_DESC_ELITE_PACKS",
+	MODIFIER_ELITE_VIGIL: "MODIFIER_DESC_ELITE_VIGIL",
+	MODIFIER_ARMOURED_FOES: "MODIFIER_DESC_ARMOURED_FOES",
+	MODIFIER_FRENZIED_FOES: "MODIFIER_DESC_FRENZIED_FOES",
+	MODIFIER_VOLATILE_FOES: "MODIFIER_DESC_VOLATILE_FOES",
+	MODIFIER_RELENTLESS_FOES: "MODIFIER_DESC_RELENTLESS_FOES",
+	MODIFIER_NO_REST: "MODIFIER_DESC_NO_REST",
+	MODIFIER_STARVED_HEARTH: "MODIFIER_DESC_STARVED_HEARTH",
+	MODIFIER_SEALED_DOORS: "MODIFIER_DESC_SEALED_DOORS",
+	MODIFIER_BARRED_WAYS: "MODIFIER_DESC_BARRED_WAYS",
+	MODIFIER_FOG_OF_WAR: "MODIFIER_DESC_FOG_OF_WAR",
+	MODIFIER_HOSTILE_HALLS: "MODIFIER_DESC_HOSTILE_HALLS",
+	MODIFIER_THICK_TRAPS: "MODIFIER_DESC_THICK_TRAPS",
+	MODIFIER_NO_MERCHANT: "MODIFIER_DESC_NO_MERCHANT",
+	MODIFIER_RICH_VEINS: "MODIFIER_DESC_RICH_VEINS",
+	MODIFIER_BOSS_HOARD: "MODIFIER_DESC_BOSS_HOARD",
 }
 
 const ENDLESS_MODIFIER_POOL: Array[String] = [
@@ -117,7 +117,10 @@ static func active_modifiers() -> Array[String]:
 
 
 static func describe(modifier_id: String) -> String:
-	return str(DESCRIPTIONS.get(modifier_id, modifier_id.capitalize()))
+	var key := str(DESCRIPTIONS.get(modifier_id, ""))
+	if key == "":
+		return modifier_id.capitalize()
+	return String(TranslationServer.translate(key))
 
 
 static func describe_all(modifiers: Array) -> String:

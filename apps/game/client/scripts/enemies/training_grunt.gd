@@ -31,6 +31,7 @@ var _cooldown := 0.0
 var _stagger_timer := 0.0
 var _spawn_origin := Vector3.ZERO
 var _windup_duration := 0.0
+var _training_attack_class := "blockable"
 
 
 func _ready() -> void:
@@ -106,7 +107,11 @@ func get_diorama_visual() -> Node3D:
 func begin_attack_windup_bar(duration: float) -> void:
 	_windup_duration = maxf(0.05, duration)
 	if _hp_bar:
-		_hp_bar.begin_attack_telegraph(_windup_duration)
+		_hp_bar.begin_attack_telegraph(_windup_duration, _training_attack_class)
+
+
+func set_training_attack_class(attack_class: String) -> void:
+	_training_attack_class = attack_class if attack_class in ["blockable", "unblockable"] else "blockable"
 
 
 func hide_attack_windup_bar() -> void:
@@ -189,9 +194,12 @@ func _start_windup() -> void:
 		global_position,
 		float(_data.get("telegraph_radius", 1.6)),
 		windup,
-		Color(0.95, 0.34, 0.28),
-		String(_data.get("telegraph_shape", "circle")),
-		forward
+		AccessibilitySettings.get_telegraph_class_color(_training_attack_class),
+		"cone" if _training_attack_class == "unblockable" else String(_data.get("telegraph_shape", "circle")),
+		forward,
+		null,
+		90.0,
+		AccessibilitySettings.get_telegraph_class_pattern(_training_attack_class)
 	)
 	attack_telegraph_started.emit()
 
@@ -204,7 +212,8 @@ func _start_attack() -> void:
 	hide_attack_windup_bar()
 	if _hitbox:
 		_hitbox.set_attack_values(
-			_data.get("attack_damage", 14.0), _data.get("attack_poise_damage", 12.0)
+			_data.get("attack_damage", 14.0), _data.get("attack_poise_damage", 12.0),
+			DamageInfo.TYPE_PHYSICAL, "", 1, 0.0, 1.5, _training_attack_class
 		)
 		_hitbox.enable()
 	attack_active.emit()

@@ -201,6 +201,8 @@ public static class RunsEndpoints
             return Results.Ok(new CreateRunResponse(
                 result.RunId,
                 result.Seed,
+                result.PlayerLevel,
+                result.ClientVersion,
                 result.BiomeId!,
                 result.DefinitionJson!));
         })

@@ -14,11 +14,21 @@ const MAX_FLANKERS := 2
 const FLANK_ANGLE_DEG := 100.0
 ## Roles are re-run on a timer, not only on membership change, so they follow the player turning.
 const REASSIGN_INTERVAL_MSEC := 1500
+const ROLE_RESERVATION_MSEC := 900
+const YIELDED_ENGAGER_COOLDOWN_MSEC := 1200
+const TURN_RECENCY_WINDOW_MSEC := 3000
 
 static var _rooms: Dictionary = {}
 
 
 static func room_key(node: Node) -> int:
+	# Dungeon construction assigns an explicit, floor-scoped encounter key before an enemy enters
+	# the tree. This decouples combat ownership from scene parenting, which changes for summoned
+	# adds, pooled actors and room presentation wrappers.
+	if node != null and node.has_meta("encounter_key"):
+		var configured: Variant = node.get_meta("encounter_key")
+		if configured is int:
+			return configured as int
 	var parent := node.get_parent()
 	if parent == null:
 		return 0
@@ -158,10 +168,13 @@ static func yield_engager(room_id: int, member: Node) -> void:
 	var record: Dictionary = _rooms[room_id]
 	_prune(record)
 	var list: Array = record["engaged"]
-	if list.size() <= MAX_ENGAGERS or not list.has(member):
+	if not list.has(member):
 		return
 	list.erase(member)
 	list.append(member)
+	var now := Time.get_ticks_msec()
+	(record["yielded_until"] as Dictionary)[member.get_instance_id()] = now + YIELDED_ENGAGER_COOLDOWN_MSEC
+	(record["last_turn_msec"] as Dictionary)[member.get_instance_id()] = now
 	_assign_roles(record)
 
 
@@ -187,6 +200,9 @@ static func _record(room_id: int) -> Dictionary:
 			"members": [],
 			"engaged": [],
 			"roles": {},
+			"role_reserved_until": {},
+			"yielded_until": {},
+			"last_turn_msec": {},
 			"alert_position": Vector3.ZERO,
 			"alerted": false,
 		}
@@ -247,7 +263,7 @@ static func _assign_roles(record: Dictionary) -> void:
 			player = null
 
 	var pool: Array = engaged.duplicate()
-	var engagers := _take_nearest_front(pool, angle_by_id, MAX_ENGAGERS)
+	var engagers := _take_nearest_front(pool, angle_by_id, MAX_ENGAGERS, record, player)
 	var flankers := _take_nearest_flank(pool, angle_by_id, MAX_FLANKERS)
 
 	for i in engaged.size():
@@ -267,6 +283,8 @@ static func _assign_roles(record: Dictionary) -> void:
 			enemy.set_ai_role(int(role))
 			if role == Role.FLANKER and AudioDirector:
 				AudioDirector.play_combat_sfx("footstep", enemy.global_position)
+		if role == Role.ENGAGER:
+			(record["role_reserved_until"] as Dictionary)[key] = Time.get_ticks_msec() + ROLE_RESERVATION_MSEC
 
 	if player != null:
 		_assign_flank_bearings(flankers, angle_by_id)
@@ -289,18 +307,54 @@ static func _signed_angle_deg(origin: Vector3, facing: Vector3, target_pos: Vect
 	return rad_to_deg(facing.signed_angle_to(to_target.normalized(), Vector3.UP))
 
 
-static func _take_nearest_front(pool: Array, angle_by_id: Dictionary, count: int) -> Array:
+static func _take_nearest_front(
+	pool: Array, angle_by_id: Dictionary, count: int, record: Dictionary, player: Node3D
+) -> Array:
+	var now := Time.get_ticks_msec()
+	var roles: Dictionary = record["roles"]
+	var reserved: Dictionary = record["role_reserved_until"]
+	var yielded: Dictionary = record["yielded_until"]
+	var last_turn: Dictionary = record["last_turn_msec"]
 	pool.sort_custom(
 		func(a, b):
-			return (
-				absf(float(angle_by_id.get(a.get_instance_id(), 0.0)))
-				< absf(float(angle_by_id.get(b.get_instance_id(), 0.0)))
-			)
+			return _engager_score(a, angle_by_id, roles, reserved, yielded, last_turn, player, now) < _engager_score(b, angle_by_id, roles, reserved, yielded, last_turn, player, now)
 	)
 	var picked: Array = pool.slice(0, count)
 	for member in picked:
 		pool.erase(member)
 	return picked
+
+
+static func _engager_score(member: Node, angle_by_id: Dictionary, roles: Dictionary, reserved: Dictionary, yielded: Dictionary, last_turn: Dictionary, player: Node3D, now: int) -> float:
+	var id := member.get_instance_id()
+	# Bearing improves the feel of pressure, but must never outweigh usable range and recovery.
+	var angle_cost := absf(float(angle_by_id.get(id, 0.0))) * 0.005
+	var score := angle_cost
+	if member is CastleEnemyBase:
+		var context: Dictionary = (member as CastleEnemyBase).engager_readiness(player)
+		# Reaching a usable attack range matters more than closeness once already in range.
+		score += float(context.get("attack_gap", 1000.0)) * 50.0
+		score += float(context.get("distance", 1000.0)) * 0.75
+		if not bool(context.get("visible", false)):
+			score += 1000.0
+		if not bool(context.get("ready", false)):
+			score += 100.0
+	if int(yielded.get(id, 0)) > now:
+		score += 10_000.0
+	var elapsed_since_turn := now - int(last_turn.get(id, -TURN_RECENCY_WINDOW_MSEC))
+	if elapsed_since_turn < TURN_RECENCY_WINDOW_MSEC:
+		score += float(TURN_RECENCY_WINDOW_MSEC - elapsed_since_turn) / float(TURN_RECENCY_WINDOW_MSEC)
+	if int(roles.get(id, -1)) == Role.ENGAGER and int(reserved.get(id, 0)) > now:
+		score -= 4.0
+	# A microscopic run-seeded tie-break prevents insertion order from deciding equally valid
+	# engagers, while leaving distance/readiness as the meaningful part of the score.
+	return score + _seeded_tie_breaker(member)
+
+
+static func _seeded_tie_breaker(member: Node) -> float:
+	var run_seed := RunFlow.current_seed if RunFlow else 0
+	var value: int = abs(hash("%d:%s" % [run_seed, member.get_path()])) % 1000
+	return float(value) * 0.000001
 
 
 static func _take_nearest_flank(pool: Array, angle_by_id: Dictionary, count: int) -> Array:

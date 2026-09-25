@@ -194,3 +194,7 @@ func get_widget() -> Control:
 	if _option:
 		return _option
 	return null
+
+
+func get_setting_id() -> String:
+	return str(_entry.get("id", ""))

@@ -83,24 +83,27 @@ func _build_at_socket() -> void:
 	_interact_area.body_exited.connect(_on_body_exited)
 
 	_label = InteractPromptScript.build(self)
+	DungeonInteractionService.register_candidate(self, _barrier, 2.7, 5, Callable(self, "_activate_interaction"), Callable(self, "_can_interact"), Callable(self, "_set_selected_prompt"), true)
 
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true
-		_update_label()
+		DungeonInteractionService.refresh()
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
-		_update_label()
+		DungeonInteractionService.refresh()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _unlocked or not _near_player:
-		return
-	if not PlayerInput.interact_just_pressed(event):
+func _can_interact() -> bool:
+	return not _unlocked and _near_player
+
+
+func _activate_interaction() -> void:
+	if not _can_interact():
 		return
 	# Held, not spent. The card stays on the ring, so a second door of the same colour opens on
 	# sight rather than sending the player back for another key.
@@ -109,14 +112,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			RunFlow.emit_run_warning(
 				tr("LOCK_NEEDS_KEY").format({"key": FloorKeyringScript.label_for(_key_id)})
 			)
-		get_viewport().set_input_as_handled()
 		return
 	_unlock(true)
 	WorldState.set_flag(_lock_flag_id, true)
 	# AU-03: only the live open fires the stinger -- `_unlock()` is also reached from
 	# `_refresh_state()` on a floor reload, where the lock is already open and nothing happened.
 	AudioDirector.play_stinger("lock_opened")
-	get_viewport().set_input_as_handled()
+
+
+func _set_selected_prompt(active: bool) -> void:
+	if not active:
+		if _label:
+			_label.hide_prompt()
+		return
+	_update_label()
 
 
 func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Variant) -> void:
@@ -144,7 +153,7 @@ func _unlock(animate: bool = false) -> void:
 func _update_label() -> void:
 	if _label == null:
 		return
-	if _unlocked or not _near_player:
+	if _unlocked or not _near_player or DungeonInteractionService.selected_candidate_id() != get_instance_id():
 		_label.hide_prompt()
 		return
 	# Name the colour either way. A door that says which card it wants turns a dead end into a

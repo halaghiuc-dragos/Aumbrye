@@ -429,15 +429,11 @@ static func simulate_collectibles(
 
 static func _validate_collectibles(content: Dictionary, path_semantics: Array[String]) -> Dictionary:
 	var simulated := simulate_collectibles(null, {}, content, path_semantics)
-	var floor_items := {}
+	var entries_by_placement: Dictionary = {}
 	for entry in content.get("roomContent", []):
 		if not entry is Dictionary:
 			continue
-		for item in entry.get("items", []):
-			if item is Dictionary:
-				var item_id := str(item.get("itemId", ""))
-				if item_id != "":
-					floor_items[item_id] = true
+		entries_by_placement[str(entry.get("placementId", ""))] = entry
 		if str(entry.get("contentType", "")) == "npc_quest":
 			var quest_key := str(entry.get("questKeyId", ""))
 			if quest_key != "":
@@ -448,22 +444,45 @@ static func _validate_collectibles(content: Dictionary, path_semantics: Array[St
 		var dialogue_id := str(entry.get("dialogueId", ""))
 		if dialogue_id == "":
 			continue
-		var reward_item := _reward_item_for_npc(entry)
-		if reward_item == "":
-			continue
-		if not ItemCatalog.get_definition(reward_item).is_empty():
-			if not floor_items.has(reward_item):
-				return {
-					"ok": false,
-					"reason": "Quest reward item %s not spawned on floor" % reward_item,
-				}
+		var quest := DungeonQuestCatalog.quest_for_dialogue(dialogue_id)
+		var delivery := DungeonQuestCatalog.delivery_for_quest(quest)
+		var delivery_check := validate_quest_delivery(delivery, entry, entries_by_placement, path_semantics)
+		if not bool(delivery_check.get("ok", false)):
+			return delivery_check
 	return {"ok": true}
 
 
-static func _reward_item_for_npc(entry: Dictionary) -> String:
-	var dialogue_id := str(entry.get("dialogueId", ""))
-	var quest := DungeonQuestCatalog.quest_for_dialogue(dialogue_id)
-	return str(quest.get("rewardItemId", ""))
+static func validate_quest_delivery(
+	delivery: Dictionary, entry: Dictionary, entries_by_placement: Dictionary, path_semantics: Array[String]
+) -> Dictionary:
+	var delivery_kind := str(delivery.get("kind", ""))
+	var item_id := str(delivery.get("itemId", ""))
+	if delivery_kind == "" or item_id == "" or ItemCatalog.get_definition(item_id).is_empty():
+		return {"ok": false, "reason": "Quest delivery is invalid"}
+	if delivery_kind == "npc_payment":
+		if str(delivery.get("receiptFlag", "")) == "":
+			return {"ok": false, "reason": "NPC payment needs an earned receipt"}
+		return {"ok": true}
+	if delivery_kind == "ordinary_floor_loot" or delivery_kind == "rescue_return":
+		return {"ok": true}
+	if delivery_kind != "required_pickup":
+		return {"ok": false, "reason": "Unknown quest delivery kind %s" % delivery_kind}
+	var placement_id := str(entry.get("rewardPlacementId", ""))
+	var pickup: Dictionary = entries_by_placement.get(placement_id, {})
+	if pickup.is_empty() or str(pickup.get("roomId", "")) not in path_semantics:
+		return {"ok": false, "reason": "Required quest pickup is not traversably reachable"}
+	if str(pickup.get("contentType", "")) == "locked_vault":
+		return {"ok": false, "reason": "Required quest pickup cannot hide behind an unrelated lock"}
+	if not _entry_has_item(pickup, item_id):
+		return {"ok": false, "reason": "Required quest pickup item is missing"}
+	return {"ok": true}
+
+
+static func _entry_has_item(entry: Dictionary, item_id: String) -> bool:
+	for item in entry.get("items", []):
+		if item is Dictionary and str(item.get("itemId", "")) == item_id:
+			return true
+	return false
 
 
 static func _layout_to_semantic(assignment: Dictionary) -> Dictionary:

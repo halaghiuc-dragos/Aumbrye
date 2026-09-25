@@ -56,13 +56,29 @@ func _ready() -> void:
 
 func show_lobby() -> void:
 	_panel.visible = true
-	_reward_box.visible = false
 	refresh_lobby()
 
 
 func refresh_lobby() -> void:
 	if _cash_out_active:
 		return
+	for child in _reward_box.get_children():
+		child.queue_free()
+	if WavesRunService.starter_choice_pending():
+		_reward_box.visible = true
+		var starter_title := Label.new()
+		starter_title.text = tr("WAVES_STARTER_TITLE")
+		GameUISkinScript.style_body_label(starter_title)
+		_reward_box.add_child(starter_title)
+		for option in WavesRunService.starter_choice_options():
+			var item_id := str(option.get("itemId", ""))
+			var definition := ItemCatalog.get_definition(item_id)
+			var button := GameUISkinScript.make_button("%s — %s" % [ContentText.name(definition, item_id), str(option.get("weaponId", ""))])
+			button.tooltip_text = ContentText.description(definition)
+			button.pressed.connect(_on_choose_starter.bind(str(option.get("instanceId", ""))))
+			_reward_box.add_child(button)
+	else:
+		_reward_box.visible = false
 	var total := WavesRunService.get_chest_count()
 	var opened := 0
 	for i in total:
@@ -89,6 +105,11 @@ func refresh_lobby() -> void:
 		lines.append(tr(portal_key).format({"count": bank_count}))
 	lines.append("Caches opened %d/%d — walk up and press %s." % [opened, total, glyph])
 	_label.text = "\n".join(lines)
+
+
+func _on_choose_starter(instance_id: String) -> void:
+	if WavesRunService.choose_starter_weapon(instance_id):
+		refresh_lobby()
 
 
 ## HD-01: wave/enemy-count status now lives on the HUD (`show_region_title`/`set_objective_text`
@@ -172,7 +193,7 @@ func show_cash_out_pick() -> void:
 		btn.add_theme_stylebox_override("normal", GameUISkinScript.make_item_cell_style(rarity, false))
 		btn.add_theme_stylebox_override("pressed", GameUISkinScript.make_item_cell_style(rarity, true))
 		var item_def := ItemCatalog.get_definition(item_id)
-		var description := str(item_def.get("description", ""))
+		var description := ContentText.description(item_def)
 		if description != "":
 			btn.tooltip_text = description
 		btn.pressed.connect(_on_pick_cash_out.bind(instance_id, btn, bank_count))

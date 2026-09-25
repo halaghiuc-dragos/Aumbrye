@@ -39,10 +39,13 @@ const STRIDE_SCALE_BY_PROFILE := {
 
 var _visual: Node3D
 var _player: AnimationPlayer
-var _additive_player: AnimationPlayer
 var _library: AnimationLibrary
 var _runtime_library: AnimationLibrary
-var _additive_library: AnimationLibrary
+var _head_look_offset: Node3D
+var _breath_offset: Node3D
+var _arm_recoil_offset: Node3D
+var _torso_recoil_offset: Node3D
+var _breath_time := 0.0
 var _rest_pose: Dictionary = {}
 var _events_path := ""
 var _profile := "player"
@@ -130,7 +133,7 @@ func _finish_bind() -> void:
 	_player.add_animation_library(RUNTIME_LIBRARY_NAME, _runtime_library)
 	_player.animation_finished.connect(_on_animation_finished)
 	_player.playback_default_blend_time = LOCOMOTION_BLEND
-	_setup_additive_player(visual)
+	_setup_visual_offsets(visual)
 	_dead = false
 	_priority = Priority.LOCOMOTION
 	_desired_locomotion = &"idle"
@@ -213,20 +216,42 @@ func set_attack_generation(generation: int) -> void:
 	_attack_generation = generation
 
 
-func _setup_additive_player(visual: Node3D) -> void:
-	if _additive_player and is_instance_valid(_additive_player):
-		_additive_player.queue_free()
-	_additive_library = AnimLibrary.build_additive_library(_rest_pose)
-	if _additive_library == null or _additive_library.get_animation_list().is_empty():
-		_additive_player = null
-		return
-	_additive_player = AnimationPlayer.new()
-	_additive_player.name = "DioramaAdditivePlayer"
-	visual.add_child(_additive_player)
-	_additive_player.root_node = NodePath("..")
-	_additive_player.add_animation_library(LIBRARY_NAME, _additive_library)
-	if _additive_library.has_animation(&"breathe"):
-		_additive_player.play(&"breathe")
+func _setup_visual_offsets(_visual_root: Node3D) -> void:
+	_head_look_offset = _insert_visual_offset(_resolve_part("Head"), "HeadLookOffset")
+	_breath_offset = _insert_visual_offset(_resolve_part("Torso"), "BreathOffset")
+	_arm_recoil_offset = _insert_visual_offset(_resolve_part("ArmR"), "ImpactRecoilOffset")
+	_torso_recoil_offset = _insert_visual_offset(
+		_resolve_part("Torso"), "ImpactRecoilOffset", ["BreathOffset"]
+	)
+
+
+func _insert_visual_offset(
+	part: Node3D, offset_name: String, wrapped_offsets: Array[String] = []
+) -> Node3D:
+	if part == null:
+		return null
+	var offset := Node3D.new()
+	offset.name = offset_name
+	part.add_child(offset)
+	for child in part.get_children().duplicate():
+		if child == offset or child is Node3D and (child.name in ["Head", "ArmL", "ArmR"]):
+			continue
+		if child is VisualInstance3D or child.name in wrapped_offsets:
+			part.remove_child(child)
+			offset.add_child(child)
+	return offset
+
+
+func set_head_look_offset(rotation_offset: Vector3) -> void:
+	if _head_look_offset != null and is_instance_valid(_head_look_offset):
+		_head_look_offset.rotation = rotation_offset
+
+
+func _process(delta: float) -> void:
+	_breath_time += delta
+	if _breath_offset != null and is_instance_valid(_breath_offset):
+		_breath_offset.rotation.x = sin(_breath_time * TAU / 3.4) * 0.015
+		_breath_offset.position.y = sin(_breath_time * TAU / 3.4) * 0.008
 
 
 func set_profile(profile: String) -> void:
@@ -373,25 +398,21 @@ var _recoil_tween: Tween
 ## (`speed_scale` 0.05, see `HitFeedback._freeze_attacker()`), so the nudge reads as the swing
 ## hitching against the target rather than fighting the main pose for the property.
 func play_impact_recoil(strength: float) -> void:
-	if _visual == null or not is_bound():
+	if _visual == null or not is_bound() or _dead or _priority >= Priority.STAGGER:
 		return
-	var arm := _resolve_part("ArmR")
-	var torso := _resolve_part("Torso")
-	if arm == null and torso == null:
+	if _arm_recoil_offset == null and _torso_recoil_offset == null:
 		return
 	if _recoil_tween and _recoil_tween.is_valid():
 		_recoil_tween.kill()
 	_recoil_tween = _visual.create_tween()
 	_recoil_tween.set_parallel(true)
 	var amount := clampf(strength, 0.0, 1.0)
-	if arm:
-		var arm_base := arm.rotation
-		arm.rotation = arm_base + IMPACT_RECOIL_ARM_OFFSET * amount
-		_recoil_tween.tween_property(arm, "rotation", arm_base, IMPACT_RECOIL_DURATION)
-	if torso:
-		var torso_base := torso.rotation
-		torso.rotation = torso_base + IMPACT_RECOIL_TORSO_OFFSET * amount
-		_recoil_tween.tween_property(torso, "rotation", torso_base, IMPACT_RECOIL_DURATION)
+	if _arm_recoil_offset != null:
+		_arm_recoil_offset.rotation = IMPACT_RECOIL_ARM_OFFSET * amount
+		_recoil_tween.tween_property(_arm_recoil_offset, "rotation", Vector3.ZERO, IMPACT_RECOIL_DURATION)
+	if _torso_recoil_offset != null:
+		_torso_recoil_offset.rotation = IMPACT_RECOIL_TORSO_OFFSET * amount
+		_recoil_tween.tween_property(_torso_recoil_offset, "rotation", Vector3.ZERO, IMPACT_RECOIL_DURATION)
 
 
 func _resolve_part(part_name: String) -> Node3D:
@@ -718,6 +739,8 @@ func _begin_action(clip: StringName, priority: int, scale: float) -> void:
 	if not has_clip(clip):
 		_report_missing(clip, "action")
 		return
+	if priority >= Priority.STAGGER:
+		_clear_impact_recoil()
 	_priority = priority
 	_action_generation += 1
 	_base_speed_scale = scale
@@ -755,6 +778,8 @@ func _play_local(clip: StringName, blend: float) -> void:
 func mirror_apply(
 	priority: int, locomotion: StringName, clip: StringName, blend: float, scale: float
 ) -> void:
+	if priority >= Priority.STAGGER:
+		_clear_impact_recoil()
 	_priority = priority
 	_desired_locomotion = locomotion
 	if _player:
@@ -922,10 +947,10 @@ func _teardown() -> void:
 		_recoil_tween.kill()
 	_recoil_tween = null
 	_mirrors = _live_mirrors()
-	if _additive_player and is_instance_valid(_additive_player):
-		_additive_player.queue_free()
-	_additive_player = null
-	_additive_library = null
+	_head_look_offset = null
+	_breath_offset = null
+	_arm_recoil_offset = null
+	_torso_recoil_offset = null
 	if _player and is_instance_valid(_player):
 		_player.queue_free()
 	_player = null
@@ -939,3 +964,13 @@ func _teardown() -> void:
 	_base_speed_scale = 1.0
 	_transient_speed_scale = 1.0
 	_action_generation += 1
+
+
+func _clear_impact_recoil() -> void:
+	if _recoil_tween and _recoil_tween.is_valid():
+		_recoil_tween.kill()
+	_recoil_tween = null
+	if _arm_recoil_offset != null and is_instance_valid(_arm_recoil_offset):
+		_arm_recoil_offset.rotation = Vector3.ZERO
+	if _torso_recoil_offset != null and is_instance_valid(_torso_recoil_offset):
+		_torso_recoil_offset.rotation = Vector3.ZERO

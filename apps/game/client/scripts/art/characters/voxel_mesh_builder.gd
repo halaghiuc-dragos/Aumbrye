@@ -3,6 +3,23 @@ class_name VoxelMeshBuilder
 
 
 static var _cache: Dictionary = {}
+static var _cache_order: Array[String] = []
+static var _cache_hits := 0
+static var _cache_misses := 0
+static var _cache_evictions := 0
+static var _cache_peak := 0
+const CACHE_BUILDER_REVISION := 2
+const CACHE_LIMIT := 512
+
+
+static func cache_fingerprint(data: Dictionary, theme: int, variant: String = "") -> String:
+	var palette := _resolve_palette(data, theme)
+	var palette_bytes := PackedStringArray()
+	for colour in palette:
+		palette_bytes.append(colour.to_html(true))
+	var source_hash := JSON.stringify(data, "", true).sha256_text()
+	var palette_hash := "|".join(palette_bytes).sha256_text()
+	return "%d|%d|%s|%s|%s" % [CACHE_BUILDER_REVISION, theme, variant, source_hash, palette_hash]
 
 
 static func baked_mesh_path(path: String) -> String:
@@ -18,9 +35,6 @@ static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 	if baked != path and not FileAccess.file_exists(source_path) and ResourceLoader.exists(baked):
 		path = baked
 		recolour_from_baked = theme >= 0
-	var cache_key := "%s:%d" % [path, theme]
-	if _cache.has(cache_key):
-		return _cache[cache_key]
 	var data: Dictionary = {}
 	if path.ends_with(".voxels.json"):
 		var text := FileAccess.get_file_as_string(path)
@@ -28,19 +42,53 @@ static func load_mesh(source_path: String, theme: int = -1) -> ArrayMesh:
 			var parsed = JSON.parse_string(text)
 			if parsed is Dictionary:
 				data = parsed
+		if data.is_empty():
+			return null
+		var cache_key := "%s:%s" % [path, cache_fingerprint(data, theme, "loaded_voxels")]
+		if _cache.has(cache_key):
+			_cache_hits += 1
+			return _cache[cache_key]
+		_cache_misses += 1
+		var voxel_mesh := _build_from_voxels(data, theme, path)
+		_store_mesh(cache_key, voxel_mesh)
+		return voxel_mesh
 	else:
+		var baked_bytes := FileAccess.get_file_as_bytes(path)
+		if baked_bytes.is_empty():
+			return null
+		var palette_suffix := _theme_colour_for(source_path, theme).to_html(true) if recolour_from_baked else "native"
+		var cache_key := "%s:%d:%d:%s:%s" % [
+			path, theme, CACHE_BUILDER_REVISION, baked_bytes.hex_encode().sha256_text(), palette_suffix
+		]
+		if _cache.has(cache_key):
+			_cache_hits += 1
+			return _cache[cache_key]
+		_cache_misses += 1
 		var loaded := load(path)
 		if loaded is ArrayMesh:
 			var mesh_out := loaded as ArrayMesh
 			if recolour_from_baked:
 				mesh_out = _recolour_mesh(mesh_out, _theme_colour_for(source_path, theme))
-			_cache[cache_key] = mesh_out
+			_store_mesh(cache_key, mesh_out)
 			return mesh_out
-	if data.is_empty():
 		return null
-	var mesh := _build_from_voxels(data, theme, path)
+
+
+static func _store_mesh(cache_key: String, mesh: ArrayMesh) -> void:
+	if _cache_order.size() >= CACHE_LIMIT:
+		var evicted_key: String = _cache_order.pop_front()
+		_cache.erase(evicted_key)
+		_cache_evictions += 1
+	_cache_order.append(cache_key)
 	_cache[cache_key] = mesh
-	return mesh
+	_cache_peak = maxi(_cache_peak, _cache.size())
+
+
+static func get_cache_stats() -> Dictionary:
+	return {
+		"retained": _cache.size(), "limit": CACHE_LIMIT, "peak": _cache_peak,
+		"hits": _cache_hits, "misses": _cache_misses, "evictions": _cache_evictions,
+	}
 
 
 static func _theme_colour_for(source_path: String, theme: int) -> Color:
@@ -80,6 +128,7 @@ static func build_from_data(data: Dictionary, theme: int = -1, source: String = 
 
 static func clear_cache() -> void:
 	_cache.clear()
+	_cache_order.clear()
 	_palette_cache.clear()
 
 

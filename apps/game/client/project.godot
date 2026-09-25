@@ -57,6 +57,7 @@ MenuStack="*res://scripts/ui/menu_stack.gd"
 WorldState="*res://scripts/app/world_state.gd"
 PixelDioramaViewport="*res://scripts/art/pipeline/pixel_diorama_viewport.gd"
 AttackTokenService="*res://scripts/combat/attack_token_service.gd"
+DungeonInteractionService="*res://scripts/dungeon/dungeon_interaction_service.gd"
 GameFacade="*res://scripts/app/game_facade.gd"
 InputRebindService="*res://scripts/app/input_rebind_service.gd"
 DebugConsole="*res://scripts/debug/debug_console.gd"
@@ -113,7 +114,9 @@ gdscript/warnings/function_used_as_property=2
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
-window/stretch/scale_mode="integer"
+# Keep the Full HD design viewport while allowing front-end Controls to fit displays smaller
+# than 1920x1080. PixelDioramaViewport retains the game's deliberately snapped low-res render.
+window/stretch/scale_mode="fractional"
 
 [editor_plugins]
 

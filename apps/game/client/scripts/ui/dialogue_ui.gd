@@ -49,10 +49,17 @@ func is_open() -> bool:
 	return visible
 
 
-func start_dialogue(dialogue_id: String) -> bool:
+func start_dialogue(
+	dialogue_id: String,
+	start_node_override: String = "",
+	ignore_conditions: bool = false,
+	suppressed_action_types: Array[String] = []
+) -> bool:
 	_starting = true
 	_ended_while_starting = false
-	var result := _runner.start(dialogue_id)
+	var result := _runner.start(
+		dialogue_id, start_node_override, ignore_conditions, suppressed_action_types
+	)
 	_starting = false
 	if result == DialogueRunner.StartResult.FAILED:
 		return false

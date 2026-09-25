@@ -31,21 +31,26 @@ static func floor_damage_factor(dungeon_id: String, floor_index: int) -> float:
 	return 1.0 + growth * maxf(0.0, float(floor_index - 1))
 
 
-static func combined_hp_multiplier(dungeon_id: String, difficulty_tier: int, floor_index: int) -> float:
+static func combined_hp_multiplier(
+	dungeon_id: String, difficulty_tier: int, floor_index: int, modifier_factor: float = 1.0
+) -> float:
 	return minf(
 		HP_COMBINED_CAP,
-		hp_multiplier(dungeon_id, difficulty_tier) * floor_hp_factor(dungeon_id, floor_index)
+		hp_multiplier(dungeon_id, difficulty_tier)
+		* floor_hp_factor(dungeon_id, floor_index)
+		* maxf(0.0, modifier_factor)
 	)
 
 
 static func combined_damage_multiplier(
-	dungeon_id: String, difficulty_tier: int, floor_index: int
+	dungeon_id: String, difficulty_tier: int, floor_index: int, modifier_factor: float = 1.0
 ) -> float:
 	return minf(
 		DAMAGE_COMBINED_CAP,
 		(
 			damage_multiplier(dungeon_id, difficulty_tier)
 			* floor_damage_factor(dungeon_id, floor_index)
+			* maxf(0.0, modifier_factor)
 		)
 	)
 

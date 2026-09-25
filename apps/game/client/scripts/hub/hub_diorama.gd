@@ -336,6 +336,30 @@ static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
 				_spawn_growth_board(root, mats, base, entry_id)
 			"shrine":
 				_spawn_votive_cairn(root, mats, iron, bone, candle, base)
+		var growth_root := root.get_child(root.get_child_count() - 1) as Node3D
+		if growth_root and str(entry.get("prop", "")) in ["shelf", "marker"]:
+			_add_growth_interaction(growth_root, entry)
+
+
+static func _add_growth_interaction(growth_root: Node3D, entry: Dictionary) -> void:
+	var entry_id := str(entry.get("id", ""))
+	var prop := str(entry.get("prop", ""))
+	if entry_id == "" or prop not in ["shelf", "marker"]:
+		return
+	var area := HubInteractable.new()
+	area.name = "InteractArea"
+	area.interact_id = "growth:%s:%s" % [prop, entry_id]
+	area.display_name = "Archive" if prop == "shelf" else "Record Stone"
+	area.collision_layer = 0
+	area.collision_mask = 2
+	var shape := CollisionShape3D.new()
+	shape.name = "CollisionShape3D"
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.2, 2.4, 2.0)
+	shape.shape = box
+	shape.position = Vector3(0.0, 1.1, 0.0)
+	area.add_child(shape)
+	growth_root.add_child(area)
 
 
 static func reconcile_growth_props(hub: Node3D) -> void:

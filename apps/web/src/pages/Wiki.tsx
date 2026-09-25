@@ -3,6 +3,7 @@ import { getWikiPage, wikiPages } from "../content/loader";
 import NotFound from "../components/NotFound";
 import { PageHelmet } from "../components/Layout";
 import PrerenderReady from "../components/PrerenderReady";
+import { wikiContentPath } from "../content/content-paths";
 
 export default function WikiIndexPage() {
   return (
@@ -17,7 +18,7 @@ export default function WikiIndexPage() {
       <ul className="content-list">
         {wikiPages.map((page) => (
           <li key={page.slug}>
-            <Link to={`/wiki/${page.slug}`}>{page.title}</Link>
+            <Link to={wikiContentPath(page.slug) ?? "/wiki"}>{page.title}</Link>
           </li>
         ))}
       </ul>
@@ -38,7 +39,7 @@ export function WikiArticlePage() {
       <PageHelmet
         title={`${page.title} — Aumbrye Wiki`}
         description={page.body.slice(0, 155)}
-        path={`/wiki/${page.slug}`}
+        path={wikiContentPath(page.slug) ?? "/wiki"}
       />
       <p>
         <Link className="muted" to="/wiki">

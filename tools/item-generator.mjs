@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { publishGeneratedAssetSet } from "../scripts/tools/generated_asset_set.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTENT = join(ROOT, "content");
@@ -50,6 +51,7 @@ const existing = new Set(
 const round = (value, places = 2) => Number(value.toFixed(places));
 
 const generated = [];
+const plannedIds = new Set(existing);
 biomes.forEach((biome, biomeIndex) => {
   const material = materialFor(biome, biomeIndex);
   const materialId = String(material.id ?? biome.templatePrefix ?? biome.id);
@@ -59,7 +61,8 @@ biomes.forEach((biome, biomeIndex) => {
     for (const rarity of rarities) {
       const scale = (RARITY_SCALE[rarity] ?? 1) * (1 + 0.18 * (materialTier - 1));
       const id = `${materialId}_${archetype.id}_${rarity}`;
-      if (existing.has(id)) continue;
+      if (plannedIds.has(id)) continue;
+      plannedIds.add(id);
       const stats = {};
       for (const [key, value] of Object.entries(archetype.implicit ?? {})) {
         stats[key] = round(Number(value) * scale, key.endsWith("Chance") || key.endsWith("Percent") ? 3 : 1);
@@ -90,17 +93,41 @@ if (!write) {
   if (generated.length > 10) console.log(`  ... and ${generated.length - 10} more`);
   console.log("Pass --write to emit files, --catalog to register them.");
 } else {
-  mkdirSync(EQUIPMENT, { recursive: true });
+  const outputs = [];
   for (const row of generated) {
-    writeFileSync(join(EQUIPMENT, `${row.item.id}.json`), `${JSON.stringify(row.item, null, 2)}\n`);
+    outputs.push({
+      path: join(EQUIPMENT, `${row.item.id}.json`),
+      buffer: Buffer.from(`${JSON.stringify(row.item, null, 2)}\n`),
+    });
   }
   if (updateCatalog) {
     const catalogPath = join(CONTENT, "items/catalog.json");
     const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
     const merged = new Set([...(catalog.equipment ?? []), ...generated.map((row) => row.item.id)]);
     catalog.equipment = [...merged].sort();
-    writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
+    outputs.push({ path: catalogPath, buffer: Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`) });
   }
-  console.log(`Wrote ${generated.length} item file(s)${updateCatalog ? " and updated the catalog" : ""}.`);
+  if (outputs.length > 0) {
+    const sourcePaths = [
+      join(ROOT, "tools/item_bases.json"),
+      ...readdirSync(join(CONTENT, "biomes"))
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => join(CONTENT, "biomes", file)),
+      ...(updateCatalog ? [join(CONTENT, "items/catalog.json")] : []),
+    ];
+    const published = publishGeneratedAssetSet({
+      repoRoot: ROOT,
+      manifestPath: join(ROOT, "tools/.generated-manifest.json"),
+      generatorPath: fileURLToPath(import.meta.url),
+      sourcePaths,
+      outputs,
+      force: process.argv.includes("--force"),
+      dryRun: process.argv.includes("--dry-run"),
+    });
+    console.log(`${process.argv.includes("--dry-run") ? "Validated" : "Published"} ${published.length} generated output(s).`);
+  } else {
+    console.log("No generated outputs to publish.");
+  }
+  console.log(`${generated.length} item file(s)${updateCatalog ? " and catalog included when changed" : ""}.`);
   console.log("Run tools/reachability-check.mjs — generated items still need a loot table entry.");
 }

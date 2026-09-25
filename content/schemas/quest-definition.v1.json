@@ -31,6 +31,13 @@
     "repeatable": { "type": "boolean" },
     "maxCompletions": { "type": "integer", "minimum": 1 },
     "cooldownRuns": { "type": "integer", "minimum": 1 },
+    "allowedModes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["castle", "endless"] }
+    },
+    "objectiveMode": { "enum": ["possession", "collection", "delivery"] },
     "targetId": { "type": "string", "minLength": 1 },
     "targetItemId": { "type": "string", "minLength": 1 },
     "targetNpcId": { "type": "string", "minLength": 1 },

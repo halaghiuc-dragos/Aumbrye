@@ -439,6 +439,7 @@ public class AccountService : IAccountService
             ["id"] = r.Id.ToString(),
             ["biomeId"] = r.BiomeId,
             ["seed"] = r.Seed,
+            ["clientVersionSnapshot"] = r.ClientVersionSnapshot,
             ["tier"] = r.Tier,
             ["status"] = r.Status.ToString(),
             ["createdAt"] = r.CreatedAt.ToString("O"),
@@ -451,6 +452,10 @@ public class AccountService : IAccountService
             {
                 ["biomeId"] = e.BiomeId,
                 ["tier"] = e.Tier,
+                ["seed"] = e.Seed,
+                ["playerLevel"] = e.PlayerLevel,
+                ["ruleset"] = e.Ruleset,
+                ["contentVersion"] = e.ContentVersion,
                 ["elapsedSeconds"] = e.ElapsedSeconds,
                 ["submittedAt"] = e.SubmittedAt.ToString("O"),
                 ["displayName"] = e.DisplayName,

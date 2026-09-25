@@ -27,15 +27,17 @@ static func restore(player: Node, state: Dictionary) -> void:
 		health.restore_current(_finite_value(state["health"], health.current))
 	var stamina := player.get_node_or_null("Stamina") as Stamina
 	if stamina and state.has("stamina"):
+		var previous_stamina := stamina.current
 		stamina.reset_stamina()
-		stamina.current = clampf(_finite_value(state["stamina"], stamina.current), 0.0, stamina.max_stamina)
+		stamina.current = clampf(_finite_value(state["stamina"], previous_stamina), 0.0, stamina.max_stamina)
 		stamina._exhausted = stamina.current <= 0.0
 		stamina._regen_timer = Stamina.REGEN_DELAY
 		stamina.stamina_changed.emit(stamina.current, stamina.max_stamina)
 	var mana := player.get_node_or_null("Mana") as Mana
 	if mana and state.has("mana"):
+		var previous_mana := mana.current
 		mana.reset_mana()
-		mana.current = clampf(_finite_value(state["mana"], mana.current), 0.0, mana.max_mana)
+		mana.current = clampf(_finite_value(state["mana"], previous_mana), 0.0, mana.max_mana)
 		mana._regen_timer = Mana.REGEN_DELAY
 		mana.mana_changed.emit(mana.current, mana.max_mana)
 	var heal := player.get_node_or_null("PlayerHeal") as PlayerHeal

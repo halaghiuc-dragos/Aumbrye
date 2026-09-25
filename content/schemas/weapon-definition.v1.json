@@ -13,6 +13,7 @@
     "damage_type": { "type": "string" },
     "status_on_hit": { "type": "string" },
     "draw_time": { "type": "number", "minimum": 0 },
+    "projectile_speed_multiplier": { "type": "number", "exclusiveMinimum": 0 },
     "lunge_distance": { "type": "number", "minimum": 0 },
     "buffer_window": { "type": "number", "minimum": 0 },
     "cancel_into": { "$ref": "#/$defs/cancel_into" },
@@ -65,6 +66,7 @@
           "items": { "type": "number" }
         },
         "radius": { "type": "number", "exclusiveMinimum": 0 },
+        "arc_degrees": { "type": "number", "exclusiveMinimum": 0, "maximum": 360 },
         "height": { "type": "number", "exclusiveMinimum": 0 },
         "pitch_deg": { "type": "number" }
       }

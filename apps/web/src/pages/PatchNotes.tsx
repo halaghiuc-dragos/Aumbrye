@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { patchNotes } from "../content/loader";
 import { PageHelmet } from "../components/Layout";
 import PrerenderReady from "../components/PrerenderReady";
+import { patchNoteContentPath } from "../content/content-paths";
 
 export default function PatchNotesPage() {
   return (
@@ -16,7 +17,7 @@ export default function PatchNotesPage() {
       {patchNotes.map((entry) => (
         <article key={entry.slug} className="card">
           <h3>
-            <Link to={`/patch-notes/${entry.slug}`}>
+            <Link to={patchNoteContentPath(entry.slug) ?? "/patch-notes"}>
               v{entry.version} — {entry.title}
             </Link>
           </h3>

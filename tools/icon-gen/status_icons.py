@@ -294,7 +294,7 @@ ICONS = {
 UNKNOWN_CELL = (7, 5)
 
 
-def render(path: str) -> None:
+def build_image() -> Image.Image:
     img = Image.new("RGBA", (COLS * CELL, ROWS * CELL), (0, 0, 0, 0))
     px = img.load()
     for name, (rows, ramp_name, (col, row)) in ICONS.items():
@@ -317,10 +317,11 @@ def render(path: str) -> None:
         for x in range(CELL):
             on = ((x // 4) + (y // 4)) % 2 == 0
             px[ux * CELL + x, uy * CELL + y] = (255, 0, 255, 255) if on else (0, 0, 0, 255)
-    img.save(path)
-    print(f"wrote {path} ({img.width}x{img.height}, {len(ICONS)} icons)")
+    return img
 
 
 if __name__ == "__main__":
-    import sys
-    render(sys.argv[1] if len(sys.argv) > 1 else "status_icons.png")
+    raise SystemExit(
+        "Direct publication is retired; use tools/icon-gen/atlas_build.py "
+        "(--dry-run/--force supported) to publish the complete owned atlas set."
+    )

@@ -20,6 +20,12 @@ static func entries() -> Array[Dictionary]:
 		_monitor_row(),
 		_resolution_row(),
 		_render_preset_row(),
+		_toggle_row(
+			"integer_pixel_scaling",
+			"display",
+			func() -> bool: return DisplayService.integer_pixel_scaling,
+			Callable(SettingsSchema, "_set_integer_pixel_scaling")
+		),
 		_vsync_row(),
 		_max_fps_row(),
 		_ui_scale_row(),
@@ -506,6 +512,10 @@ static func _get_render_preset_index() -> int:
 
 static func _set_render_preset_index(idx: int) -> void:
 	PixelDioramaSettings.set_preset_index(idx)
+
+
+static func _set_integer_pixel_scaling(enabled: bool) -> void:
+	DisplayService.set_integer_pixel_scaling(enabled)
 
 
 static func _vsync_row() -> Dictionary:

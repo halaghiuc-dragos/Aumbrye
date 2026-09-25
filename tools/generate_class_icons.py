@@ -8,17 +8,21 @@ emblem in it: a weapon or symbol that says what the class does at a glance.
 Everything is authored on the 64x64 cell grid the manifest declares
 (content/ui/class_icon_atlas.json), with hard edges so it stays crisp under nearest filtering.
 
-Usage:
-    python tools/generate_class_icons.py [--check]
+The original Python publisher is retired. ``tools/generate_class_icons.mjs`` is the sole owner and
+uses the generated-asset registry to protect hand-edited output.
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from generated_manifest import record_write, write_generated_bytes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS = ROOT / "apps" / "game" / "client" / "assets" / "ui" / "atlas" / "class_icons.png"
@@ -149,6 +153,8 @@ def build() -> Image.Image:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="report whether the atlas is flat art")
+    parser.add_argument("--dry-run", action="store_true", help="validate ownership without writing")
+    parser.add_argument("--force", action="store_true", help="explicitly replace an unowned output")
     args = parser.parse_args()
 
     if args.check:
@@ -167,11 +173,54 @@ def main() -> int:
         print(f"OK {ATLAS.name}: {len(ORDER)} drawn cells")
         return 0
 
-    ATLAS.parent.mkdir(parents=True, exist_ok=True)
-    build().save(ATLAS, optimize=True)
-    print(f"Wrote {ATLAS.relative_to(ROOT)} ({len(ORDER)} cells at {CELL}x{CELL})")
+    buffer = io.BytesIO()
+    build().save(buffer, format="PNG", optimize=True)
+    manifest = ROOT / "content" / "ui" / "class_icon_atlas.json"
+    candidate_bytes = buffer.getvalue()
+    generator = Path(__file__).resolve()
+    if ATLAS.is_file() and not args.force:
+        existing_bytes = ATLAS.read_bytes()
+        try:
+            existing = Image.open(io.BytesIO(existing_bytes)).convert("RGBA")
+            candidate = Image.open(io.BytesIO(candidate_bytes)).convert("RGBA")
+            same_pixels = existing.size == candidate.size and ImageChops.difference(
+                existing, candidate
+            ).getbbox() is None
+        except OSError:
+            same_pixels = False
+        if same_pixels:
+            if args.dry_run:
+                print(f"already matches generated pixels: {ATLAS.relative_to(ROOT)}")
+                written = False
+            else:
+                # Preserve the byte-identical authored PNG container while adopting it under the
+                # canonical generator. The source render and shipped pixels were proven equal.
+                record_write(ATLAS, existing_bytes, generator=generator, sources=[manifest])
+                written = True
+        else:
+            written = write_generated_bytes(
+                ATLAS,
+                candidate_bytes,
+                generator=generator,
+                sources=[manifest],
+                force=args.force,
+                dry_run=args.dry_run,
+            )
+    else:
+        written = write_generated_bytes(
+            ATLAS,
+            candidate_bytes,
+            generator=generator,
+            sources=[manifest],
+            force=args.force,
+            dry_run=args.dry_run,
+        )
+    print(
+        f"{'validated' if args.dry_run else 'published'} {ATLAS.relative_to(ROOT)} "
+        f"({len(ORDER)} cells at {CELL}x{CELL}; {'would write' if args.dry_run else 'written'}={written})"
+    )
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

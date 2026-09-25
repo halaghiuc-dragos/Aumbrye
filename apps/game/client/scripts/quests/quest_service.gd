@@ -340,6 +340,46 @@ func register_rescue(npc_id: String) -> void:
 		_advance_count(quest_id, def)
 
 
+const RESCUE_NPCS := {
+	"halbrek": "serjeant_halbrek",
+	"ivo": "clerk_ivo",
+	"nettle": "fenwife_nettle",
+	"corrin": "lampwright_corrin",
+	"odile": "lector_odile",
+	"veil": "widow_of_the_stair",
+}
+
+
+## Rescue dialogue uses an abstract accompany-on-this-run contract, not an implied off-screen
+## teleport. A commitment survives room/floor changes, resolves on a successful escape, and is
+## lost only if that run ends unsuccessfully. A defer deliberately keeps the NPC available.
+func set_rescue_state(npc_id: String, state: String) -> bool:
+	if not RESCUE_NPCS.has(npc_id):
+		return false
+	match state:
+		"committed":
+			CharacterService.set_flag("rescue_committed_%s" % npc_id, true)
+			CharacterService.set_flag("rescue_deferred_%s" % npc_id, false)
+			return true
+		"deferred":
+			CharacterService.set_flag("rescue_deferred_%s" % npc_id, true)
+			return true
+	return false
+
+
+func resolve_committed_rescues(outcome: String) -> void:
+	var escaped := outcome == RunLifecycleScript.OUTCOME_ESCAPED
+	for npc_id in RESCUE_NPCS:
+		if not bool(CharacterService.get_flag("rescue_committed_%s" % npc_id, false)):
+			continue
+		CharacterService.set_flag("rescue_committed_%s" % npc_id, false)
+		if escaped:
+			CharacterService.set_flag("rescued_%s" % npc_id, true)
+			register_rescue(str(RESCUE_NPCS[npc_id]))
+		else:
+			CharacterService.set_flag("lost_%s" % npc_id, true)
+
+
 func register_run_outcome(outcome: String, context: Dictionary = {}) -> void:
 	var results: Dictionary = {}
 	if RunFlow:

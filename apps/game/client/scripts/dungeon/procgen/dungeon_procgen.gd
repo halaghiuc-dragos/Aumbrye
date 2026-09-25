@@ -65,6 +65,26 @@ static func generate(
 		if DungeonDefinitionValidator.has_room_overlap(rooms):
 			rooms = []
 			continue
+		# A lattice can solve successfully while leaving required rooms disconnected from the
+		# entrance. Judge the reachable, actually placeable floor here so another assignment gets
+		# a chance before the whole generation is rejected by the realised-floor contract below.
+		var reachable_candidate := _prune_to_placed(graph, assignment, layout)
+		var reachable_rooms: Array = reachable_candidate["assignment"].get("rooms", [])
+		var reachable_main_count := 0
+		var reachable_ids := {}
+		for reachable_room in reachable_rooms:
+			var reachable_id := str(reachable_room.get("layout_id", ""))
+			reachable_ids[reachable_id] = true
+			if str(reachable_room.get("type", "")) != "secret":
+				reachable_main_count += 1
+		var required_rooms_reachable := (
+			reachable_ids.has(str(assignment.get("boss_layout_id", "")))
+			and reachable_ids.has(str(assignment.get("stairs_layout_id", "")))
+			and reachable_ids.has(str(assignment.get("treasure_layout_id", "")))
+		)
+		if reachable_main_count < config.min_rooms or not required_rooms_reachable:
+			rooms = []
+			continue
 		edges = RoomGraphGeometryScript.build_edges(graph, assignment, layout)
 		break
 	if rooms.is_empty():
@@ -126,6 +146,13 @@ static func generate(
 		graph, assignment, content_rng, content_config, biome_id, tier
 	)
 	var content: Dictionary = content_result.get("content", {})
+	# A lore placement belongs to this generated floor, not merely to a room label that another seed
+	# may reuse. Preserve the run seed in its durable discovery identity before the definition is saved.
+	for entry in content.get("roomContent", []):
+		if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == "lore":
+			(entry as Dictionary)["loreId"] = "%s:%d:lore:%s" % [
+				biome_id, run_seed, str((entry as Dictionary).get("roomId", ""))
+			]
 	var content_warnings: Array = []
 	var fallback_pattern := str(layout.get("fallback_pattern", ""))
 	if fallback_pattern != "":
@@ -354,10 +381,13 @@ static func _rebuild_canonical_graph(
 		var slot := graph.get_slot_at(cell)
 		if slot != null and not kept_ids.has(slot.slot_id):
 			graph.remove_slot(cell)
-	var original_loop_keys := {}
+	var original_loop_pairs := {}
 	for edge in graph.loop_edges:
 		if edge is Dictionary:
-			original_loop_keys[str(edge.get("key", ""))] = true
+			var from_slot := graph.get_slot_at((edge as Dictionary).get("a", Vector2i.ZERO))
+			var to_slot := graph.get_slot_at((edge as Dictionary).get("b", Vector2i.ZERO))
+			if from_slot != null and to_slot != null:
+				original_loop_pairs[_layout_pair_key(from_slot.slot_id, to_slot.slot_id)] = true
 	graph.walk_edges.clear()
 	graph.loop_edges.clear()
 	for cell in graph.occupied_cells():
@@ -376,7 +406,7 @@ static func _rebuild_canonical_graph(
 		from_slot.door_mask |= RoomGraphGeometry.dir_to_door(delta)
 		to_slot.door_mask |= RoomGraphGeometry.dir_to_door(-delta)
 		var canonical := {"key": str(key), "a": from_slot.grid_pos, "b": to_slot.grid_pos}
-		if original_loop_keys.has(str(key)):
+		if original_loop_pairs.has(_layout_pair_key(from_slot.slot_id, to_slot.slot_id)):
 			graph.loop_edges.append(canonical)
 		else:
 			graph.walk_edges.append(canonical)
@@ -394,6 +424,10 @@ static func _rebuild_canonical_graph(
 			continue
 		slot.graph_distance = int(distances.get(slot.slot_id, -1))
 		slot.on_critical_path = slot.slot_id in critical
+
+
+static func _layout_pair_key(a: String, b: String) -> String:
+	return "%s>%s" % [a, b] if a < b else "%s>%s" % [b, a]
 
 
 static func _generate_final_floor(
@@ -543,6 +577,7 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Di
 	for assigned_room in assignment.get("rooms", []):
 		layout_by_semantic[str(assigned_room.get("semantic_id", ""))] = str(assigned_room.get("layout_id", ""))
 	var boss_pos := Vector3.ZERO
+	var boss_room_id := ""
 	var entrance_pos := Vector3.ZERO
 	for room in rooms:
 		var room_type: String = str(room.get("type", ""))
@@ -550,6 +585,7 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Di
 		var pos := Vector3(float(t.get("x", 0.0)), float(t.get("y", 0.0)), float(t.get("z", 0.0)))
 		if room_type == "boss":
 			boss_pos = pos
+			boss_room_id = str(room.get("id", ""))
 		if room_type == "hub":
 			entrance_pos = pos
 	if boss_pos != Vector3.ZERO:
@@ -581,6 +617,7 @@ static func _build_landmark_hints(rooms: Array, graph: RoomGraph, assignment: Di
 				. append(
 					{
 						"kind": "orientation_spire",
+						"revealRoomId": boss_room_id,
 						"position":
 						{
 							"x":

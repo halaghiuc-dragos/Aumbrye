@@ -195,7 +195,7 @@ func _apply(p: float) -> void:
 
 	var sun := _sun.get_ref() as DirectionalLight3D if _sun else null
 	var sun_energy := 0.0
-	if sun and is_instance_valid(sun):
+	if sun and is_instance_valid(sun) and sun.is_inside_tree():
 		sun.global_transform = Transform3D(Celestial.light_basis(to_sun), sun.global_position)
 		sun.light_color = _col(a, "sun_color").lerp(_col(b, "sun_color"), t)
 		var energy := lerpf(_num(a, "sun_energy", 1.0), _num(b, "sun_energy", 1.0), t) * dim
@@ -208,7 +208,7 @@ func _apply(p: float) -> void:
 	_assign_shadow_caster(sun, sun_energy, moon)
 
 	var fill := _fill.get_ref() as DirectionalLight3D if _fill else null
-	if fill and is_instance_valid(fill):
+	if fill and is_instance_valid(fill) and fill.is_inside_tree():
 		fill.light_color = _col(a, "fill_color").lerp(_col(b, "fill_color"), t)
 		fill.light_energy = (
 			lerpf(_num(a, "fill_energy", 0.2), _num(b, "fill_energy", 0.2), t) * dim
@@ -269,10 +269,10 @@ func _apply(p: float) -> void:
 
 func _apply_moon(to_moon: Vector3, to_sun: Vector3, lit_fraction: float) -> DirectionalLight3D:
 	var env_owner := _sun.get_ref() as Node3D if _sun else null
-	if env_owner == null or not is_instance_valid(env_owner):
+	if env_owner == null or not is_instance_valid(env_owner) or not env_owner.is_inside_tree():
 		return null
 	var parent := env_owner.get_parent() as Node3D
-	if parent == null:
+	if parent == null or not parent.is_inside_tree():
 		return null
 	var moon := parent.get_node_or_null(MOON_LIGHT_NAME) as DirectionalLight3D
 	if moon == null:
@@ -284,6 +284,8 @@ func _apply_moon(to_moon: Vector3, to_sun: Vector3, lit_fraction: float) -> Dire
 		# drift out of step with the sun the first time either of those changed.
 		PixelDioramaSettings.configure_directional_shadow(moon, _shadows_allowed)
 		_shadow_quality_applied = PixelDioramaSettings.shadow_quality
+	if not moon.is_inside_tree():
+		return null
 	moon.global_transform = Transform3D(Celestial.light_basis(to_moon), moon.global_position)
 	moon.light_color = MOON_COLOR
 	var altitude := clampf(Celestial.elevation_deg(to_moon) / HORIZON_FADE_DEG + 1.0, 0.0, 1.0)

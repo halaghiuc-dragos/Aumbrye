@@ -24,6 +24,7 @@ func _ready() -> void:
 	_audit_items()
 	_audit_statuses()
 	_audit_minimap()
+	_audit_minimap_state()
 	print("ICON AUDIT RESULT %d failures" % _failures)
 	get_tree().quit(1 if _failures > 0 else 0)
 
@@ -109,6 +110,76 @@ func _audit_minimap() -> void:
 			continue
 		drawn += 1
 	print("MINIMAP ATLAS %d of %d kinds drawn" % [drawn, MinimapScript.KIND_CELLS.size()])
+
+
+func _audit_minimap_state() -> void:
+	var minimap := MinimapScript.new()
+	minimap.configure({
+		"rooms": [
+			{"id": "known", "kind": "combat", "transform": {"x": 0.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+			{"id": "neighbor", "kind": "stairs", "transform": {"x": 8.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+		],
+		"edges": [{"from": "known", "to": "neighbor", "oneWay": "down"}],
+	})
+	if minimap.toggle_manual_pin("neighbor"):
+		_fail("map allowed pinning an undiscovered room")
+	minimap.mark_visited("known")
+	if minimap.get_reveal_tier("neighbor") != MinimapScript.RevealTier.SEEN:
+		_fail("visiting a room did not reveal its connected exit")
+	if not minimap.toggle_manual_pin("known") or not minimap.is_manually_pinned("known"):
+		_fail("visited room could not be manually pinned")
+	minimap.mark_cleared("known")
+	var state: Dictionary = minimap.export_state()
+	var serialized_discovery := JSON.stringify(minimap.export_discovery_state())
+	var restored := MinimapScript.new()
+	restored.configure({
+		"rooms": [
+			{"id": "known", "kind": "combat", "transform": {"x": 0.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+			{"id": "neighbor", "kind": "stairs", "transform": {"x": 8.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+		],
+		"edges": [{"from": "known", "to": "neighbor", "oneWay": "down"}],
+	})
+	var decoded_discovery: Variant = JSON.parse_string(serialized_discovery)
+	if decoded_discovery is Dictionary:
+		restored.import_discovery_state(decoded_discovery)
+	else:
+		_fail("map discovery snapshot did not survive JSON serialization")
+	if not restored.is_manually_pinned("known"):
+		_fail("manual pin did not survive map export/import")
+	if restored.get_reveal_tier("known") != MinimapScript.RevealTier.VISITED:
+		_fail("discovery state did not survive map export/import")
+	if restored.reveal_landmark_room("neighbor") != true:
+		_fail("authored landmark could not reveal its known destination")
+	if restored.get_reveal_tier("neighbor") != MinimapScript.RevealTier.SEEN:
+		_fail("landmark revealed a destination without keeping it at outline-only SEEN")
+	if restored.reveal_landmark_room("unknown_save_id"):
+		_fail("landmark revealed an unknown destination ID")
+	if restored.get_reveal_tier("known") != MinimapScript.RevealTier.VISITED:
+		_fail("landmark reveal downgraded a visited room")
+	if not restored.toggle_manual_pin("known") or restored.is_manually_pinned("known"):
+		_fail("manual pin could not be toggled off")
+	var overlay := MinimapScript.new()
+	overlay.import_state(state)
+	if not overlay.toggle_manual_pin("known"):
+		_fail("overlay map could not toggle a visited-room pin")
+	minimap.import_discovery_state(overlay.export_discovery_state())
+	if minimap.is_manually_pinned("known"):
+		_fail("overlay pin removal could not be merged back into the HUD map")
+	if not overlay.toggle_manual_pin("known"):
+		_fail("overlay map could not restore a visited-room pin")
+	minimap.import_discovery_state(overlay.export_discovery_state())
+	if not minimap.is_manually_pinned("known"):
+		_fail("overlay pin addition could not be merged back into the HUD map")
+	minimap.import_discovery_state({
+		"reveal": {"unknown_save_id": MinimapScript.RevealTier.VISITED},
+		"manual_pins": {"unknown_save_id": true},
+	})
+	if minimap.get_reveal_tier("unknown_save_id") != MinimapScript.RevealTier.UNKNOWN:
+		_fail("map discovery import trusted an unknown saved room ID")
+	minimap.free()
+	restored.free()
+	overlay.free()
+	print("MINIMAP STATE manual pin, discovery, landmark outline, neighbor reveal, persistence checked")
 
 
 ## A cell that resolves but contains nothing renders as a hole, which is the failure the sheets

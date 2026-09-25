@@ -1,4 +1,6 @@
 using Aumbrye.Domain.Entities;
+using Aumbrye.Shared.Contracts.Leaderboards;
+using Aumbrye.Shared.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aumbrye.Application.Services;
@@ -15,6 +17,10 @@ public interface ILeaderboardStore
         string displayName,
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         double elapsedSeconds,
         DateTimeOffset submittedAt,
         CancellationToken ct = default);
@@ -22,6 +28,10 @@ public interface ILeaderboardStore
     Task<IReadOnlyList<LeaderboardEntry>> GetTopAsync(
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         int limit,
         CancellationToken ct = default);
 
@@ -39,6 +49,10 @@ public sealed record LeaderboardEntry(
     string DisplayName,
     string BiomeId,
     int Tier,
+    int Seed,
+    int PlayerLevel,
+    string Ruleset,
+    string ContentVersion,
     double ElapsedSeconds,
     DateTimeOffset SubmittedAt);
 
@@ -60,6 +74,10 @@ public interface ILeaderboardService
     Task<IReadOnlyList<LeaderboardEntry>> GetTopAsync(
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         int limit = 10,
         CancellationToken ct = default);
 }
@@ -95,9 +113,11 @@ public class LeaderboardService : ILeaderboardService
         if (!string.Equals(run.Outcome, "escaped", StringComparison.Ordinal)
             || !run.FinalObjectiveCompleted
             || !run.RankedDefinitionEligible
+            || !run.RankedProgressionVerified
+            || !string.Equals(run.ClientVersionSnapshot, ApiVersions.ExpectedClientVersion, StringComparison.Ordinal)
             || !string.Equals(run.Mode, "dungeon", StringComparison.Ordinal)
             || run.Assists != 0
-            || !string.Equals(run.Ruleset, "standard-v1", StringComparison.Ordinal))
+            || !string.Equals(run.Ruleset, RankedLeaderboardContract.Ruleset, StringComparison.Ordinal))
         {
             return new LeaderboardSubmitResult(
                 false,
@@ -120,7 +140,7 @@ public class LeaderboardService : ILeaderboardService
         // rather than re-submitting.
         if (run.LeaderboardSubmittedAt != null)
         {
-            var rank = await RankOfAsync(accountId, run.BiomeId, run.Tier, ct);
+            var rank = await RankOfAsync(accountId, run.BiomeId, run.Tier, run.Seed, run.PlayerLevelSnapshot, run.Ruleset, RankedLeaderboardContract.ContentVersion, ct);
             return new LeaderboardSubmitResult(true, Rank: rank, Reason: "already_submitted");
         }
 
@@ -130,6 +150,10 @@ public class LeaderboardService : ILeaderboardService
             account.DisplayName,
             run.BiomeId,
             run.Tier,
+            run.Seed,
+            run.PlayerLevelSnapshot,
+            run.Ruleset,
+            RankedLeaderboardContract.ContentVersion,
             elapsed,
             submittedAt,
             ct);
@@ -143,13 +167,18 @@ public class LeaderboardService : ILeaderboardService
     public Task<IReadOnlyList<LeaderboardEntry>> GetTopAsync(
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         int limit = 10,
         CancellationToken ct = default) =>
-        _store.GetTopAsync(biomeId, tier, Math.Clamp(limit, 1, MaxLimit), ct);
+        _store.GetTopAsync(biomeId, tier, seed, playerLevel, ruleset, contentVersion, Math.Clamp(limit, 1, MaxLimit), ct);
 
-    private async Task<int?> RankOfAsync(Guid accountId, string biomeId, int tier, CancellationToken ct)
+    private async Task<int?> RankOfAsync(
+        Guid accountId, string biomeId, int tier, int seed, int playerLevel, string ruleset, string contentVersion, CancellationToken ct)
     {
-        var top = await _store.GetTopAsync(biomeId, tier, MaxLimit, ct);
+        var top = await _store.GetTopAsync(biomeId, tier, seed, playerLevel, ruleset, contentVersion, MaxLimit, ct);
         for (var i = 0; i < top.Count; i++)
         {
             if (top[i].AccountId == accountId)
@@ -168,20 +197,25 @@ public class InMemoryLeaderboardStore : ILeaderboardStore
     private readonly Dictionary<string, Dictionary<Guid, LeaderboardEntry>> _entries =
         new(StringComparer.Ordinal);
 
-    private static string Key(string biomeId, int tier) => $"{biomeId}:{tier}";
+    private static string Key(string biomeId, int tier, int seed, int playerLevel, string ruleset, string contentVersion) =>
+        $"{biomeId}:{tier}:{seed}:level{playerLevel}:{ruleset}:{contentVersion}";
 
     public Task<int?> SubmitScoreAsync(
         Guid accountId,
         string displayName,
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         double elapsedSeconds,
         DateTimeOffset submittedAt,
         CancellationToken ct = default)
     {
         lock (_gate)
         {
-            var key = Key(biomeId, tier);
+            var key = Key(biomeId, tier, seed, playerLevel, ruleset, contentVersion);
             if (!_entries.TryGetValue(key, out var board))
             {
                 board = [];
@@ -192,7 +226,7 @@ public class InMemoryLeaderboardStore : ILeaderboardStore
             if (!board.TryGetValue(accountId, out var current) || elapsedSeconds < current.ElapsedSeconds)
             {
                 board[accountId] = new LeaderboardEntry(
-                    accountId, displayName, biomeId, tier, elapsedSeconds, submittedAt);
+                    accountId, displayName, biomeId, tier, seed, playerLevel, ruleset, contentVersion, elapsedSeconds, submittedAt);
             }
             else
             {
@@ -224,12 +258,16 @@ public class InMemoryLeaderboardStore : ILeaderboardStore
     public Task<IReadOnlyList<LeaderboardEntry>> GetTopAsync(
         string biomeId,
         int tier,
+        int seed,
+        int playerLevel,
+        string ruleset,
+        string contentVersion,
         int limit,
         CancellationToken ct = default)
     {
         lock (_gate)
         {
-            if (!_entries.TryGetValue(Key(biomeId, tier), out var board))
+            if (!_entries.TryGetValue(Key(biomeId, tier, seed, playerLevel, ruleset, contentVersion), out var board))
                 return Task.FromResult<IReadOnlyList<LeaderboardEntry>>([]);
 
             var top = board.Values

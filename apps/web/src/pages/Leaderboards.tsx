@@ -38,19 +38,25 @@ export default function LeaderboardsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawBiomeId = searchParams.get("biomeId");
   const rawTier = searchParams.get("tier");
+  const rawLevel = searchParams.get("playerLevel");
+  const rawSeed = searchParams.get("seed");
   const biomeId = parseBiomeId(rawBiomeId);
   const tier = parseTier(rawTier);
+  const parsedLevel = Number(rawLevel ?? 1);
+  const playerLevel = Number.isInteger(parsedLevel) ? Math.min(1000, Math.max(1, parsedLevel)) : 1;
+  const parsedSeed = Number(rawSeed ?? 1);
+  const seed = Number.isInteger(parsedSeed) ? Math.min(2147483647, Math.max(1, parsedSeed)) : 1;
 
   // Canonicalize the URL once when the parsed values differ from what was typed, so shared links
   // and the rendered controls always agree.
   useEffect(() => {
-    if (rawBiomeId === biomeId && rawTier === String(tier)) return;
-    setSearchParams({ biomeId, tier: String(tier) }, { replace: true });
-  }, [rawBiomeId, rawTier, biomeId, tier, setSearchParams]);
+    if (rawBiomeId === biomeId && rawTier === String(tier) && rawLevel === String(playerLevel) && rawSeed === String(seed)) return;
+    setSearchParams({ biomeId, tier: String(tier), playerLevel: String(playerLevel), seed: String(seed) }, { replace: true });
+  }, [rawBiomeId, rawTier, rawLevel, rawSeed, biomeId, tier, playerLevel, seed, setSearchParams]);
 
   const leaderboardsQuery = useQuery({
-    queryKey: ["leaderboards", biomeId, tier],
-    queryFn: ({ signal }) => getLeaderboards(biomeId, tier, signal),
+    queryKey: ["leaderboards", biomeId, tier, seed, playerLevel],
+    queryFn: ({ signal }) => getLeaderboards(biomeId, tier, seed, playerLevel, signal),
     retry: false,
   });
 
@@ -64,8 +70,8 @@ export default function LeaderboardsPage() {
       )
     : FALLBACK_TIERS;
 
-  function updateFilters(nextBiomeId: string, nextTier: number) {
-    setSearchParams({ biomeId: nextBiomeId, tier: String(nextTier) });
+  function updateFilters(nextBiomeId: string, nextTier: number, nextLevel = playerLevel, nextSeed = seed) {
+    setSearchParams({ biomeId: nextBiomeId, tier: String(nextTier), playerLevel: String(nextLevel), seed: String(nextSeed) });
   }
 
   return (
@@ -73,7 +79,7 @@ export default function LeaderboardsPage() {
       <PageHelmet
         title="Leaderboards — Aumbrye"
         description="Browse Aumbrye speedrun leaderboards by biome and tier."
-        path={`/leaderboards?biomeId=${biomeId}&tier=${tier}`}
+        path={`/leaderboards?biomeId=${biomeId}&tier=${tier}&seed=${seed}&playerLevel=${playerLevel}`}
       />
       {!leaderboardsQuery.isLoading && <PrerenderReady />}
       <h2>Leaderboards</h2>
@@ -105,6 +111,16 @@ export default function LeaderboardsPage() {
               </option>
             ))}
           </select>
+        </label>
+        <label>
+          Player level
+          <input type="number" min={1} max={1000} step={1} value={playerLevel}
+            onChange={(e) => updateFilters(biomeId, tier, Number(e.target.value))} aria-label="Player level" />
+        </label>
+        <label>
+          Seed
+          <input type="number" min={1} max={2147483647} step={1} value={seed}
+            onChange={(e) => updateFilters(biomeId, tier, playerLevel, Number(e.target.value))} aria-label="Seed" />
         </label>
       </div>
 
@@ -151,7 +167,11 @@ export default function LeaderboardsPage() {
 
       {!leaderboardsQuery.isLoading && !leaderboardsQuery.error && (
         <>
-          {capabilities && <p className="hint">Rules version {capabilities.rulesVersion}</p>}
+          {capabilities && (
+            <p className="hint">
+              Rules version {capabilities.rulesVersion} · Build {leaderboardsQuery.data?.clientVersion} · Seed {leaderboardsQuery.data?.seed} · Level {leaderboardsQuery.data?.playerLevel}
+            </p>
+          )}
           <table className="leaderboard">
           <caption className="visually-hidden">Leaderboard results</caption>
           <thead>

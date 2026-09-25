@@ -26,6 +26,14 @@
           3
         ],
         "weight": 4
+      },
+      {
+        "itemId": "hunters_lure",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 10
       }
     ],
     "secret": [
@@ -84,6 +92,14 @@
           1
         ],
         "weight": 2
+      },
+      {
+        "itemId": "hunters_lure",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 2
       }
     ],
     "side": [
@@ -102,6 +118,14 @@
           3
         ],
         "weight": 10
+      },
+      {
+        "itemId": "hunters_lure",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 2
       }
     ],
     "armory": [
@@ -256,6 +280,14 @@
           1
         ],
         "weight": 10
+      },
+      {
+        "itemId": "hunters_lure",
+        "quantity": [
+          1,
+          3
+        ],
+        "weight": 2
       }
     ]
   }

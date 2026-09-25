@@ -105,6 +105,8 @@ func _build_payload(context: String, details: Dictionary) -> Dictionary:
 
 
 func _current_scene_path() -> String:
+	if not is_inside_tree():
+		return ""
 	var tree := get_tree()
 	if tree == null:
 		return ""

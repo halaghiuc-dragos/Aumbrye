@@ -16,10 +16,11 @@
             "not": {
               "flag": "lost_corrin"
             }
-          }
+          },
+          {"not": {"flag": "rescue_committed_corrin"}}
         ]
       },
-      "fallback": "already",
+      "fallback": "committed",
       "choices": [
         {
           "text": "Walk behind me. Stay close.",
@@ -33,16 +34,12 @@
     },
     "taken": {
       "speaker": "Corrin",
-      "text": "Then I will keep up, and if I do not keep up you will not stop. Say it. — Good. That is the arrangement everybody else lied about.",
+      "text": "Then take the lit side. I can keep a lamp alive long enough to see the ascent.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "rescued_corrin",
-          "value": true
-        },
-        {
-          "type": "record_rescue",
-          "npcId": "lampwright_corrin"
+          "type": "set_rescue_state",
+          "npcId": "corrin",
+          "state": "committed"
         },
         {
           "type": "play_sfx",
@@ -53,16 +50,17 @@
     },
     "left": {
       "speaker": "Corrin",
-      "text": "Down. Of course down. Go on, then — I will keep this landing warm, which is a joke, and it is the last one I have.",
+      "text": "Then I will save the lamp oil. Find this landing again when you mean to leave.",
       "actions": [
         {
-          "type": "set_flag",
-          "flag": "lost_corrin",
-          "value": true
+          "type": "set_rescue_state",
+          "npcId": "corrin",
+          "state": "deferred"
         }
       ],
       "next": "end"
     },
+    "committed": {"speaker": "Corrin", "text": "Keep the route lit. I will make the ascent with you.", "condition": {"flag": "rescue_committed_corrin"}, "fallback": "already", "next": "end"},
     "already": {
       "speaker": "An empty landing",
       "text": "Somebody sat here long enough to wear the stone smooth. Whoever it was is not sitting here now.",

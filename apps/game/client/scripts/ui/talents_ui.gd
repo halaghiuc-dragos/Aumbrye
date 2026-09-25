@@ -291,7 +291,7 @@ func _update_detail(node_id: String) -> void:
 	if bool(node.get("keystone", false)):
 		display_name = "◆ %s" % display_name
 	var lines: PackedStringArray = [display_name]
-	var description: String = str(node.get("description", ""))
+	var description: String = ContentText.description(node)
 	if description != "":
 		lines.append(description)
 	var effect_lines: PackedStringArray = []

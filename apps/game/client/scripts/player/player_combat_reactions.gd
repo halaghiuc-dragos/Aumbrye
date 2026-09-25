@@ -13,6 +13,7 @@ const STAGGER_POISE_HIGH := 45.0
 const STAGGER_WAKEUP_IFRAMES := 0.14
 const STAGGER_ROLLOUT_WINDOW := 0.22
 const STAGGER_ROLLOUT_COST := 1.5
+const GRAB_DRAIN_INTERVAL := 0.4
 
 const DEATH_SLOW_SCALE := 0.35
 const DEATH_SLOW_DURATION := 0.60
@@ -52,6 +53,7 @@ var _death_sequence_running := false
 var _death_sequence_generation := 0
 var _saved_screen_saturation := -1.0
 var _grab_timer := 0.0
+var _grab_tick_timer := 0.0
 var _grab_pending_info: DamageInfo = null
 var _knockback: Knockback
 
@@ -93,10 +95,18 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_sync_guard_broken_mirror()
-	if is_grabbed and _grab_timer > 0.0:
-		_grab_timer -= delta
-		if _grab_timer <= 0.0:
-			_end_grab()
+	if is_grabbed:
+		if _grab_source_interrupted():
+			_cancel_grab()
+		else:
+			_grab_timer -= delta
+			if _grab_pending_info != null and _grab_pending_info.grab_drain_per_second > 0.0:
+				_grab_tick_timer -= delta
+				while _grab_tick_timer <= 0.0 and _grab_timer > 0.0:
+					_apply_grab_drain_tick(_grab_pending_info)
+					_grab_tick_timer += GRAB_DRAIN_INTERVAL
+			if _grab_timer <= 0.0:
+				_end_grab()
 	if is_staggered and _stagger_timer > 0.0:
 		_stagger_timer -= delta
 		_update_stagger_iframes()
@@ -205,6 +215,7 @@ func apply_grab(info: DamageInfo, duration: float) -> bool:
 		return false
 	is_grabbed = true
 	_grab_timer = maxf(0.01, duration)
+	_grab_tick_timer = GRAB_DRAIN_INTERVAL
 	_grab_pending_info = info.copy_with()
 	if _dodge:
 		_dodge.cancel_dodge()
@@ -217,7 +228,13 @@ func apply_grab(info: DamageInfo, duration: float) -> bool:
 func _end_grab() -> void:
 	is_grabbed = false
 	_grab_timer = 0.0
-	if _grab_pending_info and _health and not _health.is_dead():
+	_grab_tick_timer = 0.0
+	if (
+		_grab_pending_info
+		and _grab_pending_info.grab_drain_per_second <= 0.0
+		and _health
+		and not _health.is_dead()
+	):
 		var hurtbox := _body.get_node_or_null("Hurtbox")
 		if hurtbox and hurtbox.has_method("receive_hit"):
 			var info := _grab_pending_info.copy_with()
@@ -227,6 +244,42 @@ func _end_grab() -> void:
 			hurtbox.call("receive_hit", info)
 	_grab_pending_info = null
 	grab_ended.emit()
+
+
+func _cancel_grab() -> void:
+	if not is_grabbed:
+		return
+	is_grabbed = false
+	_grab_timer = 0.0
+	_grab_tick_timer = 0.0
+	_grab_pending_info = null
+	grab_ended.emit()
+
+
+func _grab_source_interrupted() -> bool:
+	if _grab_pending_info == null or _grab_pending_info.source == null:
+		return false
+	var source := _grab_pending_info.source
+	if not is_instance_valid(source) or not source.is_inside_tree():
+		return true
+	if source.has_method("is_dead") and bool(source.call("is_dead")):
+		return true
+	return source.has_method("is_staggered") and bool(source.call("is_staggered"))
+
+
+func _apply_grab_drain_tick(info: DamageInfo) -> void:
+	if _health == null or _health.is_dead():
+		return
+	var body := _body
+	var hurtbox := body.get_node_or_null("Hurtbox") as Hurtbox if body != null else null
+	if hurtbox == null:
+		return
+	var tick := info.copy_with(info.grab_drain_per_second * GRAB_DRAIN_INTERVAL, 0.0)
+	tick.periodic = true
+	tick.attack_class = "grab_drain"
+	tick.ignore_iframes = true
+	tick.ignore_guard = true
+	hurtbox.receive_hit(tick)
 
 
 func _cancel_stagger() -> void:
@@ -370,6 +423,7 @@ func _on_parry_success(_target: Node) -> void:
 
 
 func _on_died() -> void:
+	VfxService.request_attack_hitstop("player_death:%s" % _body.get_instance_id(), 90, 0.12)
 	if _death_sequence_running:
 		return
 	_death_sequence_running = true

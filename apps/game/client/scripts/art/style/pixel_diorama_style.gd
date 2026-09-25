@@ -810,6 +810,12 @@ const MESH_SNAP := 0.1
 const MIN_BEVEL_SIZE := 0.34
 
 static var _bevel_mesh_cache: Dictionary = {}
+static var _bevel_mesh_cache_order: Array[String] = []
+static var _bevel_mesh_cache_hits := 0
+static var _bevel_mesh_cache_misses := 0
+static var _bevel_mesh_cache_evictions := 0
+static var _bevel_mesh_cache_peak := 0
+const BEVEL_MESH_CACHE_LIMIT := 256
 
 
 static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
@@ -825,7 +831,9 @@ static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
 	var snapped_bevel := snappedf(b, MESH_SNAP)
 	var key := "%.2f_%.2f_%.2f_%.2f" % [snapped_value.x, snapped_value.y, snapped_value.z, snapped_bevel]
 	if _bevel_mesh_cache.has(key):
+		_bevel_mesh_cache_hits += 1
 		return _bevel_mesh_cache[key]
+	_bevel_mesh_cache_misses += 1
 	var half := snapped_value * 0.5
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -872,8 +880,29 @@ static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
 		)
 	st.index()
 	var mesh := st.commit()
+	if _bevel_mesh_cache_order.size() >= BEVEL_MESH_CACHE_LIMIT:
+		var evicted_key: String = _bevel_mesh_cache_order.pop_front()
+		_bevel_mesh_cache.erase(evicted_key)
+		_bevel_mesh_cache_evictions += 1
+	_bevel_mesh_cache_order.append(key)
 	_bevel_mesh_cache[key] = mesh
+	_bevel_mesh_cache_peak = maxi(_bevel_mesh_cache_peak, _bevel_mesh_cache.size())
 	return mesh
+
+
+static func get_art_cache_stats() -> Dictionary:
+	return {
+		"bevel_meshes": {
+			"retained": _bevel_mesh_cache.size(), "limit": BEVEL_MESH_CACHE_LIMIT,
+			"peak": _bevel_mesh_cache_peak, "hits": _bevel_mesh_cache_hits,
+			"misses": _bevel_mesh_cache_misses, "evictions": _bevel_mesh_cache_evictions,
+		},
+		"materials": {
+			"surface": _surface_material_cache.size(), "prop": _prop_material_cache.size(),
+			"accent": _accent_material_cache.size(), "emissive": _emissive_material_cache.size(),
+			"portal": _portal_material_cache.size(),
+		},
+	}
 
 
 static func _emit_tri(st: SurfaceTool, pts: Array[Vector3], outward: Vector3) -> void:

@@ -467,17 +467,17 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 10,
-          "lifetime": 0.42,
-          "explosiveness": 0.65,
-          "spread": 38.0,
+          "amount": 6,
+          "lifetime": 0.32,
+          "explosiveness": 0.45,
+          "spread": 28.0,
           "velocity": [
-            0.35,
-            0.95
+            0.18,
+            0.52
           ],
           "gravity": [
             0.0,
-            -5.5,
+            -4.0,
             0.0
           ],
           "scale": [
@@ -485,9 +485,10 @@
             0.13
           ],
           "chunk": "dust_flake",
+          "billboard": true,
           "color": "#b8a37a",
           "emission": 0.15,
-          "align_to": "up",
+          "align_to": "ground",
           "flatness": 0.9
         },
         {
@@ -501,13 +502,13 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 10,
-          "lifetime": 0.42,
-          "explosiveness": 0.65,
-          "spread": 38.0,
+          "amount": 5,
+          "lifetime": 0.28,
+          "explosiveness": 0.8,
+          "spread": 22.0,
           "velocity": [
-            0.35,
-            0.95
+            0.55,
+            1.15
           ],
           "gravity": [
             0.0,
@@ -518,10 +519,10 @@
             0.07,
             0.13
           ],
-          "chunk": "dust_flake",
+          "chunk": "wood_chip",
           "color": "#946b47",
           "emission": 0.15,
-          "align_to": "up",
+          "align_to": "ground",
           "flatness": 0.9
         },
         {
@@ -535,28 +536,36 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 10,
-          "lifetime": 0.42,
-          "explosiveness": 0.65,
-          "spread": 38.0,
+          "amount": 7,
+          "lifetime": 0.34,
+          "explosiveness": 0.9,
+          "spread": 65.0,
           "velocity": [
-            0.35,
-            0.95
+            0.12,
+            0.42
           ],
           "gravity": [
             0.0,
-            -5.5,
+            -7.5,
             0.0
           ],
           "scale": [
             0.07,
             0.13
           ],
-          "chunk": "dust_flake",
+          "chunk": "water_drop",
           "color": "#6b9ed1",
           "emission": 0.15,
-          "align_to": "up",
+          "align_to": "ground",
           "flatness": 0.9
+        },
+        {
+          "kind": "decal",
+          "decal": "dust_ring",
+          "color": "#6b9ed1",
+          "size": 0.72,
+          "lifetime": 0.42,
+          "fade": 0.34
         },
         {
           "kind": "sfx",
@@ -569,27 +578,28 @@
         {
           "kind": "burst",
           "backend": "cpu",
-          "amount": 10,
-          "lifetime": 0.42,
-          "explosiveness": 0.65,
-          "spread": 38.0,
+          "amount": 4,
+          "lifetime": 0.7,
+          "explosiveness": 0.35,
+          "spread": 22.0,
           "velocity": [
-            0.35,
-            0.95
+            0.08,
+            0.26
           ],
           "gravity": [
             0.0,
-            -5.5,
+            -1.2,
             0.0
           ],
           "scale": [
             0.07,
             0.13
           ],
-          "chunk": "dust_flake",
+          "chunk": "snow_puff",
+          "billboard": true,
           "color": "#e0ebf5",
           "emission": 0.15,
-          "align_to": "up",
+          "align_to": "ground",
           "flatness": 0.9
         },
         {
@@ -1030,6 +1040,19 @@
         0.18,
         0.18
       ],
+      "billboard": true
+    },
+    "wood_chip": {
+      "mesh": "box",
+      "size": [0.09, 0.025, 0.16]
+    },
+    "water_drop": {
+      "mesh": "quad",
+      "size": [0.12, 0.12]
+    },
+    "snow_puff": {
+      "mesh": "quad",
+      "size": [0.13, 0.13],
       "billboard": true
     }
   },

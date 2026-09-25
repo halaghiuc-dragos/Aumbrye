@@ -29,27 +29,34 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	DioramaSkin.build_merchant_stall(stall, DioramaSkin.resolve_biome(self))
 	_content_root().add_child(stall)
 	_prompt = InteractPromptScript.build(stall, Vector3(0.0, 2.6, 0.0))
+	DungeonInteractionService.register_candidate(self, stall, 2.5, 3, Callable(self, "_activate_interaction"), Callable(), Callable(self, "_set_selected_prompt"), true)
 
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = true
-		if _prompt:
-			_prompt.show_action("Trade")
+		DungeonInteractionService.refresh()
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_near_player = false
-		if _prompt:
-			_prompt.hide_prompt()
+		DungeonInteractionService.refresh()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not PlayerInput.interact_just_pressed(event) or not _near_player:
+func _activate_interaction() -> void:
+	if not _near_player:
 		return
 	_open_merchant()
-	get_viewport().set_input_as_handled()
+
+
+func _set_selected_prompt(active: bool) -> void:
+	if _prompt == null:
+		return
+	if active and _near_player:
+		_prompt.show_action("Trade")
+	else:
+		_prompt.hide_prompt()
 
 
 const MERCHANT_UI_GROUP := &"dungeon_merchant_ui"

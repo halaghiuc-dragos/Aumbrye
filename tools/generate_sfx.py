@@ -11,7 +11,10 @@ octave or two up that drifts, and a filtered noise bed for air. The biome charac
 those are balanced and filtered — glass and bell for crystal, wet and dark for swamp, wide and cold
 for frozen.
 
-Usage:  python tools/generate_sfx.py [--check]
+Usage:  python tools/generate_sfx.py [--check] [--dry-run] [--force]
+
+Generated Ogg buffers and the catalog update are preflighted together before publication. Existing
+unowned/manual audio must be explicitly overridden with `--force`.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import audio_synth as A  # noqa: E402
+from generated_manifest import write_generated_bytes_set  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SFX_JSON = ROOT / "content/audio/sfx.json"
@@ -348,12 +352,16 @@ SIMPLE_GENERATORS = {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="verify only, write nothing")
+    ap.add_argument("--dry-run", action="store_true", help="render and validate without publishing")
+    ap.add_argument("--force", action="store_true", help="explicitly replace unowned/manual assets")
     args = ap.parse_args()
 
     manifest = json.loads(SFX_JSON.read_text(encoding="utf-8"))
     entries = manifest["sfx"]
     rng = np.random.default_rng(0xA17B)
     written: list[str] = []
+    outputs: list[tuple[pathlib.Path, bytes]] = []
+    manifest_changed = False
     problems: list[str] = []
 
     for key, entry in entries.items():
@@ -380,10 +388,11 @@ def main() -> int:
 
         out_path = SFX_DIR / out_name
         if not args.check:
-            A.write_ogg(out_path, sig, quality=5)
+            outputs.append((out_path, A.encode_ogg(sig, quality=5)))
         res_path = f"res://assets/audio/sfx/{out_name}"
         entry["variants"] = [res_path]
         entry.pop("placeholder", None)
+        manifest_changed = True
         written.append(out_name)
 
     if problems:
@@ -391,18 +400,25 @@ def main() -> int:
             print("PROBLEM", p)
         return 1
 
-    if not args.check:
-        SFX_JSON.write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-            newline="\n",
-        )
+    manifest_bytes = (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    if not args.check and manifest_changed:
+        outputs.append((SFX_JSON, manifest_bytes))
 
     remaining = [k for k, v in entries.items() if v.get("placeholder")]
     for name in written:
-        size = (SFX_DIR / name).stat().st_size if (SFX_DIR / name).exists() else 0
+        size = next((len(data) for path, data in outputs if path.name == name), 0)
         print(f"  {name:<28} {size:>7} bytes")
     print(f"\nauthored {len(written)} effects; {len(remaining)} placeholders remain")
+    if not args.check:
+        changed = write_generated_bytes_set(
+            outputs,
+            generator=pathlib.Path(__file__).resolve(),
+            sources=[pathlib.Path(__file__).resolve().parent / "audio_synth.py"],
+            force=args.force,
+            dry_run=args.dry_run,
+            seed=0xA17B,
+        )
+        print(f"{'validated' if args.dry_run else 'published'} {len(outputs)} candidates; {len(changed)} file(s) written")
     return 1 if remaining else 0
 
 

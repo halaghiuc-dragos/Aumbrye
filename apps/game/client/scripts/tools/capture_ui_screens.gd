@@ -82,9 +82,11 @@ func _capture_menu_after_intro() -> void:
 		instance.call("_finish_intro")
 	for _f in SETTLE_FRAMES:
 		await get_tree().process_frame
-	var image := get_viewport().get_texture().get_image()
-	if image.save_png("%s/main_menu_resting.png" % OUTPUT_DIR) == OK:
+	var image := _viewport_image()
+	if image != null and image.save_png("%s/main_menu_resting.png" % OUTPUT_DIR) == OK:
 		print("captured main_menu_resting")
+	else:
+		push_warning("capture_ui_screens: renderer did not provide a main-menu image")
 	instance.queue_free()
 	await get_tree().process_frame
 
@@ -143,7 +145,12 @@ func _capture_instance(instance: Node, screen_name: String) -> void:
 	for _i in SETTLE_FRAMES:
 		await get_tree().process_frame
 
-	var image := get_viewport().get_texture().get_image()
+	var image := _viewport_image()
+	if image == null:
+		push_warning("capture_ui_screens: renderer did not provide an image for %s" % screen_name)
+		host.queue_free()
+		await get_tree().process_frame
+		return
 	var out_path := "%s/%s.png" % [OUTPUT_DIR, screen_name]
 	var error := image.save_png(out_path)
 	if error == OK:
@@ -153,3 +160,11 @@ func _capture_instance(instance: Node, screen_name: String) -> void:
 
 	host.queue_free()
 	await get_tree().process_frame
+
+
+func _viewport_image() -> Image:
+	var viewport_texture := get_viewport().get_texture()
+	if viewport_texture == null:
+		return null
+	var image := viewport_texture.get_image()
+	return image if image != null and not image.is_empty() else null

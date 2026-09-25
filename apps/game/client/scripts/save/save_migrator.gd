@@ -2,7 +2,7 @@ extends RefCounted
 class_name SaveMigrator
 
 
-const CURRENT_VERSION := 12
+const CURRENT_VERSION := 13
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
 
@@ -98,6 +98,12 @@ const STEPS: Array[Dictionary] = [
 		"to": 12,
 		"fn": "_migrate_v11_to_v12",
 		"summary": "account scope block; talent ids revalidated against the grown tree",
+	},
+	{
+		"from": 12,
+		"to": 13,
+		"fn": "_migrate_v12_to_v13",
+		"summary": "activeRun retains versioned floor definitions for exact revisit restoration",
 	},
 ]
 
@@ -195,6 +201,8 @@ static func _run_step(step: Dictionary, data: Dictionary) -> Dictionary:
 			return _migrate_v10_to_v11(data)
 		"_migrate_v11_to_v12":
 			return _migrate_v11_to_v12(data)
+		"_migrate_v12_to_v13":
+			return _migrate_v12_to_v13(data)
 		_:
 			return data
 
@@ -561,7 +569,11 @@ static func _normalize_active_run(copy: Dictionary) -> void:
 	if snapshot is Dictionary and not snapshot.has("worldFlags"):
 		snapshot["worldFlags"] = {}
 		run["snapshot"] = snapshot
-	run.erase("floorDefinitions")
+	var definitions: Variant = run.get("floorDefinitions", {})
+	if definitions is Dictionary:
+		run["floorDefinitions"] = (definitions as Dictionary).duplicate(true)
+	else:
+		run["floorDefinitions"] = {}
 
 	if bool(run.get("playerDead", false)):
 		var checkpoint: Variant = run.get("lastCheckpoint", {})
@@ -732,6 +744,18 @@ static func _migrate_v11_to_v12(data: Dictionary) -> Dictionary:
 		"endlessBestFloor": 0,
 		"descentTokens": 0,
 	}
+	return copy
+
+
+static func _migrate_v12_to_v13(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 13
+	var active: Variant = copy.get("activeRun", {})
+	if active is Dictionary and not (active as Dictionary).is_empty():
+		var run: Dictionary = (active as Dictionary).duplicate(true)
+		var definitions: Variant = run.get("floorDefinitions", {})
+		run["floorDefinitions"] = definitions.duplicate(true) if definitions is Dictionary else {}
+		copy["activeRun"] = run
 	return copy
 
 

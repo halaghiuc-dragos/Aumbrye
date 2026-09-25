@@ -16,6 +16,7 @@
       "additionalProperties": false,
       "properties": {
         "minRewardRooms": { "type": "integer", "minimum": 0 },
+        "minLoreRooms": { "type": "integer", "minimum": 0 },
         "minRestRooms": { "type": "integer", "minimum": 0 },
         "restWithinOfBoss": { "type": "integer", "minimum": 0 },
         "maxConsecutiveCombat": { "type": "integer", "minimum": 1 }

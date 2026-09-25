@@ -4,7 +4,12 @@
   "type": "module",
   "scripts": {
     "validate": "node scripts/validate-content/validate.mjs",
-    "validate:strict": "node scripts/validate-content/validate.mjs --strict-content"
+    "validate:strict": "node scripts/validate-content/validate.mjs --strict-content",
+    "validate:release-resources": "node scripts/audits/release-resource-reachability.mjs",
+    "validate:generated": "python3 tools/validate-generated-manifest.py",
+    "test:generator-ownership": "python3 tools/test_generator_ownership.py",
+    "test:seeded-rng": "node --test scripts/tools/seeded_rng.test.mjs",
+    "test:generated-asset-set": "node --test scripts/tools/generated_asset_set.test.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0",

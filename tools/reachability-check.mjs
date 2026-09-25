@@ -102,6 +102,15 @@ const catalogIds = new Set(
 
 const pooledEnemies = new Set();
 for (const biome of biomes) {
+  // The primary boss is summoned directly from bossId on the final objective rather than
+  // appearing in the optional bossPool; it is still a reachable gameplay spawn.
+  const primaryBossId = String(biome.data.finalFloor?.bossId ?? biome.data.bossId ?? "");
+  if (primaryBossId) {
+    pooledEnemies.add(primaryBossId);
+    if (!bossIds.has(primaryBossId) && !enemyIds.has(primaryBossId)) {
+      fail("biome-boss", `${biome.name}: bossId references unknown enemy "${primaryBossId}"`);
+    }
+  }
   for (const key of ["enemyPool", "bossPool"]) {
     for (const row of biome.data[key] ?? []) {
       const id = String(row.enemyId ?? "");
@@ -161,6 +170,22 @@ const noteItem = (id, source, where) => {
 for (const biome of biomes) {
   for (const [table, rows] of Object.entries(biome.data.lootTables ?? {})) {
     for (const row of rows ?? []) noteItem(row.itemId, `lootTables.${table}`, biome.name);
+  }
+  const tablePath = String(biome.data.lootTablePath ?? "");
+  if (tablePath) {
+    const absolutePath = resolve(ROOT, tablePath);
+    if (!absolutePath.startsWith(`${ROOT}/`) || !existsSync(absolutePath)) {
+      fail("loot-table-path", `${biome.name}: missing or unsafe loot table path "${tablePath}"`);
+      continue;
+    }
+    const externalTables = readJson(absolutePath);
+    if (!externalTables || typeof externalTables !== "object") {
+      fail("loot-table-path", `${biome.name}: malformed loot table "${tablePath}"`);
+      continue;
+    }
+    for (const [table, rows] of Object.entries(externalTables.lootTables ?? {})) {
+      for (const row of rows ?? []) noteItem(row.itemId, `lootTables.${table}`, tablePath);
+    }
   }
 }
 for (const merchant of merchants) {

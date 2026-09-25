@@ -3,27 +3,30 @@
  * Generate short authored combat SFX under apps/game/client/assets/audio/sfx/.
  * Distinct envelopes per cue (not runtime AudioStreamGenerator beeps).
  */
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { createSeededRandom, readSeed } from "./seeded_rng.mjs";
+import { publishGeneratedAssetSet } from "./generated_asset_set.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..", "..");
 const sfxDir = join(repoRoot, "apps", "game", "client", "assets", "audio", "sfx");
 
 const SAMPLE_RATE = 44100;
+const GENERATION_SEED = readSeed(process.argv, 0x0c0b47);
+const random = createSeededRandom(GENERATION_SEED);
 
 function requireFfmpeg() {
   try {
-    execSync("ffmpeg -version", { stdio: "pipe" });
-  } catch {
-    console.error("ERROR: ffmpeg is required on PATH. Install ffmpeg and retry.");
+    execFileSync("ffmpeg", ["-version"], { stdio: "pipe" });
+  } catch (error) {
+    console.error(`ERROR: could not launch ffmpeg: ${error.message}`);
     process.exit(1);
   }
 }
 
-function writeWav(filePath, samples) {
+function encodeWav(samples) {
   const numChannels = 1;
   const bitsPerSample = 16;
   const byteRate = (SAMPLE_RATE * numChannels * bitsPerSample) / 8;
@@ -47,24 +50,29 @@ function writeWav(filePath, samples) {
     const clamped = Math.max(-1, Math.min(1, samples[i]));
     buffer.writeInt16LE(Math.round(clamped * 32767), 44 + i * 2);
   }
-  writeFileSync(filePath, buffer);
+  return buffer;
 }
 
-function wavToOgg(wavPath, oggPath) {
-  execFileSync(
+function wavToOgg(wavBuffer) {
+  return execFileSync(
     "ffmpeg",
-    ["-y", "-i", wavPath, "-c:a", "libvorbis", "-q:a", "4", oggPath],
-    { stdio: "pipe" }
+    ["-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0", "-c:a", "libvorbis", "-q:a", "4", "-f", "ogg", "pipe:1"],
+    { input: wavBuffer, maxBuffer: 16 * 1024 * 1024 }
   );
 }
 
 function writeAudio(baseName, samples) {
   const wavPath = join(sfxDir, `${baseName}.wav`);
   const oggPath = join(sfxDir, `${baseName}.ogg`);
-  writeWav(wavPath, samples);
-  wavToOgg(wavPath, oggPath);
-  console.log("wrote", wavPath);
-  console.log("wrote", oggPath);
+  const wavBuffer = encodeWav(samples);
+  const oggBuffer = wavToOgg(wavBuffer);
+  if (oggBuffer.subarray(0, 4).toString("ascii") !== "OggS") {
+    throw new Error(`ffmpeg returned an invalid Ogg stream for ${baseName}`);
+  }
+  return [
+    { path: wavPath, buffer: wavBuffer },
+    { path: oggPath, buffer: oggBuffer },
+  ];
 }
 
 function toneBurst(seconds, freq, { attack = 0.008, decay = 0.12, amp = 0.35, noise = 0 } = {}) {
@@ -77,7 +85,7 @@ function toneBurst(seconds, freq, { attack = 0.008, decay = 0.12, amp = 0.35, no
       Math.exp(-((t - attack) / decay) * 6);
     let sample = Math.sin(2 * Math.PI * freq * t) * amp * env;
     if (noise > 0) {
-      sample += (Math.random() * 2 - 1) * noise * env;
+      sample += (random() * 2 - 1) * noise * env;
     }
     out[i] = sample;
   }
@@ -159,7 +167,22 @@ const cues = {
 };
 
 requireFfmpeg();
-mkdirSync(sfxDir, { recursive: true });
-for (const [name, samples] of Object.entries(cues)) {
-  writeAudio(name, samples);
+if (process.argv.includes("--self-test")) {
+  const wav = encodeWav(toneBurst(0.02, 440, { noise: 0.03 }));
+  const ogg = wavToOgg(wav);
+  if (ogg.subarray(0, 4).toString("ascii") !== "OggS") throw new Error("Ogg self-test failed");
+  console.log(`AUDIO SFX SELF-TEST PASS (seed ${GENERATION_SEED}; no files written)`);
+  process.exit(0);
 }
+const outputs = Object.entries(cues).flatMap(([name, samples]) => writeAudio(name, samples));
+const published = publishGeneratedAssetSet({
+  repoRoot,
+  manifestPath: join(repoRoot, "tools", ".generated-manifest.json"),
+  generatorPath: fileURLToPath(import.meta.url),
+  sourcePaths: [fileURLToPath(import.meta.url)],
+  seed: GENERATION_SEED,
+  outputs,
+  force: process.argv.includes("--force"),
+});
+console.log(`Published ${published.length} combat audio assets.`);
+console.log(`Generation seed: ${GENERATION_SEED}`);

@@ -334,11 +334,14 @@ export interface components {
         };
         CreateRunResponse: {
             /** Format: uuid */
-            runId?: string;
+            runId: string;
             /** Format: int32 */
-            seed?: number;
-            biomeId?: string | null;
-            definitionJson?: string | null;
+            seed: number;
+            /** Format: int32 */
+            playerLevel: number;
+            clientVersion: string;
+            biomeId: string | null;
+            definitionJson: string | null;
         };
         HealthResponse: {
             status?: string | null;
@@ -361,10 +364,17 @@ export interface components {
             submittedAt?: string;
         };
         LeaderboardPageResponse: {
-            biomeId?: string | null;
+            biomeId: string | null;
             /** Format: int32 */
-            tier?: number;
-            entries?: components["schemas"]["LeaderboardEntryResponse"][] | null;
+            tier: number;
+            /** Format: int32 */
+            seed: number;
+            /** Format: int32 */
+            playerLevel: number;
+            clientVersion: string;
+            ruleset: string;
+            contentVersion: string;
+            entries: components["schemas"]["LeaderboardEntryResponse"][] | null;
         };
         LinkSteamRequest: {
             ticketHex?: string | null;
@@ -859,9 +869,13 @@ export interface operations {
     };
     GetLeaderboard: {
         parameters: {
-            query?: {
+            query: {
                 biomeId?: string;
                 tier?: number;
+                seed: number;
+                playerLevel: number;
+                ruleset?: string;
+                contentVersion?: string;
                 limit?: number;
             };
             header?: never;

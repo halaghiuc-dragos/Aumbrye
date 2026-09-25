@@ -32,6 +32,18 @@ const RESOLUTION_PRESETS: Array[Vector2i] = [
 	Vector2i(960, 540),
 ]
 
+
+static func fit_pixel_render_rect(
+	output_size: Vector2, source_size: Vector2, integer_upscale: bool
+) -> Rect2:
+	if output_size.x <= 0.0 or output_size.y <= 0.0 or source_size.x <= 0.0 or source_size.y <= 0.0:
+		return Rect2()
+	var scale := minf(output_size.x / source_size.x, output_size.y / source_size.y)
+	if integer_upscale and scale >= 1.0:
+		scale = floorf(scale)
+	var fitted_size := source_size * scale
+	return Rect2((output_size - fitted_size) * 0.5, fitted_size)
+
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
 var window_mode: String = WINDOW_MODE_WINDOWED
@@ -178,6 +190,14 @@ func set_hud_safe_area(value: float) -> void:
 	apply_all()
 	save()
 	display_changed.emit(&"hud_safe_area", hud_safe_area)
+
+
+func set_integer_pixel_scaling(enabled: bool) -> void:
+	if integer_pixel_scaling == enabled:
+		return
+	integer_pixel_scaling = enabled
+	save()
+	display_changed.emit(&"integer_pixel_scaling", enabled)
 
 
 func sanitize_persisted_settings() -> void:

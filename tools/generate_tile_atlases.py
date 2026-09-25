@@ -26,12 +26,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from io import BytesIO
 import json
 import random
 import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from generated_manifest import write_generated_bytes_set
 
 ROOT = Path(__file__).resolve().parents[1]
 PALETTES = ROOT / "content" / "art" / "palettes.json"
@@ -288,18 +292,34 @@ def check(palettes: dict) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="verify every atlas has drawn tiles")
+    parser.add_argument("--dry-run", action="store_true", help="render and validate without publishing")
+    parser.add_argument("--force", action="store_true", help="allow replacing changed unowned atlases")
     args = parser.parse_args()
     palettes = load_palettes()
     if args.check:
         return check(palettes)
+    outputs: list[tuple[Path, bytes]] = []
     for theme in STYLES:
         if theme not in palettes:
             print("WARN no palette for theme %s" % theme)
             continue
         out = TEXTURE_DIR / theme / "tiles.png"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        build_atlas(theme, palettes[theme]).save(out, optimize=True)
-        print("Wrote %s" % out.relative_to(ROOT))
+        buffer = BytesIO()
+        build_atlas(theme, palettes[theme]).save(buffer, format="PNG", optimize=True)
+        png = buffer.getvalue()
+        if not png.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise SystemExit("Invalid generated PNG for %s" % theme)
+        with Image.open(BytesIO(png)) as candidate:
+            candidate.verify()
+        outputs.append((out, png))
+    written = write_generated_bytes_set(
+        outputs,
+        generator=Path(__file__).resolve(),
+        sources=[PALETTES],
+        force=args.force,
+        dry_run=args.dry_run,
+    )
+    print("%s %d tile atlases" % ("Would publish" if args.dry_run else "Published", len(outputs) if args.dry_run else len(written)))
     return 0
 
 

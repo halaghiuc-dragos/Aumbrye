@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json
+import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +34,7 @@ from voxel_sculpt import (  # noqa: E402
     sculpt_hair,
     sculpt_hood,
 )
+from generated_manifest import prepare_write, write_generated_text  # noqa: E402
 
 VOXEL_EDGE = 0.04
 CLIENT_ASSETS = ROOT / "apps" / "game" / "client" / "assets" / "characters"
@@ -302,7 +305,7 @@ def _write_manifest(
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
-def generate_all() -> None:
+def _generate_to_current_roots() -> None:
     CONTENT_CHARS.mkdir(parents=True, exist_ok=True)
     specs = {spec.id: spec for spec in all_archetypes()}
     generated_mesh_ids: set[str] = set()
@@ -362,8 +365,59 @@ def generate_all() -> None:
     print(f"Wrote manifests under {CONTENT_CHARS}")
 
 
+def generate_all(*, dry_run: bool = False, force: bool = False) -> int:
+    """Build and validate the complete candidate set before publishing any file."""
+    global CLIENT_ASSETS, CONTENT_CHARS
+    original_client_assets, original_content_chars = CLIENT_ASSETS, CONTENT_CHARS
+    staging_directory = tempfile.TemporaryDirectory(prefix="aumbrye-character-voxel-stage-")
+    stage_root = Path(staging_directory.name)
+    CLIENT_ASSETS = stage_root / "assets" / "characters"
+    CONTENT_CHARS = stage_root / "content" / "characters"
+    try:
+        _generate_to_current_roots()
+        outputs: list[tuple[Path, str]] = []
+        for source_root, final_root in (
+            (CLIENT_ASSETS, original_client_assets),
+            (CONTENT_CHARS, original_content_chars),
+        ):
+            for staged_path in sorted(source_root.rglob("*.json")):
+                text = staged_path.read_text(encoding="utf-8")
+                parsed = json.loads(text)
+                if not isinstance(parsed, dict) or not parsed:
+                    raise ValueError(f"Invalid or empty generated JSON: {staged_path}")
+                outputs.append((final_root / staged_path.relative_to(source_root), text))
+    finally:
+        CLIENT_ASSETS, CONTENT_CHARS = original_client_assets, original_content_chars
+        staging_directory.cleanup()
+
+    if not outputs:
+        raise RuntimeError("Character voxel generator produced no files")
+    for path, text in outputs:
+        prepare_write(path, text, force=force, dry_run=dry_run)
+    if dry_run:
+        print(f"Validated {len(outputs)} character voxel/manifest outputs; nothing published")
+        return len(outputs)
+
+    sources = [ROOT / "tools" / "voxel-import" / "archetypes.py", ROOT / "tools" / "voxel_sculpt.py"]
+    for path, text in outputs:
+        write_generated_text(
+            path,
+            text,
+            generator=Path(__file__),
+            sources=sources,
+            force=force,
+            dry_run=False,
+        )
+    print(f"Published {len(outputs)} character voxel/manifest outputs")
+    return len(outputs)
+
+
 def main() -> int:
-    generate_all()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="build and validate without publishing")
+    parser.add_argument("--force", action="store_true", help="explicitly adopt/replace unowned or manually edited outputs")
+    args = parser.parse_args()
+    generate_all(dry_run=args.dry_run, force=args.force)
     return 0
 
 

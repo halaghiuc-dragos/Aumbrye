@@ -87,7 +87,7 @@ func _refresh() -> void:
 	for quest in QuestService.get_active_quests():
 		var quest_id: String = quest.get("id", "")
 		var progress: Dictionary = CharacterService.get_quest_progress(quest_id)
-		var detail: String = str(quest.get("description", ""))
+		var detail: String = ContentText.description(quest)
 		if quest.get("type", "") in ["kill", "fetch", "discover", "escort", "defeat_with"]:
 			detail += (
 				" (%d/%d)" % [int(progress.get("count", 0)), int(quest.get("requiredCount", 1))]
@@ -127,7 +127,7 @@ func _on_available_selected(index: int) -> void:
 		return
 	var quest_id: String = _available_ids[index]
 	var def: Dictionary = QuestCatalog.get_definition(quest_id)
-	_detail_label.text = def.get("description", "")
+	_detail_label.text = ContentText.description(def)
 
 
 func _on_active_selected(index: int) -> void:
@@ -136,7 +136,7 @@ func _on_active_selected(index: int) -> void:
 		return
 	var quest_id := _active_ids[index]
 	var def := QuestCatalog.get_definition(quest_id)
-	_detail_label.text = str(def.get("description", ""))
+	_detail_label.text = ContentText.description(def)
 	_hand_in_button.visible = str(def.get("objectiveMode", "")) == "delivery"
 	_hand_in_button.disabled = not QuestService.can_hand_in_fetch(quest_id)
 

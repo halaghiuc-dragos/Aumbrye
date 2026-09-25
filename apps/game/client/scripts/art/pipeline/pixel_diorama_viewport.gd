@@ -1,5 +1,7 @@
 extends Node
 
+const DisplayServiceScript := preload("res://scripts/app/display_service.gd")
+
 
 signal world_attached(scene_root: Node)
 
@@ -71,6 +73,8 @@ func _ready() -> void:
 	_build_nodes()
 	get_tree().root.size_changed.connect(_on_root_size_changed)
 	get_tree().root.child_entered_tree.connect(_on_root_child_entered)
+	if DisplayService and not DisplayService.display_changed.is_connected(_on_display_setting_changed):
+		DisplayService.display_changed.connect(_on_display_setting_changed)
 	if MenuStack and not MenuStack.stack_changed.is_connected(_on_menu_stack_changed):
 		MenuStack.stack_changed.connect(_on_menu_stack_changed)
 	if OS.is_debug_build() and OS.get_environment("AUMBRYE_GFX_DUMP") != "":
@@ -80,6 +84,11 @@ func _ready() -> void:
 func _on_menu_stack_changed(depth: int) -> void:
 	_menu_hidden = depth > 0
 	_update_layer_visibility()
+
+
+func _on_display_setting_changed(field: StringName, _value: Variant) -> void:
+	if field == &"integer_pixel_scaling":
+		_apply_internal_size()
 
 
 func _update_layer_visibility() -> void:
@@ -140,8 +149,8 @@ func _build_nodes() -> void:
 	add_child(_layer)
 	_container = SubViewportContainer.new()
 	_container.name = "PixelViewportContainer"
-	_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_container.stretch = true
+	_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_container.stretch = false
 	_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_layer.add_child(_container)
 	_viewport = SubViewport.new()
@@ -244,8 +253,6 @@ func apply_settings() -> void:
 	if _outline_material != null:
 		PixelDioramaSettings.apply_outline_params(_outline_material)
 	_apply_internal_size()
-	if PixelDioramaSettings.is_native_hd_preset():
-		_enforce_native_viewport_size()
 	_apply_screen_finish()
 	var quality_targets: Array = [get_tree().root, _viewport]
 	PixelDioramaSettings.apply_render_quality(quality_targets)
@@ -310,9 +317,9 @@ func _apply_internal_size() -> void:
 		return
 	if not PixelDioramaSettings.low_res_viewport_enabled:
 		var window_height := 1080.0
-		var tree := get_tree()
-		if tree and tree.root:
-			window_height = maxf(1.0, tree.root.get_visible_rect().size.y)
+		var root_tree := get_tree()
+		if root_tree and root_tree.root:
+			window_height = maxf(1.0, root_tree.root.get_visible_rect().size.y)
 		PixelDioramaSettings.active_render_height = int(maxf(90.0, window_height))
 		_container.texture_filter = (
 			CanvasItem.TEXTURE_FILTER_NEAREST
@@ -321,21 +328,20 @@ func _apply_internal_size() -> void:
 		)
 		return
 	var target := PixelDioramaSettings.viewport_internal_size()
-	_container.stretch = false
-	if PixelDioramaSettings.is_native_hd_preset():
-		_viewport.size = target
-		PixelDioramaSettings.active_render_height = target.y
-		_container.stretch_shrink = 1
-		_container.stretch = true
-	else:
-		var window_height := 1080.0
-		var tree := get_tree()
-		if tree and tree.root:
-			window_height = maxf(1.0, tree.root.get_visible_rect().size.y)
-		var shrink := maxi(1, int(round(window_height / float(maxi(90, target.y)))))
-		_container.stretch_shrink = shrink
-		PixelDioramaSettings.active_render_height = int(round(window_height / float(shrink)))
-		_container.stretch = true
+	_viewport.size = target
+	_container.stretch_shrink = 1
+	_container.size = Vector2(target)
+	var output_size := Vector2(target)
+	var tree := get_tree()
+	if tree and tree.root:
+		output_size = tree.root.get_visible_rect().size
+	var fitted := DisplayServiceScript.fit_pixel_render_rect(
+		output_size, Vector2(target), DisplayService.integer_pixel_scaling
+	)
+	var scale := fitted.size.x / float(target.x)
+	_container.scale = Vector2.ONE * scale
+	_container.position = fitted.position
+	PixelDioramaSettings.active_render_height = target.y
 	_viewport.snap_2d_transforms_to_pixel = true
 	_viewport.snap_2d_vertices_to_pixel = true
 	_container.texture_filter = (
@@ -343,18 +349,6 @@ func _apply_internal_size() -> void:
 		if PixelDioramaSettings.nearest_texture_filter
 		else CanvasItem.TEXTURE_FILTER_LINEAR
 	)
-
-
-func _enforce_native_viewport_size() -> void:
-	if _viewport == null or _container == null:
-		return
-	var target := PixelDioramaSettings.viewport_internal_size()
-	if _viewport.size != target:
-		var was_stretch := _container.stretch
-		_container.stretch = false
-		_viewport.size = target
-		PixelDioramaSettings.active_render_height = target.y
-		_container.stretch = was_stretch
 
 
 func _apply_screen_finish() -> void:
@@ -490,8 +484,6 @@ func _bind_source_camera(scene_root: Node) -> void:
 func _on_root_size_changed() -> void:
 	if PixelDioramaSettings.low_res_viewport_enabled:
 		_apply_internal_size()
-		if PixelDioramaSettings.is_native_hd_preset():
-			_enforce_native_viewport_size()
 
 
 func _on_attached_scene_exiting() -> void:

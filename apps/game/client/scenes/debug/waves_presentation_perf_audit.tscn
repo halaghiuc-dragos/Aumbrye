@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/waves_presentation_perf_audit.gd" id="1"]
+
+[node name="WavesPresentationPerfAudit" type="Node"]
+script = ExtResource("1")

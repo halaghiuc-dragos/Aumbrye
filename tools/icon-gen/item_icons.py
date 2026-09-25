@@ -6,11 +6,10 @@ the same vocabulary it uses: one silhouette per item shape, one colour ramp per 
 and the ramp chosen from the item's own biome and rarity. A frost longsword and a castle longsword
 are then obviously the same weapon in different metal, which is what makes a loot list scannable.
 
-Existing cells are never touched; new icons are appended below the shipped rows.
+Existing cells are never touched; new icons are appended below the shipped rows. This module now
+provides drawing rules to ``atlas_build.py`` only; the atlas builder is the sole publisher.
 """
 
-import glob
-import json
 import sys
 
 from PIL import Image
@@ -236,67 +235,14 @@ def draw(px, rows, ramp, col, row) -> None:
 
 
 def main() -> None:
-    manifest = json.load(open(MANIFEST_PATH))
-    cells = manifest["cells"]
-    have = set(cells)
-
-    missing = []
-    for path in sorted(glob.glob("content/items/**/*.json", recursive=True)):
-        if path.endswith("catalog.json"):
-            continue
-        item = json.load(open(path))
-        if item.get("id") and item["id"] not in have:
-            missing.append(item)
-
-    used = {(c["col"], c["row"]) for c in cells.values()}
-    unknown = manifest.get("unknown", {})
-    if unknown:
-        used.add((unknown["col"], unknown["row"]))
-    shipped_rows = manifest["rows"]
-
-    # New icons start on a fresh row below everything already authored, so the shipped art keeps
-    # its coordinates and a future hand-drawn replacement can simply overwrite one cell.
-    next_row = max(r for _, r in used) + 1
-    total_rows = shipped_rows
-    placements = []
-    col, row = 0, next_row
-    for item in missing:
-        while (col, row) in used:
-            col += 1
-            if col >= COLUMNS:
-                col, row = 0, row + 1
-        placements.append((item, col, row))
-        used.add((col, row))
-        total_rows = max(total_rows, row + 1)
-        col += 1
-        if col >= COLUMNS:
-            col, row = 0, row + 1
-
-    src = Image.open(ATLAS_PATH).convert("RGBA")
-    out = Image.new("RGBA", (COLUMNS * CELL, total_rows * CELL), (0, 0, 0, 0))
-    out.paste(src, (0, 0))
-    px = out.load()
-
-    counts = {}
-    for item, c, r in placements:
-        shape_name = shape_for(item)
-        ramp_name = ramp_for(item)
-        counts[shape_name] = counts.get(shape_name, 0) + 1
-        draw(px, SHAPES[shape_name], RAMPS[ramp_name], c, r)
-        cells[item["id"]] = {"col": c, "row": r}
-
-    out.save(ATLAS_PATH)
-    manifest["rows"] = total_rows
-    manifest["cells"] = dict(sorted(cells.items()))
-    with open(MANIFEST_PATH, "w") as fh:
-        json.dump(manifest, fh, indent=2)
-        fh.write("\n")
-
-    print(f"generated {len(placements)} icons over {total_rows - shipped_rows} new rows")
-    print(f"atlas now {out.width}x{out.height}, {len(cells)} cells mapped")
-    for name in sorted(counts, key=lambda k: -counts[k]):
-        print(f"  {name:12s} {counts[name]}")
+    raise SystemExit(
+        "Direct publication is retired; use tools/icon-gen/atlas_build.py "
+        "(--dry-run/--force supported) to publish the complete owned atlas set."
+    )
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(
+        "Direct publication is retired; use tools/icon-gen/atlas_build.py "
+        "(--dry-run/--force supported) to publish the complete owned atlas set."
+    )

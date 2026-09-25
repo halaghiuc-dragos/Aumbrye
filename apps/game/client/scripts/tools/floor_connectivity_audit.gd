@@ -33,17 +33,40 @@ var _checked := 0
 var _metrics: Dictionary = {}
 var _holes_by_biome: Dictionary = {}
 var _cliffs_by_biome: Dictionary = {}
+var _split_rooms_checked := 0
+var _require_split := false
+var _validate_split_navigation := false
+var _validate_floor_navigation := false
 
 
 func _ready() -> void:
 	var seeds := 8
+	var floor_limit := RunFloorConfigScript.MAX_FLOORS
+	var fixed_seed := -1
+	var selected_biomes: Array[String] = BIOMES.duplicate()
 	for arg in OS.get_cmdline_user_args():
 		if str(arg).begins_with("--seeds="):
 			seeds = maxi(1, int(str(arg).substr("--seeds=".length())))
-	for biome_id in BIOMES:
+		elif str(arg).begins_with("--floors="):
+			floor_limit = clampi(
+				int(str(arg).substr("--floors=".length())), 1, RunFloorConfigScript.MAX_FLOORS
+			)
+		elif str(arg).begins_with("--seed="):
+			fixed_seed = int(str(arg).substr("--seed=".length()))
+		elif str(arg).begins_with("--biome="):
+			var requested_biome := str(arg).substr("--biome=".length())
+			if BIOMES.has(requested_biome):
+				selected_biomes = [requested_biome]
+		elif str(arg) == "--require-split":
+			_require_split = true
+		elif str(arg) == "--validate-split-navigation":
+			_validate_split_navigation = true
+		elif str(arg) == "--validate-floor-navigation":
+			_validate_floor_navigation = true
+	for biome_id in selected_biomes:
 		for s in seeds:
-			var base_seed := 1 + s * 7919 + biome_id.hash()
-			for floor_index in range(1, RunFloorConfigScript.MAX_FLOORS + 1):
+			var base_seed := fixed_seed if fixed_seed >= 0 else 1 + s * 7919 + biome_id.hash()
+			for floor_index in range(1, floor_limit + 1):
 				var result: Dictionary = LocalProcgenScript.generate(
 					biome_id, base_seed, floor_index, "castle", 1, 1, false, false, true
 				)
@@ -52,6 +75,8 @@ func _ready() -> void:
 					_fail("%s: generation failed (%s)" % [label, str(result.get("error", "?"))])
 					continue
 				await _audit_floor(label, result.get("definition", {}), biome_id)
+	if _require_split and _split_rooms_checked == 0:
+		_fail("requested split-room coverage, but no generated floor contained a split room")
 	_report()
 
 
@@ -472,12 +497,19 @@ func _check_geometry(label: String, definition: Dictionary, biome_id: String) ->
 	# this frame to be queryable.
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	# NavigationServer3D publishes newly added regions during process frames. A physics-only wait
+	# proves collision but can query the map before its first navigation synchronization.
+	for _frame in 4:
+		await get_tree().process_frame
 	var space := get_viewport().world_3d.direct_space_state
 	var holes := 0
 	for room_id in builder.get_room_ids():
 		var room := builder.get_room(room_id)
 		if room == null:
 			continue
+		var blockout := room.get_blockout()
+		if blockout != null and blockout.shape == &"split":
+			_split_rooms_checked += 1
 		if is_nan(_probe_floor_y(space, room.global_position + Vector3(0.0, 2.0, 0.0))):
 			_fail("%s: room '%s' centre has no floor beneath it" % [label, room_id])
 			holes += 1
@@ -491,8 +523,13 @@ func _check_geometry(label: String, definition: Dictionary, biome_id: String) ->
 				)
 				holes += 1
 	var cliffs := _check_doorway_continuity(label, builder, definition, space)
+	var nav_failures := (
+		_check_split_navigation(label, builder, definition) if _validate_split_navigation else 0
+	)
+	if _validate_floor_navigation:
+		nav_failures += _check_floor_navigation(label, builder, definition)
 	_holes_by_biome[biome_id] = int(_holes_by_biome.get(biome_id, 0)) + holes
-	_cliffs_by_biome[biome_id] = int(_cliffs_by_biome.get(biome_id, 0)) + cliffs
+	_cliffs_by_biome[biome_id] = int(_cliffs_by_biome.get(biome_id, 0)) + cliffs + nav_failures
 	parent.queue_free()
 
 
@@ -518,11 +555,22 @@ func _check_doorway_continuity(
 		var to_room := builder.get_room(str(edge.get("to", "")))
 		if from_room == null or to_room == null:
 			continue
-		var from_y := from_room.position.y
-		var to_y := to_room.position.y
+		# A split room can raise one doorway without moving its logical room origin. Audit the
+		# physical socket landings, the same source used by DungeonBuilder's stair generation.
+		var from_socket := builder.door_socket_between(from_room, to_room)
+		var to_socket := builder.door_socket_between(to_room, from_room)
+		if from_socket == null or to_socket == null:
+			_fail(
+				"%s: doorway %s->%s is missing a physical socket"
+				% [label, from_room.room_id, to_room.room_id]
+			)
+			cliffs += 1
+			continue
+		var from_y := from_socket.global_position.y
+		var to_y := to_socket.global_position.y
 		var lower_room := from_room if from_y <= to_y else to_room
 		var higher_room := to_room if from_y <= to_y else from_room
-		var socket := builder.door_socket_between(lower_room, higher_room)
+		var socket := from_socket if lower_room == from_room else to_socket
 		if socket == null:
 			continue
 		var facing := socket.get_world_facing()
@@ -530,15 +578,22 @@ func _check_doorway_continuity(
 		var is_height_change := absf(from_y - to_y) > 0.01
 		var expected_lo := minf(from_y, to_y) - 0.5
 		var expected_hi := maxf(from_y, to_y) + CastleRoomConstantsScript.WALL_HEIGHT + 0.5
+		# A fixed three-meter ray origin is below the high treads on six-meter split-room
+		# transitions. Start above the higher landing and cast far enough to still reach the lower
+		# room's floor, otherwise the audit mistakes a middle tread for the whole staircase.
+		var probe_height := maxf(from_y, to_y) + 3.0
+		var ray_drop := maxf(8.0, probe_height - minf(from_y, to_y) + 1.0)
 		var samples := 9
 		var prev_y := NAN
+		var stair_collision_dumped := false
 		for i in range(samples):
 			# The +0.13 keeps every sample off a tread seam: treads tile on a 0.8m pitch from the
 			# wall, and a ray fired exactly at a shared edge between two boxes can miss both and
 			# fall through to whatever is underneath, which reads as a hole that is not there.
 			var t := (float(i) - float(samples - 1) * 0.5) * 0.5 + 0.13
-			var probe_pos := origin + facing * t + Vector3(0.0, 3.0, 0.0)
-			var hit_y := _probe_floor_y(space, probe_pos, 8.0)
+			var probe_pos := origin + facing * t
+			probe_pos.y = probe_height
+			var hit_y := _probe_floor_y(space, probe_pos, ray_drop)
 			if is_nan(hit_y):
 				_fail(
 					"%s: doorway %s->%s has a gap %.1fm from the threshold"
@@ -557,16 +612,167 @@ func _check_doorway_continuity(
 			# a torch stand) without that being a floor defect, so the jump test would just be
 			# flagging level-design content, not a hole.
 			elif is_height_change and not is_nan(prev_y) and absf(hit_y - prev_y) > 1.5:
+				var stair_collision_summary := ""
+				if not stair_collision_dumped:
+					stair_collision_dumped = true
+					stair_collision_summary = _nearby_collision_summary(lower_room, probe_pos)
 				_fail(
 					(
 						"%s: doorway %s->%s floor jumps %.2f between samples 0.5m apart --"
-						+ " a cliff, not a staircase"
+						+ " a cliff, not a staircase (t=%.2f y=%.2f->%.2f, landing %.2f/%.2f,"
+						+ " oneWay=%s, templates=%s/%s, edge=%s, nearby=%s)"
 					)
-					% [label, lower_room.room_id, higher_room.room_id, absf(hit_y - prev_y)]
+					% [
+						label,
+						lower_room.room_id,
+						higher_room.room_id,
+						absf(hit_y - prev_y),
+						t,
+						prev_y,
+						hit_y,
+						from_y,
+						to_y,
+						str(edge.get("oneWay", "")),
+						from_room.template_id,
+						to_room.template_id,
+						str(edge),
+						stair_collision_summary,
+					]
 				)
 				cliffs += 1
 			prev_y = hit_y
 	return cliffs
+
+
+func _nearby_collision_summary(room: RoomTemplate, probe_pos: Vector3) -> String:
+	var details: Array[String] = []
+	for node in room.find_children("*", "CollisionShape3D", true, false):
+		var collision := node as CollisionShape3D
+		if collision == null or not collision.shape is BoxShape3D:
+			continue
+		var pos := collision.global_position
+		if absf(pos.x - probe_pos.x) > 2.0 or absf(pos.z - probe_pos.z) > 4.0:
+			continue
+		var box := collision.shape as BoxShape3D
+		details.append("%s@%.1f,%.1f,%.1f/%s" % [str(collision.get_parent().name), pos.x, pos.y, pos.z, box.size])
+	return ";".join(details)
+
+
+## A split landing is not complete until the live floor navigation map can route an enemy-sized
+## agent through every edge incident to it. The builder adds NavigationLinks for physical doors;
+## this confirms the elevated socket positions and the baked room regions agree with those links.
+func _check_split_navigation(label: String, builder: DungeonBuilder, definition: Dictionary) -> int:
+	var map := builder.get_floor_navigation_map()
+	if map != RID():
+		# Region/link registration is normally synchronized by the next physics tick. Force the
+		# update for this headless acceptance audit so it observes the completed build, not an
+		# intermediate NavigationServer frame.
+		NavigationServer3D.map_force_update(map)
+	if map == RID() or NavigationServer3D.map_get_iteration_id(map) == 0:
+		_fail("%s: floor navigation map was not registered" % label)
+		return 1
+	var failures := 0
+	for edge in definition.get("edges", []):
+		if str(edge.get("kind", "door")) not in TRAVERSABLE_KINDS:
+			continue
+		var from_room := builder.get_room(str(edge.get("from", "")))
+		var to_room := builder.get_room(str(edge.get("to", "")))
+		if from_room == null or to_room == null:
+			continue
+		var from_blockout := from_room.get_blockout()
+		var to_blockout := to_room.get_blockout()
+		if (
+			(from_blockout == null or from_blockout.shape != &"split")
+			and (to_blockout == null or to_blockout.shape != &"split")
+		):
+			continue
+		if from_blockout == null or to_blockout == null:
+			continue
+		if from_blockout.get_navigation_polygon_count() == 0 or to_blockout.get_navigation_polygon_count() == 0:
+			_fail(
+				"%s: split doorway %s->%s has no baked nav polygon (%d/%d vertices, %d/%d polygons)"
+				% [
+					label,
+					from_room.room_id,
+					to_room.room_id,
+					from_blockout.get_navigation_vertex_count(),
+					to_blockout.get_navigation_vertex_count(),
+					from_blockout.get_navigation_polygon_count(),
+					to_blockout.get_navigation_polygon_count(),
+				]
+			)
+			failures += 1
+			continue
+		var from_socket := builder.door_socket_between(from_room, to_room)
+		var to_socket := builder.door_socket_between(to_room, from_room)
+		if from_socket == null or to_socket == null:
+			_fail("%s: split doorway lacks a navigation socket" % label)
+			failures += 1
+			continue
+		var start := from_socket.global_position - from_socket.get_world_facing() * 0.75
+		var finish := to_socket.global_position - to_socket.get_world_facing() * 0.75
+		var path := NavigationServer3D.map_get_path(map, start, finish, true)
+		if path.size() < 2:
+			var closest_start := NavigationServer3D.map_get_closest_point(map, start)
+			var closest_finish := NavigationServer3D.map_get_closest_point(map, finish)
+			_fail(
+				"%s: navigation cannot cross split doorway %s->%s (%d regions; distances %.2f/%.2f; %s=>%s, %s=>%s)"
+				% [
+					label,
+					from_room.room_id,
+					to_room.room_id,
+					NavigationServer3D.map_get_regions(map).size(),
+					closest_start.distance_to(start),
+					closest_finish.distance_to(finish),
+					start,
+					closest_start,
+					finish,
+					closest_finish,
+				]
+			)
+			failures += 1
+	return failures
+
+
+## Verify every ordinary door/corridor edge against the live baked navigation map, not only edges
+## touching split-height rooms. This catches disconnected geometry that remains hidden by an
+## otherwise-connected abstract room graph.
+func _check_floor_navigation(label: String, builder: DungeonBuilder, definition: Dictionary) -> int:
+	var map := builder.get_floor_navigation_map()
+	if map == RID():
+		_fail("%s: full-floor navigation map was not registered" % label)
+		return 1
+	NavigationServer3D.map_force_update(map)
+	if NavigationServer3D.map_get_iteration_id(map) == 0:
+		_fail("%s: full-floor navigation map has no completed iteration" % label)
+		return 1
+	var failures := 0
+	for edge in definition.get("edges", []):
+		if str(edge.get("kind", "door")) not in TRAVERSABLE_KINDS:
+			continue
+		var from_room := builder.get_room(str(edge.get("from", "")))
+		var to_room := builder.get_room(str(edge.get("to", "")))
+		if from_room == null or to_room == null:
+			continue
+		var from_socket := builder.door_socket_between(from_room, to_room)
+		var to_socket := builder.door_socket_between(to_room, from_room)
+		if from_socket == null or to_socket == null:
+			_fail(
+				"%s: traversable edge %s->%s is missing a physical navigation socket"
+				% [label, from_room.room_id, to_room.room_id]
+			)
+			failures += 1
+			continue
+		var start := from_socket.global_position - from_socket.get_world_facing() * 0.75
+		var finish := to_socket.global_position - to_socket.get_world_facing() * 0.75
+		var path := NavigationServer3D.map_get_path(map, start, finish, true)
+		if path.size() < 2:
+			_fail(
+				"%s: floor navigation cannot cross %s edge %s->%s"
+				% [label, str(edge.get("kind", "door")), from_room.room_id, to_room.room_id]
+			)
+			failures += 1
+	return failures
 
 
 func _probe_floor_y(
@@ -577,11 +783,21 @@ func _probe_floor_y(
 	var params := PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, -max_drop, 0.0))
 	params.collision_mask = 1
 	params.collide_with_areas = false
-	var hit := space.intersect_ray(params)
-	if hit.is_empty():
-		return NAN
-	var hit_pos: Vector3 = hit.get("position", from)
-	return hit_pos.y
+	var excluded: Array[RID] = []
+	for _attempt in 24:
+		params.exclude = excluded
+		var hit := space.intersect_ray(params)
+		if hit.is_empty():
+			return NAN
+		var collider := hit.get("collider") as CollisionObject3D
+		if collider == null:
+			return NAN
+		var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		if collider.is_in_group("walkable_floor") and normal.dot(Vector3.UP) >= 0.7:
+			var hit_pos: Vector3 = hit.get("position", from)
+			return hit_pos.y
+		excluded.append(collider.get_rid())
+	return NAN
 
 
 func _fail(message: String) -> void:
@@ -633,6 +849,7 @@ func _report() -> void:
 		total_cliffs += cliffs
 		print("GEOMETRY %s: %d holes, %d cliffs" % [biome_id, holes, cliffs])
 	print("GEOMETRY TOTAL: %d holes, %d cliffs" % [total_holes, total_cliffs])
+	print("GEOMETRY SPLIT ROOMS: %d" % _split_rooms_checked)
 	var shown := 0
 	for failure in _failures:
 		print("  " + failure)

@@ -38,23 +38,26 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	root.add_child(_rest_area)
 	_rest_area.body_entered.connect(_on_body_entered)
 	_rest_area.body_exited.connect(_on_body_exited)
+	DungeonInteractionService.register_candidate(self, bonfire, INTERACT_RADIUS, 4, Callable(self, "_activate_interaction"), Callable(self, "_can_rest"), Callable(self, "_set_selected_prompt"), true)
 
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_player = body
-		_refresh_prompt()
+		DungeonInteractionService.refresh()
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == _player:
 		_player = null
-		if _prompt:
-			_prompt.hide_prompt()
+		DungeonInteractionService.refresh()
 
 
-func _refresh_prompt() -> void:
+func _set_selected_prompt(active: bool) -> void:
 	if _prompt == null:
+		return
+	if not active or _player == null:
+		_prompt.hide_prompt()
 		return
 	if RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST):
 		_prompt.show_text(tr("REST_PROMPT_DISABLED"))
@@ -64,10 +67,13 @@ func _refresh_prompt() -> void:
 		_prompt.show_text(tr("REST_PROMPT_FULL"))
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _player == null or not PlayerInput.interact_just_pressed(event):
+func _can_rest() -> bool:
+	return _player != null
+
+
+func _activate_interaction() -> void:
+	if _player == null:
 		return
-	get_viewport().set_input_as_handled()
 	_trigger_rest(_player)
 
 

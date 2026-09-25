@@ -64,7 +64,7 @@ func _build_ui_if_needed() -> void:
 	scroll.add_child(_sections)
 	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	content_vbox.add_child(close_btn)
-	MenuShellScript.add_hint(content_vbox, "Esc to close")
+	MenuShellScript.add_hint(content_vbox, tr("UI_HINT_CLOSE"))
 
 
 func _refresh() -> void:
@@ -111,7 +111,7 @@ func _build_challenge_section() -> void:
 		_add_hint(body, "Nothing is posted this week.")
 		return
 	_add_body(body, str(challenge.get("name", "")))
-	_add_hint(body, str(challenge.get("description", "")))
+	_add_hint(body, ContentText.description(challenge))
 	var rules := ChallengeService.describe_rules(challenge)
 	if rules != "":
 		_add_body(body, rules)
@@ -157,7 +157,7 @@ func _build_modes_section() -> void:
 	for mode in modes:
 		var mode_id := str(mode.get("id", ""))
 		_add_body(body, str(mode.get("name", mode_id)))
-		_add_hint(body, str(mode.get("description", "")))
+		_add_hint(body, ContentText.description(mode))
 		var rules := RunModeCatalog.describe_rules(mode_id)
 		if rules != "":
 			_add_body(body, rules)
@@ -184,13 +184,25 @@ func _build_standing_section() -> void:
 	if rows.is_empty():
 		_add_hint(body, "The tower has nothing to show yet.")
 		return
+	var next_goal := HubGrowthService.get_next_goal()
+	if not next_goal.is_empty():
+		_add_hint(
+			body,
+			tr("TOWER_PRIMARY_GOAL").format(
+				{
+					"name": str(next_goal.get("name", "")),
+					"requirement": str(next_goal.get("requirement", "")),
+					"change": ContentText.description(next_goal),
+				}
+			)
+		)
 	_add_hint(
 		body,
 		"%d of %d raised" % [HubGrowthService.unlocked_count(), HubGrowthService.total_count()]
 	)
 	for row in rows:
 		if bool(row.get("unlocked", false)):
-			_add_body(body, "%s — %s" % [str(row.get("name", "")), str(row.get("description", ""))])
+			_add_body(body, "%s — %s" % [str(row.get("name", "")), ContentText.description(row)])
 		else:
 			_add_hint(body, "%s — %s" % [str(row.get("name", "")), str(row.get("requirement", ""))])
 

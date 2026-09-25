@@ -41,7 +41,8 @@ static func enqueue(
 	boss_defeated: bool,
 	loot_instance_ids: Array,
 	floor_index: int,
-	kills: int = 0
+	kills: int = 0,
+	submit_ranked: bool = false
 ) -> void:
 	if run_id == "":
 		return
@@ -59,6 +60,9 @@ static func enqueue(
 			"lootIds": loot_instance_ids.duplicate(),
 			"floor": maxi(1, floor_index),
 			"kills": maxi(0, kills),
+			# Keep this beside the completion operation.  A retry must not acknowledge an
+			# eligible clear before its server-side leaderboard submission has succeeded.
+			"submitRanked": submit_ranked,
 			"attempts": 0,
 		}
 	)
@@ -105,8 +109,16 @@ static func replay() -> void:
 			int(record.get("kills", 0))
 		)
 		if result.get("ok", false):
-			_acknowledge(str(record.get("operationId", "complete_run:%s" % run_id)))
-			continue
+			if not bool(record.get("submitRanked", false)):
+				_acknowledge(str(record.get("operationId", "complete_run:%s" % run_id)))
+				continue
+			var leaderboard := await ApiClient.submit_leaderboard(run_id, true)
+			if leaderboard.get("ok", false):
+				_acknowledge(str(record.get("operationId", "complete_run:%s" % run_id)))
+				continue
+			# CompleteRunAsync is idempotent.  Keep the record so the next retry can
+			# safely replay completion then make the ranked submission again.
+			result = leaderboard
 
 		var attempts := int(record.get("attempts", 0)) + 1
 		var error_kind := _classify_error(result)

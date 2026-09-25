@@ -15,6 +15,8 @@ var _lure := false
 var _exploded := false
 var _projectile_archetype := "lobbed_item"
 
+static var _throwable_visual_variants: Dictionary = {}
+
 
 func configure(
 	status_id: String,
@@ -24,7 +26,7 @@ func configure(
 	explode_damage: float,
 	explode_damage_type: String,
 	lure: bool,
-	projectile_archetype: String = "lobbed_item"
+	authored_archetype: String = "lobbed_item"
 ) -> void:
 	_status_id = status_id
 	_status_stacks = maxi(1, status_stacks)
@@ -33,24 +35,37 @@ func configure(
 	_explode_damage = explode_damage
 	_explode_damage_type = explode_damage_type
 	_lure = lure
-	_projectile_archetype = projectile_archetype
+	_projectile_archetype = authored_archetype
+	self.projectile_archetype = "lobbed_item"
 	_exploded = false
 
 
 func _build_visual(_dmg_type: String) -> void:
 	if _visual == null:
 		return
-	for child in _visual.get_children():
-		_visual.remove_child(child)
-		child.queue_free()
-	var mesh := MeshInstance3D.new()
+	var mesh := _visual.get_node_or_null("ThrowableVisual") as MeshInstance3D
+	if mesh == null:
+		mesh = MeshInstance3D.new()
+		mesh.name = "ThrowableVisual"
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_visual.add_child(mesh)
+	var variant := _throwable_visual_variant(_projectile_archetype)
+	mesh.mesh = variant["mesh"]
+	mesh.material_override = variant["material"]
+	mesh.show()
+
+
+static func _throwable_visual_variant(archetype: String) -> Dictionary:
+	if _throwable_visual_variants.has(archetype):
+		return _throwable_visual_variants[archetype]
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	if _projectile_archetype == "lure":
+	var geometry: Mesh
+	if archetype == "lure":
 		var ring := TorusMesh.new()
 		ring.inner_radius = 0.15
 		ring.outer_radius = 0.3
-		mesh.mesh = ring
+		geometry = ring
 		material.albedo_color = Color(0.82, 0.74, 0.45)
 		material.emission_enabled = true
 		material.emission = Color(0.38, 0.28, 0.08)
@@ -58,13 +73,13 @@ func _build_visual(_dmg_type: String) -> void:
 		var sphere := SphereMesh.new()
 		sphere.radius = 0.26
 		sphere.height = 0.52
-		mesh.mesh = sphere
+		geometry = sphere
 		material.albedo_color = Color(0.32, 0.16, 0.08)
 		material.emission_enabled = true
 		material.emission = Color(0.5, 0.12, 0.03)
-	mesh.material_override = material
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_visual.add_child(mesh)
+	var variant := {"mesh": geometry, "material": material}
+	_throwable_visual_variants[archetype] = variant
+	return variant
 
 
 func _on_world_impact(contact: Dictionary = {}) -> void:
@@ -72,12 +87,32 @@ func _on_world_impact(contact: Dictionary = {}) -> void:
 	if impact_position is Vector3:
 		global_position = impact_position
 	_explode()
-	queue_free()
+	_finish_lifecycle()
 
 
 func _on_hit_landed(target: Node) -> void:
 	_explode()
 	super._on_hit_landed(target)
+
+
+func _on_lifetime_expired() -> void:
+	# The authored four-second lifetime is also the fuse if a lobbed item never hits terrain.
+	_explode()
+	_finish_lifecycle()
+
+
+func _finish_lifecycle() -> void:
+	_status_id = ""
+	_status_stacks = 1
+	_status_duration = 6.0
+	_impact_radius = 4.0
+	_explode_damage = 0.0
+	_explode_damage_type = DamageInfo.TYPE_PHYSICAL
+	_lure = false
+	_exploded = false
+	_projectile_archetype = "lobbed_item"
+	projectile_archetype = "arrow"
+	super._finish_lifecycle()
 
 
 func _explode() -> void:
@@ -115,7 +150,9 @@ func _explode() -> void:
 					_explode_damage, 0.0, _owner_node, _explode_damage_type, dir
 				)
 				var resolution = hurtbox.call("receive_hit", info)
-				status_can_apply = resolution != null and float(resolution.get("outgoing")) > 0.0
+				status_can_apply = (
+					resolution is DamageResolution and (resolution as DamageResolution).outgoing > 0.0
+				)
 		if status_can_apply and _status_id != "":
 			var controller := enemy.get_node_or_null("StatusController") as StatusController
 			if controller:

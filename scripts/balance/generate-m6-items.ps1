@@ -1,5 +1,11 @@
-# M6 item generation — run from repo root
+# Legacy one-off item batch. Checked-in content files and `content/items/catalog.json` are now the
+# source of truth; this script predates content validation and the generated-output ownership
+# registry. Stop before declaring write helpers or touching any item files so it cannot create a
+# second, unsafe source of truth.
 $ErrorActionPreference = "Stop"
+throw "generate-m6-items.ps1 is retired: edit validated content/items JSON through the normal content workflow; this legacy batch cannot publish."
+
+# Historical implementation retained below for migration reference only; unreachable after throw.
 Set-Location (Split-Path (Split-Path $PSScriptRoot))
 
 function Write-Item($id, $slot, $rarity, $stats, $theme = "") {

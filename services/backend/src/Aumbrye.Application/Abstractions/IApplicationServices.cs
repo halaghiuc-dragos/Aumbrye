@@ -78,6 +78,8 @@ public sealed record CreateRunResult(
     bool Success,
     Guid RunId = default,
     int Seed = 0,
+    int PlayerLevel = 1,
+    string ClientVersion = "legacy-unknown",
     string? BiomeId = null,
     string? DefinitionJson = null,
     string? Error = null,

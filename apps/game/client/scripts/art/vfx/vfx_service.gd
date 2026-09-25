@@ -70,6 +70,8 @@ class TelegraphHandle extends RefCounted:
 			glyph.look_at(glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP)
 
 var _time_scale_requests: Dictionary = {}
+const MAX_AGGREGATE_ATTACK_HITSTOP_MS := 180
+var _attack_hitstop_budget_until_ms := 0
 var _shake_amount := 0.0
 var _shake_decay_rate := 9.0
 var _shake_until_ms := 0
@@ -298,7 +300,10 @@ func play_death(
 
 
 func play_footstep(
-	world_pos: Vector3, forward: Vector3 = Vector3.FORWARD, surface: StringName = &"stone"
+	world_pos: Vector3,
+	forward: Vector3 = Vector3.FORWARD,
+	surface: StringName = &"stone",
+	ground_normal: Vector3 = Vector3.UP
 ) -> void:
 	var effect_id := _footstep_effect_id(surface)
 	var dir := forward.normalized() if forward.length_squared() > 0.01 else Vector3(0.0, 0.0, -1.0)
@@ -310,7 +315,8 @@ func play_footstep(
 	var foot_side := 1.0 if _foot_alt else -1.0
 	_foot_alt = not _foot_alt
 	var foot_pos := world_pos + side * 0.18 * foot_side
-	play(effect_id, foot_pos, Vector3.UP)
+	var normal := ground_normal.normalized() if ground_normal.length_squared() > 0.01 else Vector3.UP
+	play(effect_id, foot_pos, forward, Color.WHITE, normal, {"ground_normal": normal})
 
 
 func play_weapon_trail(
@@ -368,6 +374,26 @@ func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 	var scaled_duration := maxi(1, roundi(duration_ms * accessibility_scale))
 	var scaled_strength := lerpf(1.0, strength, accessibility_scale)
 	push_time_scale(&"vfx_hitstop", scaled_strength, scaled_duration)
+
+
+func request_attack_hitstop(root_attack_id: String, duration_ms: int, strength: float = 0.05) -> void:
+	if root_attack_id == "":
+		request_hitstop(duration_ms, strength)
+		return
+	if not PixelDioramaSettings.hitstop_enabled:
+		return
+	var accessibility_scale := AccessibilitySettings.hitstop_scale()
+	if accessibility_scale <= 0.0:
+		return
+	var now_ms := Time.get_ticks_msec()
+	if now_ms >= _attack_hitstop_budget_until_ms:
+		_attack_hitstop_budget_until_ms = now_ms + MAX_AGGREGATE_ATTACK_HITSTOP_MS
+	var remaining_budget := _attack_hitstop_budget_until_ms - now_ms
+	if remaining_budget <= 0:
+		return
+	var scaled_duration := mini(maxi(1, roundi(duration_ms * accessibility_scale)), remaining_budget)
+	var scaled_strength := lerpf(1.0, strength, accessibility_scale)
+	push_time_scale(StringName("vfx_hitstop:%s" % root_attack_id), scaled_strength, scaled_duration)
 
 
 func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
@@ -456,7 +482,7 @@ func _play_layer(
 ) -> void:
 	match String(layer.get("kind", "")):
 		"burst":
-			_play_burst_layer(layer, world_pos, direction, tint_override, overrides)
+			_play_burst_layer(layer, world_pos, direction, tint_override, normal, overrides)
 		"decal":
 			_play_decal_layer(layer, world_pos, direction, normal, overrides)
 		"ribbon":
@@ -474,6 +500,7 @@ func _play_burst_layer(
 	world_pos: Vector3,
 	direction: Vector3,
 	tint_override: Color,
+	normal: Vector3,
 	overrides: Dictionary
 ) -> void:
 	var use_gpu := String(layer.get("backend", "cpu")) == "gpu"
@@ -485,7 +512,7 @@ func _play_burst_layer(
 	var lifetime := float(layer.get("lifetime", 0.3))
 	var color := _color_from_layer(layer, tint_override)
 	var align := String(layer.get("align_to", "up"))
-	var dir := _aligned_direction(direction, align)
+	var dir := _aligned_direction(normal if align == "ground" else direction, align)
 	var cfg := {
 		"amount": amount,
 		"lifetime": lifetime,
@@ -503,6 +530,7 @@ func _play_burst_layer(
 		"flatness": float(layer.get("flatness", 0.2)),
 		"randomness": float(layer.get("randomness", 0.35)),
 		"chunk": String(layer.get("chunk", "shard_small")),
+		"billboard": bool(layer.get("billboard", false)),
 	}
 	if use_gpu:
 		_emit_gpu_burst("BurstGpu", world_pos, dir, color, amount, lifetime, cfg)
@@ -528,7 +556,16 @@ func _play_decal_layer(
 	var facing := direction
 	if absf(yaw) > 0.001:
 		facing = Vector3(yaw, 0.0, 1.0).normalized()
-	_spawn_decal(world_pos, facing, normal, texture, size, lifetime, fade)
+	_spawn_decal(
+		world_pos,
+		facing,
+		normal,
+		texture,
+		size,
+		lifetime,
+		fade,
+		_color_from_layer(layer, Color.TRANSPARENT)
+	)
 
 
 func _play_ribbon_layer(
@@ -612,7 +649,7 @@ func _make_burst_particles(
 	particles.color = cfg.get("color", Color.WHITE)
 	particles.mesh = _chunk_mesh(String(cfg.get("chunk", "shard_small")))
 	particles.material_override = _particle_material(
-		particles.color, float(cfg.get("emission", 0.0))
+		particles.color, float(cfg.get("emission", 0.0)), bool(cfg.get("billboard", false))
 	)
 	particles.visibility_aabb = _burst_visibility_aabb(cfg)
 	_reset_burst_transform(particles, world_pos)
@@ -842,10 +879,20 @@ func _next_pool_token(node: Node) -> int:
 	return token
 
 
-func _particle_material(color: Color, emission_energy: float) -> ShaderMaterial:
-	var key := "%s_%.2f" % [color.to_html(false), emission_energy]
+func _particle_material(color: Color, emission_energy: float, billboard: bool = false) -> Material:
+	var key := "%s_%.2f_%s" % [color.to_html(false), emission_energy, billboard]
 	if _particle_material_cache.has(key):
-		return _particle_material_cache[key] as ShaderMaterial
+		return _particle_material_cache[key] as Material
+	if billboard:
+		var flake := StandardMaterial3D.new()
+		flake.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		flake.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		flake.albedo_color = color
+		flake.emission_enabled = emission_energy > 0.0
+		flake.emission = color
+		flake.emission_energy_multiplier = emission_energy
+		_particle_material_cache[key] = flake
+		return flake
 	var mat := ShaderMaterial.new()
 	mat.shader = load(EMISSIVE_SHADER_PATH) as Shader
 	mat.set_shader_parameter("color_core", color)
@@ -955,7 +1002,8 @@ func _spawn_decal(
 	texture: Texture2D,
 	size: float,
 	lifetime: float,
-	fade: float
+	fade: float,
+	tint: Color = Color.WHITE
 ) -> void:
 	var decal := _acquire_decal()
 	if decal.has_meta("decal_fade_tween"):
@@ -975,7 +1023,7 @@ func _spawn_decal(
 		tangent = seed_axis - n * seed_axis.dot(n)
 	tangent = tangent.normalized()
 	decal.global_basis = Basis(n.cross(tangent), n, -tangent)
-	decal.modulate = Color(1, 1, 1, 1)
+	decal.modulate = tint
 	decal.visible = true
 	if fade > 0.0:
 		var tween := create_tween()
@@ -1387,6 +1435,8 @@ func _aligned_direction(direction: Vector3, align: String) -> Vector3:
 		"forward":
 			return direction.normalized() if direction.length_squared() > 0.01 else Vector3.FORWARD
 		"direction":
+			return direction.normalized() if direction.length_squared() > 0.01 else Vector3.UP
+		"ground":
 			return direction.normalized() if direction.length_squared() > 0.01 else Vector3.UP
 		"up", _:
 			return Vector3.UP

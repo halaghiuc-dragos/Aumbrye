@@ -291,20 +291,13 @@ func _release_head_look(delta: float) -> void:
 
 
 func _write_head_look(look_rot: Vector3) -> void:
-	if _additive_library == null or not _additive_library.has_animation(&"head_look"):
-		return
-	var anim := _additive_library.get_animation(&"head_look")
-	if anim.get_track_count() > 0 and not look_rot.is_equal_approx(_last_head_look):
+	if not look_rot.is_equal_approx(_last_head_look):
 		_last_head_look = look_rot
-		var rest: Dictionary = _rest_pose.get("Head", {})
-		var base_rot: Vector3 = rest.get("rotation", Vector3.ZERO)
-		anim.track_set_key_value(0, 0, base_rot + look_rot)
-	if _additive_player and _additive_player.current_animation != "head_look":
-		_additive_player.play(&"head_look")
+		set_head_look_offset(look_rot)
 
 
 func _update_head_look(delta: float) -> void:
-	if _visual == null or _additive_player == null:
+	if _visual == null:
 		return
 	var lock_on := _cached_lock_on
 	if lock_on == null or not is_instance_valid(lock_on):

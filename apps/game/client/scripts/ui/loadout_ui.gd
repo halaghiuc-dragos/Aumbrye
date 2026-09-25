@@ -101,7 +101,7 @@ static func _holds_item(grid: GridInventory, item_id: String) -> bool:
 func _on_item_selected(index: int) -> void:
 	var item_id: String = _list.get_item_metadata(index)
 	var def: Dictionary = ItemCatalog.get_definition(item_id)
-	_info.text = str(def.get("description", item_id))
+	_info.text = ContentText.description(def, item_id)
 	_equip_btn.disabled = InventoryService.inventory.get_equipped_weapon_id() == item_id
 
 
@@ -112,4 +112,3 @@ func _on_equip_pressed() -> void:
 	var item_id: String = _list.get_item_metadata(index[0])
 	InventoryService.equip_weapon_item(item_id)
 	_refresh_list()
-

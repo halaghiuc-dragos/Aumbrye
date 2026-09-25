@@ -23,6 +23,8 @@ var _overlay: Node
 var _hub_return_area: Area3D
 var _near_hub_return := false
 var _player_death_reset_pending := false
+var _practice_panel: Control
+var _active_practice := ""
 
 
 func _ready() -> void:
@@ -37,10 +39,194 @@ func _ready() -> void:
 		if _hub_return_area:
 			_hub_return_area.body_entered.connect(_on_hub_return_enter)
 			_hub_return_area.body_exited.connect(_on_hub_return_exit)
-	call_deferred("_orient_player_deferred")
+	# A deferred call is sufficient once the scene's children have entered the tree.  Keeping the
+	# work as an async method made its continuation resume after short-lived debug arena instances
+	# had already been freed by the scene sweep.
+	call_deferred("orient_player_to_hub_return")
 	call_deferred("_wire_training_death")
 	call_deferred("_wire_dummy_death_reset")
+	call_deferred("_build_practice_panel")
 	PlayerControls.sync_player_loadout()
+
+
+func _build_practice_panel() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "PracticeObjectives"
+	layer.layer = 12
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.name = "Panel"
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.offset_left = 16.0
+	panel.offset_top = -238.0
+	panel.offset_right = 410.0
+	panel.offset_bottom = -16.0
+	layer.add_child(panel)
+	var column := VBoxContainer.new()
+	column.name = "Content"
+	column.add_theme_constant_override("separation", 6)
+	panel.add_child(column)
+	var title := Label.new()
+	title.text = tr("PRACTICE_TITLE")
+	title.add_theme_font_size_override("font_size", 20)
+	column.add_child(title)
+	var description := Label.new()
+	description.name = "Description"
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(description)
+	var actions := GridContainer.new()
+	actions.columns = 3
+	column.add_child(actions)
+	for exercise in ["parry", "dodge", "guard_break", "poise_break", "recovery"]:
+		var button := Button.new()
+		button.text = tr("PRACTICE_%s" % exercise.to_upper())
+		button.pressed.connect(_start_practice.bind(exercise))
+		actions.add_child(button)
+	var retry := Button.new()
+	retry.name = "Retry"
+	retry.text = tr("PRACTICE_RETRY")
+	retry.pressed.connect(_retry_practice)
+	column.add_child(retry)
+	_practice_panel = panel
+	_set_practice_description("PRACTICE_CHOOSE")
+
+
+func _start_practice(exercise: String) -> void:
+	var player := get_node_or_null(player_path) as CharacterBody3D
+	var target := get_node_or_null(enemy_path) as TrainingGruntScript
+	if player == null or target == null:
+		return
+	_active_practice = exercise
+	reset_training_session()
+	var hurtbox := player.get_node_or_null("Hurtbox") as Hurtbox
+	if hurtbox:
+		hurtbox.team = "training"
+		hurtbox.practice_invulnerable = true
+	target.set_training_attack_class("unblockable" if exercise == "guard_break" else "blockable")
+	var description := _practice_panel.get_node_or_null("Content/Description") as Label
+	_disconnect_practice_signals(player, target)
+	match exercise:
+		"parry":
+			description.text = "%s\n%s".format([
+				tr("PRACTICE_PARRY_DESC"),
+				tr("PRACTICE_ACTION_BLOCK").format([InputGlyphService.get_action_glyph("block")])
+			])
+			var guard := player.get_node_or_null("Guard") as Guard
+			if guard and not guard.parry_success.is_connected(_on_practice_parry):
+				guard.parry_success.connect(_on_practice_parry)
+			if not target.attack_telegraph_started.is_connected(_prompt_training_attack):
+				target.attack_telegraph_started.connect(_prompt_training_attack)
+		"dodge":
+			description.text = "%s\n%s".format([
+				tr("PRACTICE_DODGE_DESC"),
+				tr("PRACTICE_ACTION_DODGE").format([InputGlyphService.get_action_glyph("dodge")])
+			])
+			if not target.get_node("Hurtbox").hit_resolved.is_connected(_on_training_attack_resolved):
+				target.get_node("Hurtbox").hit_resolved.connect(_on_training_attack_resolved)
+			if not target.attack_telegraph_started.is_connected(_prompt_training_attack):
+				target.attack_telegraph_started.connect(_prompt_training_attack)
+		"poise_break":
+			description.text = "%s\n%s".format([
+				tr("PRACTICE_POISE_BREAK_DESC"),
+				tr("PRACTICE_ACTION_ATTACK").format([InputGlyphService.get_action_glyph("light_attack")])
+			])
+			var poise := target.get_node_or_null("Poise") as Poise
+			if poise and not poise.poise_broken.is_connected(_on_training_poise_broken):
+				poise.poise_broken.connect(_on_training_poise_broken)
+		"guard_break":
+			description.text = "%s\n%s".format([
+				tr("PRACTICE_GUARD_BREAK_DESC"),
+				tr("PRACTICE_ACTION_BLOCK").format([InputGlyphService.get_action_glyph("block")])
+			])
+			var guard := player.get_node_or_null("Guard") as Guard
+			if guard and not guard.guard_broken.is_connected(_on_player_guard_broken):
+				guard.guard_broken.connect(_on_player_guard_broken)
+			if not target.attack_telegraph_started.is_connected(_prompt_training_attack):
+				target.attack_telegraph_started.connect(_prompt_training_attack)
+		"recovery":
+			description.text = tr("PRACTICE_RECOVERY_DESC")
+			var stamina := player.get_node_or_null("Stamina") as Stamina
+			if stamina and not stamina.recovered.is_connected(_on_training_stamina_recovered):
+				stamina.recovered.connect(_on_training_stamina_recovered)
+			if stamina:
+				stamina.drain(stamina.current)
+				description.text += "\n" + tr("PRACTICE_RECOVERY_WAIT")
+
+
+func _retry_practice() -> void:
+	if _active_practice != "":
+		_start_practice(_active_practice)
+		return
+	var player := get_node_or_null(player_path) as CharacterBody3D
+	var target := get_node_or_null(enemy_path) as TrainingGruntScript
+	_disconnect_practice_signals(player, target)
+	var hurtbox := player.get_node_or_null("Hurtbox") as Hurtbox if player else null
+	if hurtbox:
+		hurtbox.team = "player"
+		hurtbox.practice_invulnerable = false
+	reset_training_session()
+	_set_practice_description("PRACTICE_CHOOSE")
+
+
+func _disconnect_practice_signals(player: CharacterBody3D, target: TrainingGruntScript) -> void:
+	if player:
+		var guard := player.get_node_or_null("Guard") as Guard
+		if guard and guard.parry_success.is_connected(_on_practice_parry):
+			guard.parry_success.disconnect(_on_practice_parry)
+		if guard and guard.guard_broken.is_connected(_on_player_guard_broken):
+			guard.guard_broken.disconnect(_on_player_guard_broken)
+		var stamina := player.get_node_or_null("Stamina") as Stamina
+		if stamina and stamina.recovered.is_connected(_on_training_stamina_recovered):
+			stamina.recovered.disconnect(_on_training_stamina_recovered)
+	if target:
+		var hurtbox := target.get_node_or_null("Hurtbox") as Hurtbox
+		if hurtbox and hurtbox.hit_resolved.is_connected(_on_training_attack_resolved):
+			hurtbox.hit_resolved.disconnect(_on_training_attack_resolved)
+		var poise := target.get_node_or_null("Poise") as Poise
+		if poise and poise.poise_broken.is_connected(_on_training_poise_broken):
+			poise.poise_broken.disconnect(_on_training_poise_broken)
+		if target.attack_telegraph_started.is_connected(_prompt_training_attack):
+			target.attack_telegraph_started.disconnect(_prompt_training_attack)
+
+
+func _prompt_training_attack() -> void:
+	var player := get_node_or_null(player_path) as CharacterBody3D
+	var guard := player.get_node_or_null("Guard") as Guard if player else null
+	if guard and guard.has_signal("parry_success"):
+		_set_practice_description("PRACTICE_TELEGRAPH_SHAPE")
+
+
+func _on_practice_parry(_target: Node) -> void:
+	_complete_practice("PRACTICE_PARRY_DONE")
+
+
+func _on_training_attack_resolved(result: DamageResolution) -> void:
+	if result.dodged:
+		_complete_practice("PRACTICE_DODGE_DONE")
+
+
+func _on_training_poise_broken() -> void:
+	_complete_practice("PRACTICE_POISE_BREAK_DONE")
+
+
+func _on_player_guard_broken() -> void:
+	_complete_practice("PRACTICE_GUARD_BREAK_DONE")
+
+
+func _on_training_stamina_recovered() -> void:
+	_complete_practice("PRACTICE_RECOVERY_DONE")
+
+
+func _complete_practice(key: String) -> void:
+	_set_practice_description(key)
+
+
+func _set_practice_description(key: String) -> void:
+	if _practice_panel == null:
+		return
+	var description := _practice_panel.get_node_or_null("Content/Description") as Label
+	if description:
+		description.text = tr(key)
 
 
 func _wire_training_death() -> void:
@@ -112,16 +298,6 @@ func _on_dummy_died(enemy: Node) -> void:
 	var grunt := enemy as TrainingGruntScript
 	if grunt != null:
 		grunt.reset_enemy()
-
-
-func _orient_player_deferred() -> void:
-	await get_tree().process_frame
-	if not is_instance_valid(self):
-		return
-	await get_tree().process_frame
-	if not is_instance_valid(self):
-		return
-	orient_player_to_hub_return()
 
 
 func orient_player_to_hub_return() -> void:

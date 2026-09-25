@@ -151,6 +151,19 @@ namespace Aumbrye.Infrastructure.Persistence.Migrations
                     b.Property<int>("PlayerLevelSnapshot")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ClientVersionSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("legacy-unknown");
+
+                    b.Property<bool>("RankedDefinitionEligible")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RankedProgressionVerified")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<int>("Seed")
                         .HasColumnType("integer");
 

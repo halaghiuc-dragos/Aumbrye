@@ -1261,18 +1261,21 @@ func _process_attack_phase(delta: float) -> void:
 func _enable_hitbox_for_attack() -> void:
 	if _hitbox == null or not _hitbox.has_method("enable"):
 		return
-	var base_damage: float = float(_current_attack.get("damage", 10.0))
-	var dmg: float = base_damage * _damage_multiplier * _empower_multiplier
+	var empower_multiplier := _empower_multiplier
 	_empower_multiplier = 1.0
-	dmg += CombatStatModifiersScript.flat_damage_bonus(
-		_equipment_stats,
-		CombatStatModifiersScript.attack_weight(_current_attack, _weapon_data),
-		base_damage
-	)
+	var bloodrage_multiplier := 1.0
 	if _body:
-		dmg *= ClassPerks.bloodrage_damage_multiplier(
+		bloodrage_multiplier = ClassPerks.bloodrage_damage_multiplier(
 			_body, _body.get_node_or_null("Health") as Health
 		)
+	var damage_result := CombatStatModifiersScript.resolve_attack_damage(
+		_current_attack,
+		_weapon_data,
+		_equipment_stats,
+		_damage_multiplier * empower_multiplier,
+		bloodrage_multiplier
+	)
+	var dmg := float(damage_result.get("damage", 0.0))
 	var poise: float = (
 		float(_current_attack.get("poise_damage", 10.0))
 		* _damage_multiplier
@@ -1308,6 +1311,9 @@ func _enable_hitbox_for_attack() -> void:
 	)
 	if _hitbox.has_method("set_execution"):
 		_hitbox.call("set_execution", _execution_target, _execution_kind)
+	if _hitbox.has_method("set_root_attack_id"):
+		var attacker_id := _body.get_instance_id() if _body else get_instance_id()
+		_hitbox.call("set_root_attack_id", "%s:%s" % [attacker_id, _attack_generation])
 	_hitbox.call("enable")
 
 
@@ -1421,14 +1427,12 @@ func _prepare_arrow_launch(attack: Dictionary, charge: float) -> Dictionary:
 	var tree := _body.get_tree()
 	if tree == null or tree.current_scene == null:
 		return {}
-	var arrow: Node3D = PLAYER_ARROW_SCENE.instantiate() as Node3D
+	var arrow: Node3D = ProjectileContainerScript.acquire(_body, PLAYER_ARROW_SCENE)
 	if arrow == null or not arrow.has_method("launch"):
-		if arrow != null:
-			arrow.queue_free()
 		return {}
 	var container := ProjectileContainerScript.get_or_create(_body)
 	if container == null or not is_instance_valid(container):
-		arrow.queue_free()
+		ProjectileContainerScript.recycle(arrow)
 		return {}
 	var origin := _projectile_origin()
 	var target_pos := get_aim_point(origin)
@@ -1491,7 +1495,8 @@ func _commit_arrow_launch(request: Dictionary) -> bool:
 	var args: Array = request.get("launch_args", [])
 	if arrow == null or container == null or not is_instance_valid(container) or args.size() < 2:
 		return false
-	container.add_child(arrow)
+	if arrow.get_parent() != container:
+		container.add_child(arrow)
 	arrow.global_position = request.get("origin", _body.global_position)
 	var method := StringName(str(args.pop_front()))
 	arrow.callv(method, args)
@@ -1524,8 +1529,11 @@ func _commit_pending_bow_launch() -> bool:
 
 func _discard_arrow_request(request: Dictionary) -> void:
 	var arrow := request.get("arrow") as Node3D
-	if arrow != null and is_instance_valid(arrow) and arrow.get_parent() == null:
-		arrow.queue_free()
+	if arrow != null and is_instance_valid(arrow):
+		if arrow.has_method("_finish_lifecycle"):
+			arrow.call("_finish_lifecycle")
+		else:
+			ProjectileContainerScript.recycle(arrow)
 
 
 func _discard_pending_bow_launch() -> void:
@@ -1658,6 +1666,10 @@ func _find_soft_lock_target() -> Node3D:
 	var best: Node3D
 	var best_score := -INF
 	var facing := _get_soft_lock_aim_direction()
+	facing.y = 0.0
+	if facing.length_squared() < 0.01:
+		facing = Vector3.FORWARD
+	facing = facing.normalized()
 	var cone_deg := SOFT_LOCK_CONE_DEG
 	if _body.velocity.length_squared() > 1.0:
 		cone_deg = maxf(70.0, SOFT_LOCK_CONE_DEG - 12.0)
@@ -1666,21 +1678,25 @@ func _find_soft_lock_target() -> Node3D:
 			continue
 		if node.has_method("is_dead") and node.call("is_dead"):
 			continue
-		var offset_3d := (node as Node3D).global_position - _body.global_position
-		if absf(offset_3d.y) > SOFT_LOCK_VERTICAL_LIMIT:
+		var offset_3d := _soft_lock_aim_point(node as Node3D) - _body.global_position
+		var target_height := _soft_lock_aim_point(node as Node3D).y
+		var player_aim_height := _body.global_position.y + 1.0
+		if absf(target_height - player_aim_height) > SOFT_LOCK_VERTICAL_LIMIT:
 			continue
 		var offset := Vector3(offset_3d.x, 0.0, offset_3d.z)
 		var dist := offset.length()
 		var assist_range := minf(SOFT_LOCK_RANGE, _soft_lock_reach())
 		if dist > assist_range or dist < 0.01:
 			continue
-		if not _soft_lock_visible(node as Node3D):
+		if not _soft_lock_visible(_body.global_position + offset_3d, node as Node3D):
 			continue
 		var dir := offset / dist
 		var angle := rad_to_deg(facing.angle_to(dir))
 		if angle > cone_deg:
 			continue
-		var score := (cone_deg - angle) / dist
+		# Favor a target close to the current aim ray before distance, so a nearer but
+		# clearly off-axis enemy cannot steal assistance from the threat being aimed at.
+		var score := (cone_deg - angle + 1.0) / (dist * (1.0 + angle * 0.025))
 		if score > best_score:
 			best_score = score
 			best = node as Node3D
@@ -1693,15 +1709,27 @@ func _soft_lock_reach() -> float:
 	return maxf(2.5, authored_reach + float(_weapon_data.get("lunge_distance", 0.0)) + 2.0)
 
 
-func _soft_lock_visible(target: Node3D) -> bool:
+func _soft_lock_aim_point(target: Node3D) -> Vector3:
+	for anchor_name in ["AimAnchor", "LockOnAim", "AimPoint"]:
+		var anchor := target.find_child(anchor_name, true, false) as Node3D
+		if anchor:
+			return anchor.global_position
+	return target.global_position + Vector3.UP
+
+
+func _soft_lock_visible(aim_point: Vector3, target: Node3D) -> bool:
 	var space := _body.get_world_3d().direct_space_state
 	if space == null:
 		return true
 	var query := PhysicsRayQueryParameters3D.create(
-		_body.global_position + Vector3.UP, target.global_position + Vector3.UP
+		_body.global_position + Vector3.UP, aim_point
 	)
 	query.collision_mask = CombatLayers.WORLD_OCCLUDERS
-	query.exclude = [_body.get_rid()]
+	var excluded: Array[RID] = [_body.get_rid()]
+	var target_body := CombatGroups.owning_body(target)
+	if target_body:
+		excluded.append(target_body.get_rid())
+	query.exclude = excluded
 	return space.intersect_ray(query).is_empty()
 
 

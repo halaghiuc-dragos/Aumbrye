@@ -106,7 +106,7 @@ func _make_card(relic_id: String) -> Control:
 	# relic offer is also the one moment the game stops to hand the player an object with a history
 	# to it, and cutting that line left every relic feeling like a stat stick with no world behind
 	# it. Shown here in the hint style (dim, small) so it reads as flavour, not as another number.
-	var flavor := str(def.get("description", ""))
+	var flavor := ContentText.description(def)
 	if flavor != "":
 		var flavor_label := Label.new()
 		flavor_label.text = flavor
@@ -114,6 +114,26 @@ func _make_card(relic_id: String) -> Control:
 		flavor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		GameUISkinScript.style_hint_label(flavor_label)
 		card.add_child(flavor_label)
+
+	var relevance := RunBuffs.offer_relevance(relic_id) if RunBuffs else {}
+	var missing: Array = relevance.get("missingStatuses", []) as Array
+	var missing_names: Array[String] = []
+	for status_id in missing:
+		var id := str(status_id)
+		missing_names.append(ContentText.name(StatusCatalog.get_definition(id), id))
+	if not missing_names.is_empty():
+		var future_label := Label.new()
+		future_label.text = tr("RELIC_OFFER_FUTURE_BUILD").format({"statuses": ", ".join(missing_names)})
+		future_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		future_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameUISkinScript.style_hint_label(future_label)
+		card.add_child(future_label)
+	elif not (relevance.get("requiredStatuses", []) as Array).is_empty():
+		var ready_label := Label.new()
+		ready_label.text = tr("RELIC_OFFER_READY_NOW")
+		ready_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		GameUISkinScript.style_hint_label(ready_label)
+		card.add_child(ready_label)
 
 	var body := RichTextLabel.new()
 	body.bbcode_enabled = true

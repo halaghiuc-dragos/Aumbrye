@@ -84,22 +84,26 @@ def read_vox(path: Path) -> VoxelModel:
 
 
 def write_vox(path: Path, model: VoxelModel) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    (min_b, max_b) = model.bounds()
+    raise RuntimeError(
+        "direct .vox writes are retired; publish encode_vox() output through generated_manifest"
+    )
+
+
+def encode_vox(model: VoxelModel) -> bytes:
+    (_min_b, max_b) = model.bounds()
     size = (
-        max(model.size[0], max_b[0] - min_b[0]),
-        max(model.size[1], max_b[1] - min_b[1]),
-        max(model.size[2], max_b[2] - min_b[2]),
+        max(model.size[0], max_b[0] - _min_b[0]),
+        max(model.size[1], max_b[1] - _min_b[1]),
+        max(model.size[2], max_b[2] - _min_b[2]),
     )
     xyzi = bytearray()
     xyzi.extend(struct.pack("<I", len(model.voxels)))
     for (x, y, z), ci in sorted(model.voxels.items()):
         xyzi.extend(struct.pack("<BBBB", x & 0xFF, y & 0xFF, z & 0xFF, ci & 0xFF))
     rgba = bytearray()
-    palette = model.palette
     for i in range(256):
-        if i < len(palette):
-            r, g, b = palette[i]
+        if i < len(model.palette):
+            r, g, b = model.palette[i]
             rgba.extend(
                 (
                     int(round(r * 255)),
@@ -110,14 +114,12 @@ def write_vox(path: Path, model: VoxelModel) -> None:
             )
         else:
             rgba.extend((0, 0, 0, 0))
-    size_chunk = struct.pack("<III", *size)
     main_children = (
-        _pack_chunk("SIZE", size_chunk)
+        _pack_chunk("SIZE", struct.pack("<III", *size))
         + _pack_chunk("XYZI", bytes(xyzi))
         + _pack_chunk("RGBA", bytes(rgba))
     )
-    main = _pack_chunk("MAIN", main_children)
-    path.write_bytes(b"VOX " + struct.pack("<I", 150) + main)
+    return b"VOX " + struct.pack("<I", 150) + _pack_chunk("MAIN", main_children)
 
 
 def _pack_chunk(chunk_id: str, payload: bytes) -> bytes:

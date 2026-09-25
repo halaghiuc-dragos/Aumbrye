@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { getPatchNote } from "../content/loader";
 import NotFound from "../components/NotFound";
 import { PageHelmet } from "../components/Layout";
+import { patchNoteContentPath } from "../content/content-paths";
 
 export default function PatchNoteDetailPage() {
   const { version = "" } = useParams();
@@ -16,7 +17,7 @@ export default function PatchNoteDetailPage() {
       <PageHelmet
         title={`v${entry.version} — ${entry.title}`}
         description={entry.highlights.join(" ")}
-        path={`/patch-notes/${entry.slug}`}
+        path={patchNoteContentPath(entry.slug) ?? "/patch-notes"}
       />
       <p>
         <Link className="muted" to="/patch-notes">

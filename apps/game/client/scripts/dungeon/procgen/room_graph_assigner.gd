@@ -260,7 +260,10 @@ static func _resolve_room(
 				"tags": ["spawn"],
 			}
 		RoomGraphSlot.SlotType.BOSS:
-			var boss_doors := _required_doors_for_slot(graph, slot)
+			# A secret may use the boss room as its hidden parent.  The boss contract is still a
+			# one-door arena: that concealed panel is not an arena entrance and must not force
+			# the boss template through an unrelated multi-door fallback.
+			var boss_doors := _required_doors_for_boss(graph, slot)
 			return {
 				"semantic_id": "boss",
 				"template_id":
@@ -346,9 +349,30 @@ static func _required_doors_for_slot(_graph: RoomGraph, slot: RoomGraphSlot) -> 
 	return slot.door_mask
 
 
+static func _required_doors_for_boss(graph: RoomGraph, boss_slot: RoomGraphSlot) -> int:
+	var doors := 0
+	for direction in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var door := RoomGraphGeometry.dir_to_door(direction)
+		if not (boss_slot.door_mask & door):
+			continue
+		var neighbor := graph.get_slot_at(boss_slot.grid_pos + direction)
+		if neighbor == null or neighbor.slot_type == RoomGraphSlot.SlotType.SECRET:
+			continue
+		doors |= door
+	return doors
+
+
 static func _required_doors_for_secret(graph: RoomGraph, secret_slot: RoomGraphSlot) -> int:
 	if secret_slot.secret_parent_id == "":
 		return RoomGraphSlot.DOOR_EAST
+	# Layout may rehome a secret to a physically compatible host between assignment retries.
+	# That host can be many abstract-grid cells away, so its recorded placement direction—not the
+	# obsolete grid delta—is the authoritative socket orientation.
+	if secret_slot.secret_parent_dir != Vector2i.ZERO:
+		var realised_doors := RoomTemplateCatalog.doors_for_step(
+			secret_slot.secret_parent_dir.x, secret_slot.secret_parent_dir.y
+		)
+		return int(realised_doors[1])
 	var parent := graph.get_slot(secret_slot.secret_parent_id)
 	if parent == null:
 		return RoomGraphSlot.DOOR_EAST

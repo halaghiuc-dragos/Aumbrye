@@ -6,14 +6,13 @@
 import {
   readdirSync,
   readFileSync,
-  writeFileSync,
-  mkdirSync,
   existsSync,
-  rmSync,
 } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { createSeededRandom, readSeed } from "./seeded_rng.mjs";
+import { publishGeneratedAssetSet } from "./generated_asset_set.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..", "..");
@@ -23,17 +22,19 @@ const sfxBankPath = join(repoRoot, "content", "audio", "sfx.json");
 
 const SAMPLE_RATE = 44100;
 const CHECK_ONLY = process.argv.includes("--check");
+const GENERATION_SEED = readSeed(process.argv, 0x0a11d10);
+const random = createSeededRandom(GENERATION_SEED);
 
 function requireFfmpeg() {
   try {
-    execSync("ffmpeg -version", { stdio: "pipe" });
-  } catch {
-    console.error("ERROR: ffmpeg is required on PATH. Install ffmpeg and retry.");
+    execFileSync("ffmpeg", ["-version"], { stdio: "pipe" });
+  } catch (error) {
+    console.error(`ERROR: could not launch ffmpeg: ${error.message}`);
     process.exit(1);
   }
 }
 
-function writeWav(filePath, samples) {
+function encodeWav(samples) {
   const numChannels = 1;
   const bitsPerSample = 16;
   const byteRate = (SAMPLE_RATE * numChannels * bitsPerSample) / 8;
@@ -57,24 +58,23 @@ function writeWav(filePath, samples) {
     const clamped = Math.max(-1, Math.min(1, samples[i]));
     buffer.writeInt16LE(Math.round(clamped * 32767), 44 + i * 2);
   }
-  writeFileSync(filePath, buffer);
+  return buffer;
 }
 
-function wavToOgg(wavPath, oggPath) {
-  execFileSync(
+function wavToOgg(wavBuffer) {
+  return execFileSync(
     "ffmpeg",
-    ["-y", "-i", wavPath, "-c:a", "libvorbis", "-q:a", "4", oggPath],
-    { stdio: "pipe" }
+    ["-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0", "-c:a", "libvorbis", "-q:a", "4", "-f", "ogg", "pipe:1"],
+    { input: wavBuffer, maxBuffer: 16 * 1024 * 1024 }
   );
 }
 
 function writeOggFromSamples(oggPath, samples) {
-  const dir = dirname(oggPath);
-  mkdirSync(dir, { recursive: true });
-  const wavPath = oggPath.replace(/\.ogg$/, "_tmp.wav");
-  writeWav(wavPath, samples);
-  wavToOgg(wavPath, oggPath);
-  rmSync(wavPath, { force: true });
+  const oggBuffer = wavToOgg(encodeWav(samples));
+  if (oggBuffer.subarray(0, 4).toString("ascii") !== "OggS") {
+    throw new Error(`ffmpeg returned an invalid Ogg stream for ${oggPath}`);
+  }
+  return { path: oggPath, buffer: oggBuffer };
 }
 
 function generateLoop(seconds, baseFreq, harmonics = [], noiseAmp = 0.0) {
@@ -88,7 +88,7 @@ function generateLoop(seconds, baseFreq, harmonics = [], noiseAmp = 0.0) {
       sample += Math.sin(2 * Math.PI * h.freq * t) * h.amp;
     }
     if (noiseAmp > 0) {
-      sample += (Math.random() * 2 - 1) * noiseAmp * loopEnv;
+      sample += (random() * 2 - 1) * noiseAmp * loopEnv;
     }
     const fade = Math.min(1, i / (SAMPLE_RATE * 0.05), (total - i) / (SAMPLE_RATE * 0.05));
     out[i] = sample * loopEnv * fade;
@@ -116,7 +116,7 @@ function generateNoiseBurst(seconds, amp = 0.25) {
   const out = new Float32Array(total);
   for (let i = 0; i < total; i++) {
     const env = 1.0 - i / total;
-    out[i] = (Math.random() * 2 - 1) * amp * env;
+    out[i] = (random() * 2 - 1) * amp * env;
   }
   return out;
 }
@@ -168,7 +168,7 @@ function runCheck() {
 }
 
 function generateBiomeStems() {
-  let count = 0;
+  const outputs = [];
   for (const file of readdirSync(profilesDir).filter((f) => f.endsWith(".json"))) {
     const profile = JSON.parse(readFileSync(join(profilesDir, file), "utf8"));
     const biomeId = profile.biomeId || profile.id;
@@ -186,21 +186,17 @@ function generateBiomeStems() {
     ];
 
     const outDir = join(clientAudio, biomeId);
-    mkdirSync(outDir, { recursive: true });
     for (const spec of specs) {
       const oggPath = join(outDir, spec.name);
       const samples = generateLoop(spec.sec, spec.freq, spec.harmonics, spec.noise ?? 0);
-      writeOggFromSamples(oggPath, samples);
-      count += 1;
-      console.log(`OK: ${biomeId}/${spec.name}`);
+      outputs.push(writeOggFromSamples(oggPath, samples));
     }
   }
-  return count;
+  return outputs;
 }
 
 function generateSharedStingers() {
   const sharedDir = join(clientAudio, "shared");
-  mkdirSync(sharedDir, { recursive: true });
   const specs = [
     { file: "sting_boss.ogg", seconds: 1.2, freq: 196, harmonics: [{ freq: 392, amp: 0.12 }] },
     { file: "sting_clear.ogg", seconds: 0.9, freq: 330, harmonics: [{ freq: 495, amp: 0.08 }] },
@@ -213,15 +209,16 @@ function generateSharedStingers() {
     { file: "sting_poise_break.ogg", seconds: 0.24, freq: 165, harmonics: [{ freq: 330, amp: 0.1 }] },
   ];
   for (const spec of specs) {
-    writeOggFromSamples(join(sharedDir, spec.file), generateBurst(spec.seconds, spec.freq, spec.harmonics, 0.3));
-    console.log(`OK: shared/${spec.file}`);
+    spec.output = writeOggFromSamples(
+      join(sharedDir, spec.file),
+      generateBurst(spec.seconds, spec.freq, spec.harmonics, 0.3),
+    );
   }
-  return specs.length;
+  return specs.map((spec) => spec.output);
 }
 
 function generateSfx() {
   const sfxDir = join(clientAudio, "sfx");
-  mkdirSync(sfxDir, { recursive: true });
   const specs = [
     { file: "hit_flesh_01.ogg", seconds: 0.08, freq: 220, harmonics: [{ freq: 440, amp: 0.08 }] },
     { file: "hit_flesh_02.ogg", seconds: 0.09, freq: 245, harmonics: [{ freq: 490, amp: 0.07 }] },
@@ -249,15 +246,15 @@ function generateSfx() {
     { file: "brazier_loop.ogg", seconds: 4, freq: 55, harmonics: [], noise: 0.08 },
     { file: "fountain_loop.ogg", seconds: 5, freq: 88, harmonics: [{ freq: 176, amp: 0.04 }], noise: 0.03 },
   ];
+  const outputs = [];
   for (const spec of specs) {
     const samples =
       spec.noise != null && spec.noise > 0
         ? generateLoop(spec.seconds, spec.freq, spec.harmonics, spec.noise)
         : generateBurst(spec.seconds, spec.freq, spec.harmonics);
-    writeOggFromSamples(join(sfxDir, spec.file), samples);
-    console.log(`OK: sfx/${spec.file}`);
+    outputs.push(writeOggFromSamples(join(sfxDir, spec.file), samples));
   }
-  return specs.length;
+  return outputs;
 }
 
 if (CHECK_ONLY) {
@@ -265,7 +262,30 @@ if (CHECK_ONLY) {
 }
 
 requireFfmpeg();
+if (process.argv.includes("--self-test")) {
+  const ogg = wavToOgg(encodeWav(generateLoop(0.02, 440, [], 0.03)));
+  if (ogg.subarray(0, 4).toString("ascii") !== "OggS") throw new Error("Ogg self-test failed");
+  console.log(`AUDIO STEM SELF-TEST PASS (seed ${GENERATION_SEED}; no files written)`);
+  process.exit(0);
+}
 const biomeCount = generateBiomeStems();
 const stingerCount = generateSharedStingers();
 const sfxCount = generateSfx();
-console.log(`Generated ${biomeCount} biome stems, ${stingerCount} stingers, ${sfxCount} SFX samples.`);
+const outputs = [...biomeCount, ...stingerCount, ...sfxCount];
+const sourcePaths = [
+  ...readdirSync(profilesDir)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => join(profilesDir, file)),
+  sfxBankPath,
+];
+const published = publishGeneratedAssetSet({
+  repoRoot,
+  manifestPath: join(repoRoot, "tools", ".generated-manifest.json"),
+  generatorPath: fileURLToPath(import.meta.url),
+  sourcePaths,
+  seed: GENERATION_SEED,
+  outputs,
+  force: process.argv.includes("--force"),
+});
+console.log(`Published ${published.length} audio assets from ${sourcePaths.length} tracked inputs.`);
+console.log(`Generation seed: ${GENERATION_SEED}`);

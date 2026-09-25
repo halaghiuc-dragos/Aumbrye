@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv";
@@ -8,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
 const contentRoot = join(repoRoot, "content");
 const schemasRoot = join(contentRoot, "schemas");
+const translationCsvPath = join(repoRoot, "apps/game/client/translations/strings.csv");
+const translationCoverageReportPath = join(repoRoot, "reports/content_translation_coverage.json");
+const gameScriptsRoot = join(repoRoot, "apps/game/client/scripts");
 // Superseded schemas live here; only explicitly-versioned legacy fixtures may reference them.
 const retiredSchemasRoot = join(schemasRoot, "retired");
 const strictContent = process.argv.includes("--strict-content");
@@ -115,6 +118,16 @@ function collectJsonFiles(dir) {
     } else if (entry.endsWith(".json")) {
       results.push(fullPath);
     }
+  }
+  return results;
+}
+
+function collectGdscriptFiles(dir) {
+  const results = [];
+  for (const entry of readdirSync(dir)) {
+    const fullPath = join(dir, entry);
+    if (statSync(fullPath).isDirectory()) results.push(...collectGdscriptFiles(fullPath));
+    else if (entry.endsWith(".gd")) results.push(fullPath);
   }
   return results;
 }
@@ -354,6 +367,7 @@ function loadSchema(schemaPath) {
 
 const files = collectJsonFiles(contentRoot);
 let failures = 0;
+const validatedContent = [];
 
 for (const filePath of files) {
   const relPath = relative(repoRoot, filePath).replace(/\\/g, "/");
@@ -371,6 +385,7 @@ for (const filePath of files) {
 
   const schemaId = loadSchema(schemaPath);
   const data = JSON.parse(readFileSync(filePath, "utf8"));
+  validatedContent.push({ relPath, data });
   const validate = ajv.getSchema(schemaId);
 
   if (!validate) {
@@ -389,6 +404,138 @@ for (const filePath of files) {
     console.log(`OK: ${relPath}`);
   }
 }
+
+function collectAuthoredTextEntries(value, out = []) {
+  if (Array.isArray(value)) {
+    for (const entry of value) collectAuthoredTextEntries(entry, out);
+  } else if (value && typeof value === "object") {
+    if (typeof value.id === "string" && value.id.trim()) out.push(value);
+    for (const [key, child] of Object.entries(value)) {
+      if (key !== "id") collectAuthoredTextEntries(child, out);
+    }
+  }
+  return out;
+}
+
+function validateContentTranslationCoverage(entries) {
+  const rows = readFileSync(translationCsvPath, "utf8").replace(/^\uFEFF/, "").split(/\r?\n/);
+  const translationKeys = new Map();
+  const parseCsvRow = (row) => {
+    const columns = [];
+    let value = "";
+    let quoted = false;
+    for (let index = 0; index < row.length; index++) {
+      const char = row[index];
+      if (char === '"') {
+        if (quoted && row[index + 1] === '"') {
+          value += '"';
+          index++;
+        } else {
+          quoted = !quoted;
+        }
+      } else if (char === "," && !quoted) {
+        columns.push(value);
+        value = "";
+      } else {
+        value += char;
+      }
+    }
+    columns.push(value);
+    return columns;
+  };
+  for (const [index, row] of rows.entries()) {
+    if (index === 0 || !row.trim()) continue;
+    const columns = parseCsvRow(row);
+    const key = columns[0]?.trim();
+    if (key) translationKeys.set(key, columns);
+  }
+  const checkedFields = ["name", "description", "flavour", "gain", "cost"];
+  let checked = 0;
+  const checkedKeys = new Set();
+  const missing = new Map();
+  for (const { relPath, data } of entries) {
+    if (relPath.startsWith("content/fixtures/")) continue;
+    for (const definition of collectAuthoredTextEntries(data)) {
+      for (const field of checkedFields) {
+        if (typeof definition[field] !== "string" || !definition[field].trim()) continue;
+        checked++;
+        const key = `CONTENT_${definition.id.toUpperCase()}_${field.toUpperCase()}`;
+        checkedKeys.add(key);
+        const columns = translationKeys.get(key);
+        if (columns && columns.length >= 3 && columns[1].trim() && columns[2].trim()) continue;
+        if (!missing.has(key)) missing.set(key, { key, english: false, romanian: false, sources: [] });
+        const pending = missing.get(key);
+        if (columns) {
+          pending.english ||= Boolean(columns[1]?.trim());
+          pending.romanian ||= Boolean(columns[2]?.trim());
+        }
+        const source = `${relPath}#${definition.id}.${field}`;
+        if (!pending.sources.includes(source)) pending.sources.push(source);
+      }
+    }
+  }
+  const missingKeys = [...missing.values()].sort((a, b) => a.key.localeCompare(b.key));
+  const literalKeys = new Map();
+  let literalCallsChecked = 0;
+  const literalPattern = /\btr\(\s*["']([^"'\\]+)["']\s*\)/g;
+  for (const filePath of collectGdscriptFiles(gameScriptsRoot)) {
+    const source = readFileSync(filePath, "utf8");
+    for (const match of source.matchAll(literalPattern)) {
+      const key = match[1].trim();
+      if (!key) continue;
+      literalCallsChecked++;
+      if (!literalKeys.has(key)) literalKeys.set(key, new Set());
+      literalKeys.get(key).add(relative(repoRoot, filePath));
+    }
+  }
+  const missingLiteralKeys = [...literalKeys.entries()]
+    .filter(([key]) => {
+      const columns = translationKeys.get(key);
+      return !columns || columns.length < 3 || !columns[1].trim() || !columns[2].trim();
+    })
+    .map(([key, sources]) => {
+      const columns = translationKeys.get(key);
+      return {
+        key,
+        english: Boolean(columns?.[1]?.trim()),
+        romanian: Boolean(columns?.[2]?.trim()),
+        sources: [...sources].sort(),
+      };
+    })
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const report = {
+    generatedAt: new Date().toISOString(),
+    fieldsChecked: checked,
+    completeUniqueKeys: checkedKeys.size - missingKeys.length,
+    uniqueKeysChecked: checkedKeys.size,
+    pendingUniqueKeys: missingKeys.length,
+    pending: missingKeys,
+    literalCallsChecked,
+    literalUniqueKeysChecked: literalKeys.size,
+    pendingLiteralUniqueKeys: missingLiteralKeys.length,
+    pendingLiteral: missingLiteralKeys,
+  };
+  writeFileSync(translationCoverageReportPath, `${JSON.stringify(report, null, 2)}\n`);
+  console.log(
+    missingKeys.length === 0
+      ? `OK: ${checked} authored content text fields have English and Romanian translation keys`
+      : `PENDING: ${missingKeys.length} authored content translation keys need work (${checked} fields checked); see reports/content_translation_coverage.json`,
+  );
+  console.log(
+    missingLiteralKeys.length === 0
+      ? `OK: ${literalKeys.size} unique literal GDScript translation keys have English and Romanian values`
+      : `PENDING: ${missingLiteralKeys.length} literal GDScript translation keys need work; see reports/content_translation_coverage.json`,
+  );
+  if (strictContent && (missingKeys.length > 0 || missingLiteralKeys.length > 0)) {
+    console.error(
+      `FAIL: --strict-content requires complete English and Romanian coverage for ${missingKeys.length} authored content and ${missingLiteralKeys.length} literal UI translation keys`,
+    );
+    return 1;
+  }
+  return 0;
+}
+
+failures += validateContentTranslationCoverage(validatedContent);
 
 
 function validateItemCatalogConsistency() {
@@ -508,6 +655,7 @@ function validateContentRules() {
   errors += validateXpCurveKeys();
   errors += validateAffixRarityNaming();
   errors += validateLootTableCatalog();
+  errors += validateBehaviorContracts();
   const itemDirs = [
     join(contentRoot, "items", "equipment"),
     join(contentRoot, "items", "consumables"),
@@ -537,6 +685,206 @@ function validateContentRules() {
 
   if (errors === 0) {
     console.log("OK: content authorship, stat keys, and weaponId rules");
+  }
+  return errors;
+}
+
+// Q04: schemas establish shape; this registry establishes executable meaning. Each authored
+// behavior family names its runtime owner and the complete value vocabulary the owner supports.
+// Keeping this beside the content validator makes an unsupported ID a build error rather than a
+// silent default at runtime. The report deliberately lists the exercised values so review can see
+// which contract branches content actually reaches.
+const BEHAVIOR_CONTRACTS = [
+  {
+    label: "enemy attackBehavior",
+    directories: ["enemies", "bosses"],
+    values: (entry) => collectAttackValues(entry, "attackBehavior"),
+    supported: new Set(["melee", "projectile", "hazard"]),
+    consumers: ["scripts/enemies/castle_enemy_base.gd", "scripts/enemies/castle_archer.gd"],
+  },
+  {
+    label: "enemy attack damage_type",
+    directories: ["enemies", "bosses"],
+    values: (entry) => collectAttackValues(entry, "damage_type"),
+    supported: new Set(["physical", "fire", "frost", "poison", "lightning", "arcane"]),
+    consumers: ["scripts/enemies/castle_enemy_base.gd", "scripts/combat/damage_info.gd"],
+  },
+  {
+    label: "enemy telegraph shape",
+    directories: ["enemies", "bosses"],
+    values: (entry) => [
+      ...collectAttackValues(entry, "telegraph_shape"),
+      ...(entry.phases ?? []).map((phase) => phase?.onEnter?.telegraphShape).filter(Boolean),
+    ],
+    supported: new Set(["circle", "cone", "line", "ring"]),
+    consumers: ["scripts/enemies/castle_enemy_base.gd", "scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "enemy attackClass",
+    directories: ["enemies", "bosses"],
+    values: (entry) => collectAttackValues(entry, "attackClass"),
+    supported: new Set(["blockable", "parryable", "unblockable", "grab"]),
+    consumers: ["scripts/enemies/castle_enemy_base.gd", "scripts/combat/hitbox.gd"],
+  },
+  {
+    label: "trap trigger",
+    directories: ["traps"],
+    values: (entry) => (typeof entry.trigger === "string" ? [entry.trigger] : []),
+    supported: new Set(["proximity", "plate", "cycle", "lure"]),
+    consumers: [
+      "scripts/dungeon/traps/hazard_trap.gd",
+      "scripts/dungeon/traps/spike_trap.gd",
+      "scripts/dungeon/traps/falling_trap.gd",
+    ],
+  },
+  {
+    label: "relic event",
+    directories: ["relics"],
+    values: (entry) => (entry.rules ?? []).map((rule) => rule?.event).filter(Boolean),
+    supported: new Set([
+      "onHit", "onKill", "onParry", "onBlock", "onDodge", "onCrit", "onBackstab",
+      "onRiposte", "onHitTaken", "onLowHealth", "onRoomClear", "onFloorEnter",
+      "onStatusApplied", "onRunStart", "onAcquired", "onDeath", "onPerfectDodge",
+      "onGuardBreak", "onExecute", "onFlask",
+    ]),
+    consumers: ["scripts/combat/combat_events.gd"],
+  },
+  {
+    label: "relic effect",
+    directories: ["relics"],
+    values: (entry) => (entry.rules ?? []).map((rule) => rule?.effect).filter(Boolean),
+    supported: new Set([
+      "restore_stamina", "restore_health", "restore_mana", "lifesteal", "apply_status",
+      "spread_status", "add_stack", "bonus_gold", "refund_flask", "clear_status",
+      "deal_damage", "grant_barrier", "empower_next", "reduce_cooldown", "knockback",
+    ]),
+    consumers: ["scripts/combat/combat_events.gd"],
+  },
+  {
+    label: "VFX layer kind",
+    files: ["vfx/effects.json"],
+    values: (entry) => Object.values(entry.effects ?? entry).flatMap((effect) =>
+      (effect?.layers ?? []).map((layer) => layer?.kind).filter(Boolean)),
+    supported: new Set(["burst", "decal", "glyph", "impact", "ribbon", "sfx"]),
+    consumers: ["scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "VFX burst backend",
+    files: ["vfx/effects.json"],
+    values: (entry) => collectVfxLayers(entry, "backend"),
+    supported: new Set(["cpu", "gpu"]),
+    consumers: ["scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "VFX burst alignment",
+    files: ["vfx/effects.json"],
+    values: (entry) => collectVfxLayers(entry, "align_to"),
+    supported: new Set(["direction", "forward", "up", "ground", "none"]),
+    consumers: ["scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "VFX glyph shape",
+    files: ["vfx/effects.json"],
+    values: (entry) => collectVfxLayers(entry, "shape"),
+    supported: new Set(["circle", "cone", "line", "ring"]),
+    consumers: ["scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "VFX chunk mesh",
+    files: ["vfx/effects.json"],
+    values: (entry) => Object.values(entry.chunks ?? {}).map((chunk) => chunk?.mesh).filter(Boolean),
+    supported: new Set(["box", "quad"]),
+    consumers: ["scripts/art/vfx/vfx_service.gd"],
+  },
+  {
+    label: "room variant shape",
+    directories: ["rooms"],
+    values: (entry) => collectRoomVariants(entry, "shape"),
+    supported: new Set(["round", "octagon", "rect"]),
+    consumers: ["scripts/dungeon/procgen/room_layout_catalog.gd", "scripts/dungeon/castle/castle_room_scene.gd"],
+  },
+  {
+    label: "room cover pattern",
+    directories: ["rooms"],
+    values: (entry) => collectRoomVariants(entry, "coverPattern"),
+    supported: new Set(["ring", "corridor", "scatter", "none"]),
+    consumers: ["scripts/dungeon/procgen/room_layout_catalog.gd", "scripts/dungeon/procgen/procgen_placements.gd"],
+  },
+  {
+    label: "room prop kind",
+    directories: ["rooms"],
+    values: (entry) => collectRoomVariants(entry, "props").flatMap((props) =>
+      (props ?? []).map((prop) => prop?.kind).filter(Boolean)),
+    supported: new Set(["pillar", "brazier", "rubble", "statue", "altar"]),
+    consumers: ["scripts/dungeon/procgen/room_layout_catalog.gd", "scripts/dungeon/diorama_room_dressing.gd"],
+  },
+  {
+    label: "room content type",
+    files: ["progression/room_pacing.json"],
+    values: (entry) => [
+      ...Object.keys(entry.shallow ?? {}),
+      ...Object.keys(entry.deep ?? {}),
+      ...(entry.floorThemes ?? []).flatMap((theme) => Object.keys(theme?.multipliers ?? {})),
+      ...Object.values(entry.modifierMultipliers ?? {}).flatMap((weights) => Object.keys(weights ?? {})),
+    ],
+    supported: new Set([
+      "combat", "empty", "trap", "hazard", "reward", "lore", "rest", "puzzle",
+      "npc_quest", "merchant", "locked_vault", "boss", "stairs",
+    ]),
+    consumers: ["scripts/dungeon/procgen/room_content_types.gd", "scripts/dungeon/procgen/dungeon_procgen.gd"],
+  },
+];
+
+function collectAttackValues(entry, field) {
+  const out = [];
+  const visit = (attacks) => {
+    for (const attack of attacks ?? []) {
+      if (typeof attack?.[field] === "string") out.push(attack[field]);
+      visit(attack?.combo_followups);
+    }
+  };
+  visit(entry.attacks);
+  for (const phase of entry.phases ?? []) visit(phase?.attacks);
+  return out;
+}
+
+function collectVfxLayers(entry, field) {
+  return Object.values(entry.effects ?? entry).flatMap((effect) =>
+    (effect?.layers ?? []).map((layer) => layer?.[field]).filter(Boolean));
+}
+
+function collectRoomVariants(entry, field) {
+  return Object.values(entry.variants ?? {}).flatMap((variants) =>
+    (variants ?? []).map((variant) => variant?.[field]).filter(Boolean));
+}
+
+function validateBehaviorContracts() {
+  let errors = 0;
+  for (const contract of BEHAVIOR_CONTRACTS) {
+    const entries = [];
+    for (const directory of contract.directories ?? []) {
+      for (const [name, value] of readJsonDir(directory)) entries.push([`${directory}/${name}`, value]);
+    }
+    for (const relativePath of contract.files ?? []) {
+      const absolutePath = join(contentRoot, relativePath);
+      if (existsSync(absolutePath)) entries.push([relativePath, JSON.parse(readFileSync(absolutePath, "utf8"))]);
+    }
+    const used = new Set();
+    for (const [relativePath, entry] of entries) {
+      for (const value of contract.values(entry)) {
+        used.add(value);
+        if (!contract.supported.has(value)) {
+          console.error(`FAIL: ${relativePath} uses unsupported ${contract.label} '${value}'`);
+          errors++;
+        }
+      }
+    }
+    if (used.size === 0) {
+      console.error(`FAIL: ${contract.label} has no authored coverage`);
+      errors++;
+      continue;
+    }
+    console.log(`COVERAGE: ${contract.label}: ${[...used].sort().join(", ")} -> ${contract.consumers.join(", ")}`);
   }
   return errors;
 }
@@ -674,6 +1022,8 @@ const DIALOGUE_ACTION_TYPES = new Set([
   "open_merchant",
   "open_quest_board",
   "open_storage",
+  "grant_dungeon_payment",
+  "set_rescue_state",
 ]);
 
 const DIALOGUE_CONDITION_PRIMARY_KEYS = new Set([
@@ -797,6 +1147,14 @@ function walkDialogueConditions(condition, onError, where) {
   if (condition.not !== undefined) {
     walkDialogueConditions(condition.not, onError, where + "/not");
   }
+}
+
+function dialogueConditionShape(condition) {
+  if (!condition || typeof condition !== "object" || Array.isArray(condition)) return "<invalid>";
+  const own = Object.keys(condition).filter((key) => DIALOGUE_CONDITION_PRIMARY_KEYS.has(key));
+  const branches = ["all", "any"].flatMap((key) => (condition[key] ?? []).map(dialogueConditionShape));
+  if (condition.not !== undefined) branches.push(dialogueConditionShape(condition.not));
+  return own.sort().join("+") + (branches.length ? "(" + branches.sort().join(",") + ")" : "");
 }
 
 function validateNarrativeContent() {
@@ -984,7 +1342,7 @@ function validateNarrativeContent() {
         if (!dialogueIds.has(entry.dialogueId)) {
           fail(at + " has unknown dialogueId \"" + entry.dialogueId + "\"");
         }
-        if (!itemIds.has(entry.rewardItemId)) {
+        if (entry.rewardItemId !== undefined && !itemIds.has(entry.rewardItemId)) {
           fail(at + " has unknown rewardItemId \"" + entry.rewardItemId + "\"");
         }
         for (const biome of entry.biomes ?? []) {
@@ -1073,7 +1431,9 @@ function validateNarrativeContent() {
     if (def.dialogueId !== undefined && def.dialogueId !== "" && !dialogueIds.has(def.dialogueId)) {
       fail(where + " dialogueId \"" + def.dialogueId + "\" does not exist");
     }
-    for (const [i, rule] of (def.dialogueRules ?? []).entries()) {
+    const dialogueRules = def.dialogueRules ?? [];
+    const seenRuleShapes = new Map();
+    for (const [i, rule] of dialogueRules.entries()) {
       if (!dialogueIds.has(rule.dialogueId)) {
         fail(where + " dialogueRules[" + i + "] dialogueId \"" + rule.dialogueId + "\" does not exist");
       }
@@ -1082,6 +1442,21 @@ function validateNarrativeContent() {
         (message) => fail(where + " " + message),
         "dialogueRules[" + i + "]"
       );
+      const shape = dialogueConditionShape(rule.condition);
+      if (seenRuleShapes.has(shape)) {
+        console.warn("WARN: " + where + " dialogueRules[" + i + "] has the same predicate shape as earlier rule " + seenRuleShapes.get(shape) + "; NPC resolution is first-match");
+      } else {
+        seenRuleShapes.set(shape, i);
+      }
+    }
+    if (def.interactType !== "dialogue" && def.interactType !== undefined) {
+      const arrival = dialogueRules.findIndex((rule) => {
+        const text = JSON.stringify(rule.condition ?? {});
+        return text.includes("relationship") && text.includes("atLeast");
+      });
+      if (arrival >= 0 && dialogueRules.slice(arrival + 1).some((rule) => JSON.stringify(rule.condition ?? {}).includes("relationship"))) {
+        console.warn("WARN: content/npcs/" + file + " arrival relationship rule precedes another relationship rule; greeting flow marks greeted after dialogue and then opens service");
+      }
     }
   }
 

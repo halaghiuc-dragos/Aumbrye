@@ -521,6 +521,12 @@ static func build_theme() -> Theme:
 	var font: Font = null
 	if ResourceLoader.exists(FONT_PATH):
 		font = load(FONT_PATH) as Font
+	# The authored pixel face deliberately has a small glyph set.  Keep its silhouette for the
+	# common Latin characters while attaching Godot's shipped fallback for Romanian (and future
+	# localized) glyphs instead of rendering missing-character boxes.
+	if font and font.has_method("set_fallbacks") and ThemeDB.fallback_font:
+		font = font.duplicate() as Font
+		font.call("set_fallbacks", [ThemeDB.fallback_font])
 	if font:
 		theme.default_font = font
 	theme.default_font_size = FONT_SIZE_BODY

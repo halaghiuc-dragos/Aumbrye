@@ -185,10 +185,10 @@ static func submit_leaderboard(run_id: String, opt_in: bool) -> Dictionary:
 	return await _authed_json(LEADERBOARDS_SUBMIT, HTTPClient.METHOD_POST, payload)
 
 
-static func fetch_leaderboard(biome_id: String, tier: int, limit: int = 10) -> Dictionary:
+static func fetch_leaderboard(biome_id: String, tier: int, run_seed: int, player_level: int, limit: int = 10) -> Dictionary:
 	var url := (
 		_build_url(LEADERBOARDS)
-		+ "?biomeId=%s&tier=%d&limit=%d" % [biome_id.uri_encode(), tier, limit]
+		+ "?biomeId=%s&tier=%d&seed=%d&playerLevel=%d&limit=%d" % [biome_id.uri_encode(), tier, maxi(1, run_seed), clampi(player_level, 1, 1000), limit]
 	)
 	var result := await _request_json(url, HTTPClient.METHOD_GET, {}, false)
 	if result.get("ok", false):

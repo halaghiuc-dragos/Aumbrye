@@ -1,10 +1,9 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "node:url";
+import { publishGeneratedAssetSet } from "../scripts/tools/generated_asset_set.mjs";
 
-const ROOT = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, "$1"),
-  ".."
-);
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = path.join(ROOT, "content/characters");
 
 const BASE_FOR = {
@@ -20,13 +19,8 @@ function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
 }
 
-function writeJson(p, obj) {
-  const raw = fs.readFileSync(p, "utf8");
-  const eol = raw.includes("\r\n") ? "\r\n" : "\n";
-  fs.writeFileSync(p, JSON.stringify(obj, null, 2).replace(/\n/g, eol) + eol);
-}
-
 let filled = 0;
+const outputs = [];
 for (const [variant, base] of Object.entries(BASE_FOR)) {
   const vPath = path.join(DIR, variant + ".json");
   const bPath = path.join(DIR, base + ".json");
@@ -64,8 +58,25 @@ for (const [variant, base] of Object.entries(BASE_FOR)) {
     continue;
   }
   v.extras = extras;
-  writeJson(vPath, v);
+  outputs.push({ path: vPath, buffer: Buffer.from(`${JSON.stringify(v, null, 2)}\n`) });
   filled++;
   console.log("filled", variant, "->", Object.keys(extras).join(", "));
+}
+if (outputs.length > 0) {
+  const sources = [...new Set(outputs.flatMap(({ path: outputPath }) => {
+    const variant = path.basename(outputPath, ".json");
+    const base = BASE_FOR[variant];
+    return [outputPath, path.join(DIR, `${base}.json`)];
+  }))];
+  const published = publishGeneratedAssetSet({
+    repoRoot: ROOT,
+    manifestPath: path.join(ROOT, "tools/.generated-manifest.json"),
+    generatorPath: fileURLToPath(import.meta.url),
+    sourcePaths: sources,
+    outputs,
+    force: process.argv.includes("--force"),
+    dryRun: process.argv.includes("--dry-run"),
+  });
+  console.log(process.argv.includes("--dry-run") ? "outputs validated:" : "outputs published:", published.length);
 }
 console.log("manifests updated:", filled);

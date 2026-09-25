@@ -25,6 +25,7 @@ public class Run
     public int Seed { get; set; }
     public int Tier { get; set; }
     public int PlayerLevelSnapshot { get; set; }
+    public string ClientVersionSnapshot { get; set; } = "legacy-unknown";
     public RunStatus Status { get; set; } = RunStatus.Active;
     public string? Outcome { get; set; }
     public string Mode { get; set; } = "dungeon";
@@ -35,6 +36,8 @@ public class Run
     public DateTimeOffset? CompletedAt { get; set; }
     public string? DefinitionChecksum { get; set; }
     public bool RankedDefinitionEligible { get; set; }
+    /// <summary>True only when run progression was attested by a trusted server authority.</summary>
+    public bool RankedProgressionVerified { get; set; }
 
     /// <summary>
     /// Union of every loot instance the run has generated, across all floors, serialized as

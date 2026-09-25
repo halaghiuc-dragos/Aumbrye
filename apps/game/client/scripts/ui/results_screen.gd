@@ -517,11 +517,27 @@ func _load_leaderboard_panel() -> void:
 		return
 	var biome_id := str(RunFlow.current_biome_id)
 	var tier := RunFlow.current_dungeon_tier
-	var result := await ApiClient.fetch_leaderboard(biome_id, tier, 10)
+	var leaderboard_seed := maxi(1, RunFlow.current_seed)
+	if RunFlow.current_client_version_snapshot != ApiConfig.CLIENT_VERSION:
+		_leaderboard_label.text = tr("RESULTS_LEADERBOARD_UNAVAILABLE")
+		return
+	var leaderboard_level := RunFlow.current_player_level_snapshot
+	var result := await ApiClient.fetch_leaderboard(biome_id, tier, leaderboard_seed, leaderboard_level, 10)
 	if not result.get("ok", false):
 		_leaderboard_label.text = tr("RESULTS_LEADERBOARD_UNAVAILABLE")
 		return
 	var body: Dictionary = result.get("body", {})
+	# Never render a response from a different challenge contract.  This guards against a stale
+	# proxy/cache response even though the server also validates all board scope fields.
+	if str(body.get("biomeId", "")) != biome_id \
+			or int(body.get("tier", 0)) != tier \
+			or int(body.get("seed", 0)) != leaderboard_seed \
+			or int(body.get("playerLevel", 0)) != leaderboard_level \
+			or str(body.get("clientVersion", "")) != RunFlow.current_client_version_snapshot \
+			or str(body.get("ruleset", "")) != "standard-v1" \
+			or str(body.get("contentVersion", "")).is_empty():
+		_leaderboard_label.text = tr("RESULTS_LEADERBOARD_UNAVAILABLE")
+		return
 	var entries: Array = body.get("entries", [])
 	if entries.is_empty():
 		_leaderboard_label.text = tr("RESULTS_LEADERBOARD_EMPTY").format({"biome": biome_id, "tier": tier})
@@ -686,12 +702,25 @@ func _show_vault_unlocks() -> void:
 	for entry in opened:
 		var flavour := str(entry.get("flavour", ""))
 		var name_text := str(entry.get("name", ""))
-		lines.append(
-			"  %s — %s" % [name_text, flavour] if flavour != "" else "  %s" % name_text
-		)
+		var entry_type := str(entry.get("type", ""))
+		var impact := tr(vault_impact_translation_key(entry_type))
+		var description := "%s — %s" % [name_text, flavour] if flavour != "" else name_text
+		lines.append("  %s\n    %s" % [description, impact])
 	lines.append(VaultService.describe_progress())
 	_vault_label.text = "\n".join(lines)
 	_vault_label.visible = true
+
+
+static func vault_impact_translation_key(entry_type: String) -> String:
+	match entry_type:
+		VaultService.TYPE_RELIC:
+			return "RESULTS_VAULT_IMPACT_RELIC"
+		VaultService.TYPE_ITEM:
+			return "RESULTS_VAULT_IMPACT_ITEM"
+		VaultService.TYPE_PACT:
+			return "RESULTS_VAULT_IMPACT_PACT"
+		_:
+			return "RESULTS_VAULT_IMPACT_GENERIC"
 
 
 func _refresh_repeat_button() -> void:

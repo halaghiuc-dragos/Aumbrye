@@ -10,6 +10,15 @@ var _locked_shot_speed := 12.0
 var _locked_shot_target := Vector3.INF
 var _shot_reachable := true
 
+## A ranged enemy must not keep feeding a blocked backward vector into physics forever.  It picks
+## one reachable retreat/side-step for a short window, then reassesses; if every option is blocked
+## it holds its ground, leaving a player who has cornered it a deliberate punish opportunity.
+const REPOSITION_DISTANCE := 3.2
+const REPOSITION_TIMEOUT := 1.1
+const REPOSITION_ARRIVAL_DISTANCE := 0.7
+var _reposition_target := Vector3.INF
+var _reposition_timer := 0.0
+
 
 func _resolve_enemy_id() -> String:
 	return "castle_archer"
@@ -29,12 +38,68 @@ func _process_chase(delta: float) -> void:
 	var dist := to_player.length()
 	var move_dir := Vector3.ZERO
 	if dist < _retreat_range:
-		move_dir = -to_player.normalized()
+		_reposition_timer -= delta
+		if (
+			_reposition_timer <= 0.0
+			or _reposition_target == Vector3.INF
+			or global_position.distance_to(_reposition_target) <= REPOSITION_ARRIVAL_DISTANCE
+		):
+			_reposition_target = _choose_reposition_target(to_player)
+			_reposition_timer = REPOSITION_TIMEOUT
+		if _reposition_target != Vector3.INF:
+			move_dir = _direction_toward(_reposition_target, delta, false)
 	elif dist > _preferred_range:
+		_reposition_target = Vector3.INF
+		_reposition_timer = 0.0
 		move_dir = _direction_toward(_player.global_position, delta, true)
+	else:
+		_reposition_target = Vector3.INF
+		_reposition_timer = 0.0
 	velocity = move_dir * _move_speed
 	if to_player.length_squared() > 0.01:
 		_face_direction(to_player, delta)
+
+
+func _choose_reposition_target(to_player: Vector3) -> Vector3:
+	if to_player.length_squared() < 0.01 or not is_inside_tree():
+		return Vector3.INF
+	var away := -to_player.normalized()
+	var left := Vector3(-away.z, 0.0, away.x)
+	# Prefer a true retreat, then deliberately try each lateral escape.  The order alternates with
+	# the inherited circle direction so a row of archers does not all choose the same wall.
+	var candidates: Array[Vector3] = [away]
+	if _circle_direction >= 0.0:
+		candidates.append((away + left * 0.9).normalized())
+		candidates.append((away - left * 0.9).normalized())
+	else:
+		candidates.append((away - left * 0.9).normalized())
+		candidates.append((away + left * 0.9).normalized())
+	for direction in candidates:
+		var target := global_position + direction * REPOSITION_DISTANCE
+		if _is_reachable_reposition_target(target):
+			return target
+	return Vector3.INF
+
+
+func _is_reachable_reposition_target(target: Vector3) -> bool:
+	var world := get_world_3d()
+	if world == null:
+		return false
+	var map: RID = world.navigation_map
+	if map.is_valid() and not NavigationServer3D.map_get_regions(map).is_empty():
+		var path: PackedVector3Array = NavigationServer3D.map_get_path(
+			map, global_position, target, true
+		)
+		return path.size() >= 2 and path[path.size() - 1].distance_to(target) <= 1.0
+	# Small debug arenas and bespoke encounters can intentionally omit a navigation map.  A world
+	# ray still refuses a visibly blocked rear step rather than preserving the old wall-pushing
+	# fallback.  There is no synthetic escape when all three directions are obstructed.
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position + Vector3.UP * 0.7, target + Vector3.UP * 0.7
+	)
+	query.exclude = [get_rid()]
+	var hit: Dictionary = world.direct_space_state.intersect_ray(query)
+	return hit.is_empty()
 
 
 func _start_windup() -> void:
@@ -61,6 +126,9 @@ func _telegraph_radius_scale() -> float:
 
 func _lock_shot_trajectory() -> void:
 	_locked_shot_speed = _data.get("projectile_speed", 12.0)
+	var shot_damage_type := str(_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)))
+	var projectile_archetype := _resolved_projectile_archetype(shot_damage_type)
+	var projectile_gravity := ProjectileScript.gravity_for_archetype(projectile_archetype)
 	if _player == null:
 		_locked_shot_direction = CombatFacing.forward_of(self)
 		_locked_shot_target = Vector3.INF
@@ -76,14 +144,14 @@ func _lock_shot_trajectory() -> void:
 	else:
 		_locked_shot_direction = to_target.normalized()
 	var solution := ProjectileScript.solve_launch_velocity(
-		_locked_shot_direction, _locked_shot_speed, spawn_pos, target_pos
+		_locked_shot_direction, _locked_shot_speed, spawn_pos, target_pos, 1.0, projectile_gravity
 	)
 	_shot_reachable = bool(solution.get("reachable", false))
 	if _shot_reachable:
 		var space := get_world_3d().direct_space_state
 		var excluded: Array[RID] = [get_rid()]
 		_shot_reachable = ProjectileScript.trajectory_is_clear(
-			space, spawn_pos, solution["velocity"], target_pos, excluded
+			space, spawn_pos, solution["velocity"], target_pos, excluded, projectile_gravity
 		)
 
 
@@ -104,15 +172,13 @@ func _start_attack() -> void:
 
 
 func _fire_projectile() -> void:
-	var projectile: Node3D = PROJECTILE_SCENE.instantiate() as Node3D
-	var container := ProjectileContainerScript.get_or_create(self)
-	if container:
-		container.add_child(projectile)
-	else:
-		get_tree().current_scene.add_child(projectile)
+	var projectile: Node3D = ProjectileContainerScript.acquire(self, PROJECTILE_SCENE)
+	if projectile == null:
+		return
 	projectile.global_position = _projectile_origin()
+	projectile.set("projectile_archetype", _resolved_projectile_archetype(str(_current_attack_data.get("damage_type", _data.get("damage_type", DamageInfo.TYPE_PHYSICAL)))))
 	if not projectile.has_method("launch"):
-		projectile.queue_free()
+		ProjectileContainerScript.recycle(projectile)
 		return
 	var launched: Variant = projectile.call(
 		"launch",
@@ -148,3 +214,10 @@ func _projectile_origin() -> Vector3:
 		if anchor:
 			return anchor.global_position
 	return global_position + Vector3(0.0, 1.2, 0.0)
+
+
+func _resolved_projectile_archetype(damage_type: String) -> String:
+	var authored := str(_current_attack_data.get("projectile_archetype", _data.get("projectile_archetype", "")))
+	if authored in ["arrow", "bolt_orb", "lobbed_item"]:
+		return authored
+	return "arrow" if damage_type == DamageInfo.TYPE_PHYSICAL else "bolt_orb"

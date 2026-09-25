@@ -28,6 +28,7 @@ var enable_npc_quest := true
 var min_locks_per_floor := 1
 var max_locks_per_floor := 3
 var min_reward_rooms := 1
+var min_lore_rooms := 2
 var min_rest_rooms := 1
 var rest_within_of_boss := 3
 var max_consecutive_combat := 2
@@ -78,6 +79,7 @@ static func for_floor(floor_index: int, max_floors: int, run_seed: int) -> RoomC
 	config.weight_merchant = float(weights.get("merchant", config.weight_merchant))
 	var guarantees: Dictionary = pacing.get("guarantees", {})
 	config.min_reward_rooms = int(guarantees.get("minRewardRooms", config.min_reward_rooms))
+	config.min_lore_rooms = int(guarantees.get("minLoreRooms", config.min_lore_rooms))
 	config.min_rest_rooms = int(guarantees.get("minRestRooms", config.min_rest_rooms))
 	config.rest_within_of_boss = int(
 		guarantees.get("restWithinOfBoss", config.rest_within_of_boss)

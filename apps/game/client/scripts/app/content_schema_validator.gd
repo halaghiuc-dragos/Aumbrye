@@ -52,7 +52,7 @@ static func validate_loaded(relative_path: String, data: Dictionary) -> void:
 	if normalized == "content/progression/xp_curve.json":
 		_validate_xp_curve(data)
 	elif normalized.begins_with("content/items/") and normalized.ends_with(".json"):
-		if not normalized.ends_with("catalog.json"):
+		if not normalized.ends_with("catalog.json") and normalized != "content/items/sets.json":
 			_validate_item_definition(normalized, data)
 	elif (
 		normalized == "content/affixes/prefixes.json"

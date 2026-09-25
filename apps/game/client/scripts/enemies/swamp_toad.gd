@@ -8,7 +8,7 @@ func _resolve_enemy_id() -> String:
 func _ready() -> void:
 	super._ready()
 	_apply_mesh_tint(Color(0.28, 0.42, 0.15, 1.0))
-	scale = Vector3(1.15, 0.95, 1.15)
+	configure_physical_size(0.46, 1.6, Vector3(1.15, 0.95, 1.15))
 
 
 func get_hp_bar_height() -> float:

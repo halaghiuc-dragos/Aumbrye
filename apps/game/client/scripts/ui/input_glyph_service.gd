@@ -5,6 +5,16 @@ class_name InputGlyphService
 enum DeviceFamily { KEYBOARD, XBOX, PLAYSTATION, GENERIC }
 
 const InputGlyphAtlasScript := preload("res://scripts/ui/input_glyph_atlas.gd")
+const ACTION_LABEL_KEYS := {
+	"dodge": "INPUT_ACTION_DODGE", "sprint": "INPUT_ACTION_SPRINT",
+	"lock_on": "INPUT_ACTION_LOCK_ON", "inventory": "INPUT_ACTION_INVENTORY",
+	"interact": "INPUT_ACTION_INTERACT", "jump": "INPUT_ACTION_JUMP",
+	"pause": "INPUT_ACTION_PAUSE", "weapon_art": "INPUT_ACTION_WEAPON_ART",
+	"quick_slot_cycle": "INPUT_ACTION_QUICK_SLOT_CYCLE",
+	"quick_slot_use": "INPUT_ACTION_QUICK_SLOT_USE",
+	"inventory_split": "INPUT_ACTION_SPLIT_STACK",
+	"ui_accept": "INPUT_ACTION_CONFIRM", "ui_cancel": "INPUT_ACTION_CLOSE",
+}
 
 static var _family := DeviceFamily.KEYBOARD
 static var _texture_cache: Dictionary = {}
@@ -83,35 +93,15 @@ static func format_interact_name(display_name: String) -> String:
 
 
 static func get_action_display_name(action: String) -> String:
+	if ACTION_LABEL_KEYS.has(action):
+		return String(TranslationServer.translate(str(ACTION_LABEL_KEYS[action])))
 	match action:
-		"dodge":
-			return "Dash"
-		"sprint":
-			return "Sprint"
-		"lock_on":
-			return "Lock"
-		"inventory":
-			return "Inventory"
-		"interact":
-			return "Interact"
-		"jump":
-			return "Jump"
-		"pause":
-			return "Pause"
-		"weapon_art":
-			return "Weapon art"
-		"quick_slot_cycle":
-			return "Cycle quick slot"
-		"quick_slot_use":
-			return "Use quick slot"
-		"inventory_split":
-			return "Split stack"
 		"ui_left", "ui_right", "ui_up", "ui_down":
 			return action.replace("ui_", "").capitalize()
 		"ui_accept":
-			return "Confirm"
+			return String(TranslationServer.translate("INPUT_ACTION_CONFIRM"))
 		"ui_cancel":
-			return "Close"
+			return String(TranslationServer.translate("INPUT_ACTION_CLOSE"))
 		"quick_slot_1", "quick_slot_2", "quick_slot_3", "quick_slot_4":
 			return action.replace("_", " ").capitalize()
 		_:

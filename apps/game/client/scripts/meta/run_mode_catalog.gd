@@ -88,7 +88,7 @@ static func unlock_hint(mode_id: String, counters: Dictionary = {}) -> String:
 	if missing.is_empty():
 		return ""
 	return (
-		"Locked — %d %s (you have %d)"
+		String(TranslationServer.translate("MODE_UNLOCK_SHORTFALL"))
 		% [
 			int(missing.get("need", 0)),
 			ProgressCounters.describe(str(missing.get("key", ""))),
@@ -101,22 +101,22 @@ static func describe_rules(mode_id: String) -> String:
 	var lines: Array[String] = []
 	var floors := floors_of(mode_id)
 	if floors > 0:
-		lines.append("%d floors." % floors)
+		lines.append(String(TranslationServer.translate("MODE_RULE_FLOORS")) % floors)
 	if is_permadeath(mode_id):
-		lines.append("No bonfire return — where you fall, the run ends.")
+		lines.append(String(TranslationServer.translate("MODE_RULE_PERMADEATH")))
 	match scoring_of(mode_id):
 		"time":
-			lines.append("Scored by how fast you finish.")
+			lines.append(String(TranslationServer.translate("MODE_RULE_SCORE_TIME")))
 		"kills":
-			lines.append("Scored by how much you kill.")
+			lines.append(String(TranslationServer.translate("MODE_RULE_SCORE_KILLS")))
 		_:
-			lines.append("Scored by how deep you get.")
+			lines.append(String(TranslationServer.translate("MODE_RULE_SCORE_DEPTH")))
 	var modifiers := base_modifiers(mode_id)
 	if not modifiers.is_empty():
 		lines.append(RunModifierService.describe_all(modifiers))
 	var steps: Variant = get_mode(mode_id).get("escalation", [])
 	if steps is Array and not (steps as Array).is_empty():
-		lines.append("The rules harden as you descend.")
+		lines.append(String(TranslationServer.translate("MODE_RULE_ESCALATION")))
 	return "\n".join(lines)
 
 

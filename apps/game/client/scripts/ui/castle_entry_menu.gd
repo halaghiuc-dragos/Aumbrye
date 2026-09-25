@@ -95,14 +95,14 @@ func _build_mode_row() -> void:
 		var unlocked := RunModeCatalog.is_unlocked(mode_id, counters)
 		if not unlocked:
 			continue
-		var btn := GameUISkinScript.make_button(str(mode.get("name", mode_id)))
+		var btn := GameUISkinScript.make_button(ContentText.name(mode, mode_id))
 		btn.name = "Mode_%s" % mode_id
-		btn.tooltip_text = str(mode.get("flavour", mode.get("description", "")))
+		btn.tooltip_text = ContentText.field(mode, "flavour", ContentText.description(mode))
 		btn.disabled = not _can_start_run()
 		btn.pressed.connect(_on_mode_row_pressed.bind(mode_id))
 		row.add_child(btn)
 		var hint := Label.new()
-		hint.text = str(mode.get("description", ""))
+		hint.text = ContentText.description(mode)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		GameUISkinScript.style_hint_label(hint)
 		row.add_child(hint)

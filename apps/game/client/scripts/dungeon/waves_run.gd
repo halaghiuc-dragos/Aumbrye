@@ -30,7 +30,16 @@ var _lobby_active := true
 var _torch_holder: Node3D
 var _torchlight: Node3D
 var _arena_mutator: Node3D
+var _fuel_objective_marker: Node3D
 var _spawn_markers: Array[Node3D] = []
+var _spawn_marker_pool: Array[Node3D] = []
+const MAX_POOLED_SPAWN_MARKERS := 32
+var _spawn_marker_create_count := 0
+var _spawn_marker_reuse_count := 0
+var _radar_marker_refresh_queued := false
+var _radar_marker_refresh_revision := 0
+var _radar_marker_plan_publish_count := 0
+var _radar_marker_incremental_remove_count := 0
 var _pending_spawns := 0
 var _spawn_generation := 0
 var _wave_completion_committed := false
@@ -48,6 +57,7 @@ const WavesCashOutPortalScript := preload("res://scripts/dungeon/waves_cash_out_
 const DifficultyProfileScript := preload("res://scripts/dungeon/difficulty_profile.gd")
 const RunModifierServiceScript := preload("res://scripts/dungeon/run_modifier_service.gd")
 const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
+const WavesBirdRecordScript := preload("res://scripts/dungeon/waves_bird_record.gd")
 
 const WAVES_FLOOR_HALF := 105.0
 
@@ -58,13 +68,20 @@ const PIT_RECOVERY_MARGIN := 8.0
 const PIT_DAMAGE_FRACTION := 0.1
 
 var _bird_time := 0.0
+var _bird_update_accumulator := 0.0
+const BIRD_UPDATE_INTERVAL := 1.0 / 30.0
+const BIRD_NEAR_PLAYER_RADIUS_SQUARED := 28.0 * 28.0
+var _bird_records: Array[WavesBirdRecord] = []
 
 ## MD-01: "a reason to move" -- the cresset's light drains while the player is away from it and
 ## only refuels near it, so holding one corner of the arena for a whole wave goes dark.
 var _cresset_fuel := 1.0
 const CRESSET_DRAIN_SECONDS := 28.0
-const CRESSET_REFUEL_SECONDS := 6.0
+const CRESSET_REFUEL_SECONDS := 30.0
 const CRESSET_REFUEL_RADIUS := 13.0
+const FUEL_OBJECTIVE_RADIUS := 3.5
+const FUEL_OBJECTIVE_REFILL_SECONDS := 4.0
+const FUEL_OBJECTIVE_RING_RADIUS := 16.0
 
 
 func _ready() -> void:
@@ -73,6 +90,7 @@ func _ready() -> void:
 	_player = get_node_or_null(player_path) as CharacterBody3D
 	_build_arena()
 	_build_torchlight()
+	_build_fuel_objective()
 	_attach_weather()
 	_build_ui()
 	_build_combat_hud()
@@ -176,6 +194,89 @@ func _build_torchlight() -> void:
 	_arena_mutator = mutator
 
 
+func _build_fuel_objective() -> void:
+	if _fuel_objective_marker != null and is_instance_valid(_fuel_objective_marker):
+		return
+	var marker := Node3D.new()
+	marker.name = "WavesFuelObjective"
+	marker.visible = false
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.emission_enabled = true
+	glow.emission = Color(0.35, 0.95, 0.78)
+	glow.emission_energy_multiplier = 2.0
+	glow.albedo_color = Color(0.35, 0.95, 0.78, 0.8)
+	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var ring := MeshInstance3D.new()
+	ring.name = "RecoveryRing"
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 2.6
+	ring_mesh.outer_radius = 3.1
+	ring_mesh.rings = 20
+	ring_mesh.ring_segments = 8
+	ring.mesh = ring_mesh
+	ring.material_override = glow
+	ring.position.y = 0.08
+	marker.add_child(ring)
+	var beacon := MeshInstance3D.new()
+	beacon.name = "Beacon"
+	var beacon_mesh := PrismMesh.new()
+	beacon_mesh.size = Vector3(0.8, 2.0, 0.8)
+	beacon.mesh = beacon_mesh
+	beacon.material_override = glow
+	beacon.position.y = 1.1
+	marker.add_child(beacon)
+	var light := OmniLight3D.new()
+	light.name = "RecoveryLight"
+	light.light_color = Color(0.35, 0.95, 0.78)
+	light.light_energy = 1.1
+	light.omni_range = 10.0
+	light.shadow_enabled = false
+	light.position.y = 2.0
+	marker.add_child(light)
+	add_child(marker)
+	_fuel_objective_marker = marker
+
+
+func _set_fuel_objective_for_wave(wave: int) -> void:
+	if _fuel_objective_marker == null or not is_instance_valid(_fuel_objective_marker):
+		return
+	_fuel_objective_marker.position = fuel_objective_position_for_wave(wave)
+	_fuel_objective_marker.visible = wave > 0
+	if _hud and _hud.has_method("set_radar_objective_marker"):
+		_hud.call("set_radar_objective_marker", _fuel_objective_marker if wave > 0 else null)
+
+
+func _fuel_rate_at(world_position: Vector3) -> float:
+	var objective_position := Vector3.ZERO
+	var objective_active := false
+	if _fuel_objective_marker != null and is_instance_valid(_fuel_objective_marker):
+		objective_position = _fuel_objective_marker.global_position
+		objective_active = _fuel_objective_marker.visible
+	return fuel_rate_for_positions(world_position, objective_position, objective_active)
+
+
+static func fuel_objective_position_for_wave(wave: int) -> Vector3:
+	if wave <= 0:
+		return Vector3.ZERO
+	var quadrant := posmod(wave - 1, 4)
+	var angle := float(quadrant) * TAU / 4.0
+	return Vector3(cos(angle) * FUEL_OBJECTIVE_RING_RADIUS, 0.0, sin(angle) * FUEL_OBJECTIVE_RING_RADIUS)
+
+
+static func fuel_rate_for_positions(
+	player_position: Vector3, objective_position: Vector3, objective_active: bool
+) -> float:
+	var player_flat := Vector2(player_position.x, player_position.z)
+	if objective_active:
+		var objective_flat := Vector2(objective_position.x, objective_position.z)
+		if player_flat.distance_to(objective_flat) <= FUEL_OBJECTIVE_RADIUS:
+			return 1.0 / FUEL_OBJECTIVE_REFILL_SECONDS
+	if player_flat.length() <= CRESSET_REFUEL_RADIUS:
+		return 1.0 / CRESSET_REFUEL_SECONDS
+	return -1.0 / CRESSET_DRAIN_SECONDS
+
+
 func _ensure_torch_holder() -> void:
 	if _torch_holder != null and is_instance_valid(_torch_holder):
 		return
@@ -221,6 +322,10 @@ func _build_ui() -> void:
 
 func _show_lobby() -> void:
 	_lobby_active = true
+	if _fuel_objective_marker and is_instance_valid(_fuel_objective_marker):
+		_fuel_objective_marker.visible = false
+	if _hud and _hud.has_method("set_radar_objective_marker"):
+		_hud.call("set_radar_objective_marker", null)
 	_build_walls(true)
 	_ensure_torch_holder()
 	_spawn_chests()
@@ -316,6 +421,7 @@ func _start_wave() -> void:
 	_cresset_fuel = 1.0
 	_capture_wave_start_checkpoint()
 	var wave := WavesRunService.current_wave
+	_set_fuel_objective_for_wave(wave)
 	# MD-01: one arena mutation per five-wave block -- wave 45 should not be wave 5 with more
 	# enemies. `chest_set` already counts intermission blocks, so it doubles as the block index.
 	if _arena_mutator:
@@ -420,18 +526,16 @@ func _relocate_spawn_away_from_player(point: Vector3, _index: int, total: int) -
 func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int, generation: int) -> void:
 	var wave := WavesRunService.current_wave
 	var point := _spawn_point_for(index, total, wave)
-	var marker := Node3D.new()
-	marker.name = "SpawnMarker"
-	marker.set_script(WavesSpawnMarkerScript)
-	add_child(marker)
+	var marker := _obtain_spawn_marker()
 	marker.position = point
 	marker.call(
 		"setup",
 		_spawn_marker_color(enemy_id),
-		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index)
+		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index),
+		_spawn_marker_role(enemy_id)
 	)
 	_spawn_markers.append(marker)
-	_refresh_radar_spawn_markers()
+	_queue_radar_spawn_marker_refresh()
 	AudioDirector.play_sfx("windup", point)
 	await get_tree().create_timer(
 		SPAWN_TELEGRAPH_SECONDS + SPAWN_TELEGRAPH_STAGGER * float(index), false
@@ -449,8 +553,8 @@ func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int, generati
 		point = relocated
 		if marker != null and is_instance_valid(marker):
 			marker.position = point
-			marker.call("setup", _spawn_marker_color(enemy_id), SPAWN_TELEGRAPH_SECONDS)
-			_refresh_radar_spawn_markers()
+			marker.call("setup", _spawn_marker_color(enemy_id), SPAWN_TELEGRAPH_SECONDS, _spawn_marker_role(enemy_id))
+			_queue_radar_spawn_marker_refresh()
 		AudioDirector.play_sfx("windup", point)
 		await get_tree().create_timer(SPAWN_TELEGRAPH_SECONDS, false).timeout
 		if not is_inside_tree() or _lobby_active or generation != _spawn_generation:
@@ -463,9 +567,7 @@ func _spawn_enemy_telegraphed(enemy_id: String, index: int, total: int, generati
 			return
 		relocated = _relocate_spawn_away_from_player(point, index, total)
 	if marker != null and is_instance_valid(marker):
-		_spawn_markers.erase(marker)
-		marker.queue_free()
-		_refresh_radar_spawn_markers()
+		_release_spawn_marker(marker, true)
 	_pending_spawns = maxi(0, _pending_spawns - 1)
 	_spawn_enemy(enemy_id, point)
 	_check_wave_completion()
@@ -481,6 +583,52 @@ func _spawn_marker_color(enemy_id: String) -> Color:
 	return Color(0.72, 0.45, 0.95)
 
 
+func _spawn_marker_role(enemy_id: String) -> String:
+	var definition := EnemyCatalog.get_definition(enemy_id)
+	var enemy_type := str(definition.get("enemy_type", "melee"))
+	if enemy_type == "boss":
+		return "boss"
+	if enemy_type == "ranged":
+		return "ranged"
+	if enemy_type == "shield":
+		return "control"
+	if float(definition.get("move_speed", 0.0)) >= 5.0:
+		return "fast"
+	return "melee"
+
+
+func _obtain_spawn_marker() -> Node3D:
+	var marker: Node3D
+	if not _spawn_marker_pool.is_empty():
+		marker = _spawn_marker_pool.pop_back()
+		_spawn_marker_reuse_count += 1
+	else:
+		marker = Node3D.new()
+		marker.name = "SpawnMarker"
+		marker.set_script(WavesSpawnMarkerScript)
+		_spawn_marker_create_count += 1
+	if marker.get_parent() == null:
+		add_child(marker)
+	return marker
+
+
+func _release_spawn_marker(marker: Node3D, publish_removal: bool) -> void:
+	if not is_instance_valid(marker):
+		return
+	if not _spawn_markers.has(marker):
+		return
+	_spawn_markers.erase(marker)
+	if publish_removal:
+		if _hud and _hud.has_method("remove_radar_spawn_marker"):
+			_hud.call("remove_radar_spawn_marker", marker)
+		_radar_marker_incremental_remove_count += 1
+	marker.call("deactivate")
+	if _spawn_marker_pool.size() < MAX_POOLED_SPAWN_MARKERS:
+		_spawn_marker_pool.append(marker)
+	else:
+		marker.queue_free()
+
+
 func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 	var scene := _resolve_enemy_scene(enemy_id)
 	if scene == null:
@@ -493,6 +641,9 @@ func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 		return
 	if enemy.has_method("set_catalog_id"):
 		enemy.call("set_catalog_id", EnemyCatalog.resolve_id(enemy_id))
+	# The procedural dungeon builder normally stamps a floor-scoped encounter key before tree entry.
+	# The Vigil constructs enemies directly, so give each wave's roster its own blackboard explicitly.
+	enemy.set_meta("encounter_key", get_instance_id())
 	enemy.position = spawn_point
 	add_child(enemy)
 	_apply_wave_scaling(enemy)
@@ -550,18 +701,32 @@ func _refresh_remaining() -> void:
 
 func _clear_spawn_markers() -> void:
 	_spawn_generation += 1
-	for marker in _spawn_markers:
-		if is_instance_valid(marker):
-			marker.queue_free()
-	_spawn_markers.clear()
+	for marker in _spawn_markers.duplicate():
+		_release_spawn_marker(marker, false)
 	_pending_spawns = 0
+	_radar_marker_refresh_queued = false
+	_radar_marker_refresh_revision += 1
 	_refresh_radar_spawn_markers()
 
 
 ## HD-05: keeps the arena radar's pending-spawn dots in sync with `_spawn_markers`.
-func _refresh_radar_spawn_markers() -> void:
+func _refresh_radar_spawn_markers(revision: int = -1) -> void:
+	if revision >= 0 and revision != _radar_marker_refresh_revision:
+		return
+	_radar_marker_refresh_queued = false
+	_radar_marker_plan_publish_count += 1
 	if _hud and _hud.has_method("set_radar_spawn_markers"):
 		_hud.call("set_radar_spawn_markers", _spawn_markers)
+
+
+## Spawn coroutines all run to their first await in one frame. Defer one publication for the
+## resulting batch rather than rebuilding the radar after each marker allocation/removal.
+func _queue_radar_spawn_marker_refresh() -> void:
+	if _radar_marker_refresh_queued:
+		return
+	_radar_marker_refresh_queued = true
+	_radar_marker_refresh_revision += 1
+	call_deferred("_refresh_radar_spawn_markers", _radar_marker_refresh_revision)
 
 
 func _on_enemy_died(enemy: Node) -> void:
@@ -591,6 +756,10 @@ func _on_wave_cleared() -> void:
 	if wave >= WavesRunService.final_wave():
 		WavesRunService.enter_reward_phase()
 		_lobby_active = true
+		if _fuel_objective_marker and is_instance_valid(_fuel_objective_marker):
+			_fuel_objective_marker.visible = false
+		if _hud and _hud.has_method("set_radar_objective_marker"):
+			_hud.call("set_radar_objective_marker", null)
 		_clear_enemies()
 		_clear_spawn_markers()
 		_douse_cresset()
@@ -651,7 +820,10 @@ func open_cash_out_picker() -> void:
 
 func _process(delta: float) -> void:
 	_bird_time += delta
-	_animate_birds()
+	_bird_update_accumulator += delta
+	if _bird_update_accumulator >= BIRD_UPDATE_INTERVAL:
+		_bird_update_accumulator = fmod(_bird_update_accumulator, BIRD_UPDATE_INTERVAL)
+		_animate_birds()
 	_check_arena_fall()
 	_update_cresset_fuel(delta)
 
@@ -663,11 +835,9 @@ func _update_cresset_fuel(delta: float) -> void:
 		return
 	if _player == null or not is_instance_valid(_player):
 		return
-	var near_cresset := _player.global_position.length() <= CRESSET_REFUEL_RADIUS
-	if near_cresset:
-		_cresset_fuel = minf(1.0, _cresset_fuel + delta / CRESSET_REFUEL_SECONDS)
-	else:
-		_cresset_fuel = maxf(0.0, _cresset_fuel - delta / CRESSET_DRAIN_SECONDS)
+	_cresset_fuel = clampf(
+		_cresset_fuel + delta * _fuel_rate_at(_player.global_position), 0.0, 1.0
+	)
 	_torchlight.call("set_fuel_level", _cresset_fuel)
 
 
@@ -850,32 +1020,56 @@ func _on_player_died() -> void:
 
 
 func _animate_birds() -> void:
-	for bird in get_tree().get_nodes_in_group("waves_bird"):
-		if not bird is Node3D:
+	var camera := get_viewport().get_camera_3d()
+	var player_position: Vector3 = _player.global_position if is_instance_valid(_player) else Vector3.ZERO
+	for record in _bird_records:
+		var bird := record.bird
+		if not is_instance_valid(bird) or not bird.is_inside_tree():
 			continue
-		var node := bird as Node3D
-		var radius: float = float(node.get_meta("orbit_radius", 6.0))
-		var speed: float = float(node.get_meta("orbit_speed", 0.5))
-		var phase: float = float(node.get_meta("orbit_phase", 0.0))
-		var wing_phase: float = float(node.get_meta("wing_phase", 0.0))
-		var home_x: float = float(node.get_meta("home_x", 0.0))
-		var home_y: float = float(node.get_meta("home_y", 10.0))
-		var home_z: float = float(node.get_meta("home_z", 0.0))
-		var angle := _bird_time * speed + phase
-		node.position = Vector3(
-			home_x + cos(angle) * radius,
-			home_y + sin(_bird_time * 1.6 + phase) * 0.35,
-			home_z + sin(angle) * radius
+		var bird_position := bird.global_position
+		if (
+			camera != null
+			and not camera.is_position_in_frustum(bird_position)
+			and bird_position.distance_squared_to(player_position)
+			> BIRD_NEAR_PLAYER_RADIUS_SQUARED
+		):
+			continue
+		var angle := _bird_time * record.orbit_speed + record.orbit_phase
+		bird.position = Vector3(
+			record.home.x + cos(angle) * record.orbit_radius,
+			record.home.y + sin(_bird_time * 1.6 + record.orbit_phase) * 0.35,
+			record.home.z + sin(angle) * record.orbit_radius
 		)
-		node.rotation.y = angle + PI * 0.5
-		var wing_l := node.get_node_or_null("WingL") as Node3D
-		var wing_r := node.get_node_or_null("WingR") as Node3D
-		var flap := sin(_bird_time * 8.0 + wing_phase) * 0.35
-		if wing_l:
-			wing_l.rotation.z = flap
-		if wing_r:
-			wing_r.rotation.z = -flap
+		bird.rotation.y = angle + PI * 0.5
+		var flap := sin(_bird_time * 8.0 + record.wing_phase) * 0.35
+		if is_instance_valid(record.wing_l):
+			record.wing_l.rotation.z = flap
+		if is_instance_valid(record.wing_r):
+			record.wing_r.rotation.z = -flap
 
 
 func _apply_pixel_diorama_scene() -> void:
 	PixelDioramaBootstrap.attach(self)
+	_cache_bird_records()
+
+
+func _cache_bird_records() -> void:
+	_bird_records.clear()
+	for candidate in get_tree().get_nodes_in_group("waves_bird"):
+		var bird := candidate as Node3D
+		if bird == null:
+			continue
+		var record := WavesBirdRecordScript.new() as WavesBirdRecord
+		record.bird = bird
+		record.home = Vector3(
+			float(bird.get_meta("home_x", 0.0)),
+			float(bird.get_meta("home_y", 10.0)),
+			float(bird.get_meta("home_z", 0.0))
+		)
+		record.orbit_radius = float(bird.get_meta("orbit_radius", 6.0))
+		record.orbit_speed = float(bird.get_meta("orbit_speed", 0.5))
+		record.orbit_phase = float(bird.get_meta("orbit_phase", 0.0))
+		record.wing_phase = float(bird.get_meta("wing_phase", 0.0))
+		record.wing_l = bird.get_node_or_null("WingL") as Node3D
+		record.wing_r = bird.get_node_or_null("WingR") as Node3D
+		_bird_records.append(record)

@@ -13,6 +13,14 @@
     "cap": 14,
     "milestone_bonus": 2
   },
+  "encounter_budget": {
+    "max_ranged_ratio": 0.35,
+    "max_long_reach_ratio": 0.35,
+    "max_fast_ratio": 0.35,
+    "max_control_ratio": 0.25,
+    "min_melee_count": 1,
+    "max_average_threat_cost": 48
+  },
   "base_roster": [
     "castle_grunt",
     "castle_archer",
@@ -74,7 +82,7 @@
       "id": "weapons",
       "label": "Weapons",
       "rarity_weights": { "rare": 30, "epic": 35, "legendary": 25, "aumbral": 10 },
-      "pool": ["iron_sword", "knight_blade", "flame_sword", "war_hammer", "mythic_blade"]
+      "pool": ["iron_sword", "rogue_dagger", "hunter_bow", "sage_staff", "guard_spear"]
     },
     {
       "id": "supplies",

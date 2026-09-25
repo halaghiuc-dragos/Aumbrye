@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test tests/*.mjs",
+    "test:browser": "node --test browser-tests/*.mjs",
     "preview": "vite preview",
     "lint": "eslint src --max-warnings 0",
     "generate:api": "openapi-typescript ../../packages/shared/openapi/aumbrye-api.v1.yaml -o src/api/schema.d.ts"

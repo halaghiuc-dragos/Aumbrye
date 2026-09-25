@@ -42,6 +42,7 @@ var _prompt_writes := 0
 var _message_dismiss_armed := false
 var _npc_availability_pending := false
 var _growth_reconciling := false
+var _hub_services_ready := false
 
 
 func _ready() -> void:
@@ -79,11 +80,7 @@ func _ready() -> void:
 	call_deferred("_face_spawn_view")
 	_show_return_message()
 	_refresh_castle_portal_label()
-	# MD-07: lit before announced, not after -- the portal should already be glowing the moment
-	# the card names it, not catch up a beat later via the deferred boot pass.
 	_refresh_mode_portals()
-	_announce_mode_unlocks()
-	_announce_hub_growth()
 	RunFlow.returned_to_hub.connect(_on_returned_to_hub)
 	if not RunFlow.run_warning.is_connected(_on_run_warning):
 		RunFlow.run_warning.connect(_on_run_warning)
@@ -154,6 +151,14 @@ func _boot_save_and_services() -> void:
 	_auto_equip_starting_weapon()
 	LocalSave.autosave()
 	show_hub_message("Welcome back, %s." % LocalSave.get_character_name())
+	# Settle the active save/cloud snapshot before consuming persistent announcement queues. The
+	# welcome-back line is written first so follow-up notices append to it instead of being lost.
+	_hub_services_ready = true
+	_refresh_castle_portal_label()
+	_refresh_mode_portals()
+	_announce_mode_unlocks()
+	_announce_hub_growth()
+	_announce_combat_teaching()
 
 
 func _spawn_catalog_npcs() -> void:
@@ -439,6 +444,12 @@ func _dispatch_interact(interact_id: String) -> void:
 	if interact_id.begins_with("stray:"):
 		_on_npc_dialogue("", interact_id.substr(6))
 		return
+	if interact_id.begins_with("growth:shelf:"):
+		PlayerControls.open_bestiary()
+		return
+	if interact_id.begins_with("growth:marker:"):
+		_show_growth_record()
+		return
 	if not INTERACT_HANDLERS.has(interact_id):
 		push_warning("Hub: no handler for interact_id '%s'" % interact_id)
 		return
@@ -449,6 +460,17 @@ func _dispatch_interact(interact_id: String) -> void:
 		call(handler_name.trim_prefix("_"))
 	else:
 		push_warning("Hub: handler '%s' missing for interact_id '%s'" % [handler_name, interact_id])
+
+
+func _show_growth_record() -> void:
+	var runs := RunHistoryService.get_runs()
+	var deepest := 0
+	var most_kills := 0
+	for entry in runs:
+		deepest = maxi(deepest, int(entry.get("floorReached", 0)))
+		most_kills = maxi(most_kills, int(entry.get("kills", 0)))
+	show_hub_message("Record stone: %d expeditions · deepest floor %d · most kills %d" % [runs.size(), deepest, most_kills])
+	AudioDirector.play_sfx("ui", global_position)
 
 
 func _trigger_npc_interact(npc_id: String) -> void:
@@ -558,7 +580,7 @@ func _announce_mode_unlocks() -> void:
 ## to earn the big card, but a hub-growth entry is common enough that fighting the welcome-back
 ## line for the same small label would mean one of the two never gets read.
 func _announce_hub_growth() -> void:
-	if _growth_reconciling:
+	if not _hub_services_ready or _growth_reconciling:
 		return
 	_growth_reconciling = true
 	var opened := HubGrowthService.evaluate()
@@ -583,6 +605,37 @@ func _announce_hub_growth() -> void:
 		show_hub_message(line)
 	AudioDirector.play_stinger("floor_clear")
 	_growth_reconciling = false
+
+
+func _announce_combat_teaching() -> void:
+	var messages := HubTutorialService.consume_pending_combat_teaching()
+	if messages.is_empty():
+		return
+	var wrapped_messages: Array[String] = []
+	for message in messages:
+		wrapped_messages.append(_wrap_world_message(message, 72))
+	var line := "%s\n%s" % [tr("HUB_COMBAT_NOTE_PREFIX"), "\n".join(wrapped_messages)]
+	if _message_label and _message_label.visible and _message_label.text != "":
+		show_hub_message("%s\n%s" % [_message_label.text, line])
+	else:
+		show_hub_message(line)
+
+
+static func _wrap_world_message(message: String, max_characters: int) -> String:
+	var words := message.split(" ", false)
+	var lines: Array[String] = []
+	var current := ""
+	for word in words:
+		if current.is_empty():
+			current = word
+		elif current.length() + 1 + word.length() <= maxi(1, max_characters):
+			current += " " + word
+		else:
+			lines.append(current)
+			current = word
+	if not current.is_empty():
+		lines.append(current)
+	return "\n".join(lines)
 
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
@@ -724,6 +777,7 @@ func _on_flag_source_changed() -> void:
 
 
 func _on_dialogue_closed() -> void:
+	NpcBase.set_dialogue_ambient_suppressed(false)
 	if _npc_availability_pending:
 		_npc_availability_pending = false
 		_apply_npc_availability()
@@ -806,6 +860,8 @@ func _on_inventory_rejected(reason: String) -> void:
 
 func _on_npc_dialogue(npc_id: String, dialogue_id: String) -> void:
 	var opened: bool = _dialogue_ui.start_dialogue(dialogue_id)
+	if opened:
+		NpcBase.set_dialogue_ambient_suppressed(true)
 	for node in get_tree().get_nodes_in_group("hub_npc"):
 		if node is NpcBase and (node as NpcBase).get_npc_id() == npc_id:
 			(node as NpcBase).notify_dialogue_start_result(opened)

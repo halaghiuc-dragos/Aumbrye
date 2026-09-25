@@ -11,7 +11,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["questId", "dialogueId", "questKeyId", "biomes", "rewardItemId"],
+        "required": ["questId", "dialogueId", "questKeyId", "biomes", "delivery"],
         "properties": {
           "questId": { "type": "string", "minLength": 1 },
           "dialogueId": { "type": "string", "minLength": 1 },
@@ -26,7 +26,25 @@
             "minItems": 1,
             "items": { "type": "string", "minLength": 1 }
           },
-          "rewardItemId": { "type": "string", "minLength": 1 }
+          "delivery": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "itemId"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["npc_payment", "required_pickup", "ordinary_floor_loot", "rescue_return"]
+              },
+              "itemId": { "type": "string", "minLength": 1 },
+              "receiptFlag": { "type": "string", "minLength": 1 }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "kind": { "const": "npc_payment" } } },
+                "then": { "required": ["receiptFlag"] }
+              }
+            ]
+          }
         }
       }
     }

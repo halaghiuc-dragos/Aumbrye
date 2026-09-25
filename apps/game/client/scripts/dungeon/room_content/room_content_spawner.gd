@@ -16,7 +16,7 @@ const CONTENT_SCRIPTS := {
 }
 
 
-static func spawn_all(builder: DungeonBuilder, definition: Dictionary) -> void:
+static func spawn_all(builder: DungeonBuilder, definition: Dictionary) -> Dictionary:
 	for entry in definition.get("roomContent", []):
 		if not entry is Dictionary:
 			continue
@@ -32,12 +32,21 @@ static func spawn_all(builder: DungeonBuilder, definition: Dictionary) -> void:
 			push_error("RoomContentSpawner: unknown templateId '%s'" % template_id)
 			continue
 		var node := Node3D.new()
-		node.name = "RoomContent_%s" % template_id
+		var placement_id := str(entry.get("placementId", "%s:%s" % [room_id, template_id]))
+		node.name = "RoomContent_%s" % placement_id.validate_node_name()
+		node.set_meta("placement_id", placement_id)
+		node.set_meta("required_content", bool(entry.get("required", false)))
 		node.set_script(script)
 		node.set_meta("biome_id", builder.biome_id)
 		room.add_child(node)
+		if node.has_method("prepare_placement"):
+			var placement: Dictionary = node.call("prepare_placement", bool(entry.get("required", false)))
+			if not bool(placement.get("ok", false)):
+				node.queue_free()
+				return {"roomId": room_id, "placementId": placement_id, "reason": placement.get("reason", "placement_failed")}
 		if node.has_method("configure"):
 			node.call("configure", entry, definition)
+	return {}
 
 
 static func validate_required_gates(builder: DungeonBuilder, definition: Dictionary) -> Dictionary:

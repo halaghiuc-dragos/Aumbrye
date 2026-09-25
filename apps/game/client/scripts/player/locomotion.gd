@@ -54,6 +54,7 @@ var _landing_lock_timer := 0.0
 var _landing_penalty_timer := 0.0
 var _sprint_blend := 0.0
 var _cached_surface: StringName = &"stone"
+var _cached_surface_normal := Vector3.UP
 var _surface_probe_timer := 0.0
 var _applied_knockback := Vector3.ZERO
 var _last_speed_breakdown := {
@@ -402,11 +403,13 @@ func get_facing_yaw() -> float:
 
 
 func play_footstep_effects() -> void:
-	if not is_inside_tree():
+	# Animation events may arrive while this character is being detached during a scene change.
+	# CharacterBody3D.global_position and facing.global_transform are invalid outside the tree.
+	if not is_inside_tree() or not is_on_floor():
 		return
 	var surface := _resolve_footstep_surface()
 	var pos := global_position + Vector3(0.0, 0.05, 0.0)
-	VfxService.play_footstep(pos, get_facing_direction(), surface)
+	VfxService.play_footstep(pos, get_facing_direction(), surface, _cached_surface_normal)
 	AudioDirector.play_sfx("footstep_%s" % surface, pos, String(surface))
 
 
@@ -423,7 +426,10 @@ func _resolve_footstep_surface() -> StringName:
 	var hit := space.intersect_ray(query)
 	if hit.is_empty():
 		_cached_surface = &"stone"
+		_cached_surface_normal = Vector3.UP
 		return _cached_surface
+	var normal: Variant = hit.get("normal", Vector3.UP)
+	_cached_surface_normal = normal.normalized() if normal is Vector3 and normal.length_squared() > 0.01 else Vector3.UP
 	var collider: Object = hit.get("collider")
 	if collider and collider.has_meta("surface"):
 		_cached_surface = StringName(str(collider.get_meta("surface")))
