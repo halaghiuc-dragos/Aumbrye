@@ -145,6 +145,14 @@
       "mastered": "The fortress stood the winter it was told to stand. The order for the next winter never came."
     },
     {
+      "enemyId": "miniboss_frost_castellan",
+      "name": "Frost Castellan",
+      "biomeId": "frozen_fortress",
+      "sighted": "The keys at its belt have frozen into the rings that hold them. It still counts each one.",
+      "studied": "The long thrust gives it distance; the cleave does not. Step through the wide frost and punish the gatekeeper's recovery.",
+      "mastered": "Its last order was to keep the gates shut until spring. The fortress outlived the order, and the order outlived spring."
+    },
+    {
       "enemyId": "frost_raider",
       "name": "Frost Raider",
       "biomeId": "frozen_fortress",

@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/art-readability-spec.v1.json",
+  "title": "ArtReadabilitySpecification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "reference_camera", "character_scale", "outline", "palette_roles", "lighting"],
+  "properties": {
+    "version": { "const": 1 },
+    "reference_camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_render_size", "third_person_fov", "third_person_zoom"],
+      "properties": {
+        "default_render_size": { "$ref": "#/definitions/positivePair" },
+        "third_person_fov": { "type": "number", "minimum": 45, "maximum": 100 },
+        "third_person_zoom": { "$ref": "#/definitions/range" }
+      }
+    },
+    "character_scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["world_pixel", "gameplay_height_world"],
+      "properties": {
+        "world_pixel": { "type": "number", "exclusiveMinimum": 0 },
+        "gameplay_height_world": { "$ref": "#/definitions/range" }
+      }
+    },
+    "outline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thickness_px", "strength", "interior_scale"],
+      "properties": {
+        "thickness_px": { "$ref": "#/definitions/range" },
+        "strength": { "$ref": "#/definitions/unitRange" },
+        "interior_scale": { "$ref": "#/definitions/unitRange" }
+      }
+    },
+    "palette_roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_surface_value_delta", "min_accent_shadow_value_delta", "min_emissive_value"],
+      "properties": {
+        "min_surface_value_delta": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_accent_shadow_value_delta": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_emissive_value": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "lighting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["torch_range", "torch_energy", "ambient_energy"],
+      "properties": {
+        "torch_range": { "$ref": "#/definitions/range" },
+        "torch_energy": { "$ref": "#/definitions/range" },
+        "ambient_energy": { "$ref": "#/definitions/range" }
+      }
+    }
+  },
+  "definitions": {
+    "positivePair": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "range": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "unitRange": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0, "maximum": 1 },
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

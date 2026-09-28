@@ -13,8 +13,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+from generated_manifest import write_generated_text
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "apps" / "game" / "client"
@@ -191,10 +194,18 @@ def build() -> dict:
 
 
 def main() -> int:
-    out = ROOT / "project_structure.json"
-    out.write_text(json.dumps(build(), indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {out.relative_to(ROOT)}")
-    return 0
+	out = ROOT / "project_structure.json"
+	content = json.dumps(build(), indent=2) + "\n"
+	write_generated_text(
+		out,
+		content,
+		generator=Path(__file__).resolve(),
+		sources=[ROOT / "README.md"],
+		force="--force" in sys.argv,
+		dry_run="--dry-run" in sys.argv,
+	)
+	print(f"published {out.relative_to(ROOT)}")
+	return 0
 
 
 if __name__ == "__main__":

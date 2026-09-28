@@ -8,14 +8,31 @@ static var _json_cache: Dictionary = {}
 
 static var _missing_paths: Dictionary = {}
 
+const CONTENT_ROOT_ENV := "AUMBRYE_CONTENT_ROOT"
+
 
 static func content_root() -> String:
 	var configured := str(ProjectSettings.get_setting("aumbrye/content_root", ""))
 	if not configured.is_empty():
-		return configured
+		return _normalise_root(configured)
+	# This is deliberately an explicit deployment/testing override, not a search path. A release
+	# still fails closed beside its executable when staging is missing; CI can exercise that exact
+	# layout without leaking repository content into the package.
+	var environment_root := OS.get_environment(CONTENT_ROOT_ENV).strip_edges()
+	if not environment_root.is_empty():
+		var normalised_environment_root := _normalise_root(environment_root)
+		if DirAccess.dir_exists_absolute(normalised_environment_root.path_join("content")):
+			return normalised_environment_root
+		push_error("ContentLoader: %s has no content/ directory: %s" % [CONTENT_ROOT_ENV, normalised_environment_root])
 	if OS.has_feature("editor"):
 		return ProjectSettings.globalize_path("res://").path_join("../../..")
 	return OS.get_executable_path().get_base_dir()
+
+
+static func _normalise_root(path: String) -> String:
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return ProjectSettings.globalize_path(path)
+	return path.simplify_path()
 
 
 static func content_path(relative: String) -> String:

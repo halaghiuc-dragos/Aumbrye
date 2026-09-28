@@ -490,8 +490,8 @@ func _on_footstep_frame() -> void:
 func _on_swing_frame() -> void:
 	if _body == null:
 		return
-	var anchor: Array = VfxService.resolve_combat_anchor(_body)
-	VfxService.play_weapon_trail(anchor[0], anchor[1])
+	var trajectory := VfxService.resolve_combat_trajectory(_body)
+	VfxService.play_weapon_trajectory(trajectory["base"], trajectory["tip"])
 
 
 func set_weapon(weapon_id: String, archetype: String = "") -> void:

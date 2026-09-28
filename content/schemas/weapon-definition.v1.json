@@ -15,6 +15,7 @@
     "draw_time": { "type": "number", "minimum": 0 },
     "projectile_speed_multiplier": { "type": "number", "exclusiveMinimum": 0 },
     "lunge_distance": { "type": "number", "minimum": 0 },
+    "perfect_dodge_moment": { "$ref": "#/$defs/perfect_dodge_moment" },
     "buffer_window": { "type": "number", "minimum": 0 },
     "cancel_into": { "$ref": "#/$defs/cancel_into" },
     "cancel_after": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -42,6 +43,20 @@
     "art": { "$ref": "#/$defs/weapon_art" }
   },
   "$defs": {
+    "perfect_dodge_moment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "duration"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "duration": { "type": "number", "exclusiveMinimum": 0 },
+        "damageMult": { "type": "number", "minimum": 1 },
+        "poiseMult": { "type": "number", "minimum": 1 },
+        "lungeMult": { "type": "number", "minimum": 1 },
+        "statusStacks": { "type": "integer", "minimum": 1 },
+        "hyperarmor": { "type": "boolean" }
+      }
+    },
     "cancel_into": {
       "type": "array",
       "items": { "type": "string", "enum": ["dodge", "guard"] },

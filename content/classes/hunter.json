@@ -37,8 +37,19 @@
       "effect": "apply_status",
       "statusId": "bleed",
       "stacks": 2,
+      "ifWeaponArchetype": "bow",
+      "ifTargetDistanceAtLeast": 7.0,
       "chance": 1,
       "cooldown": 0
+    },
+    {
+      "event": "onHit",
+      "effect": "restore_stamina",
+      "amount": 8,
+      "ifWeaponArchetype": "bow",
+      "ifTargetDistanceAtLeast": 7.0,
+      "chance": 1,
+      "cooldown": 0.4
     },
     {
       "event": "onKill",

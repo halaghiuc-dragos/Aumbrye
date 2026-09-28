@@ -108,6 +108,7 @@ const HAIR_COLOR_TABLE: Array = [
 ]
 
 const HAIR_STYLE_TABLE: Array = [
+	["none", "No hair"],
 	["shaven", "Shaven"],
 	["short", "Short crop"],
 	["crop", "Cropped"],

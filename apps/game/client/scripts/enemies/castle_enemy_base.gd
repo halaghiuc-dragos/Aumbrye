@@ -48,6 +48,8 @@ const CharacterRigCatalogScript := preload("res://scripts/art/characters/charact
 const AnimControllerScript := preload("res://scripts/art/characters/diorama_anim_controller.gd")
 const ShieldHurtboxScript := preload("res://scripts/combat/shield_hurtbox.gd")
 const CombatLayersScript := preload("res://scripts/combat/combat_layers.gd")
+const AttackSchedulerScript := preload("res://scripts/enemies/attack_scheduler.gd")
+const EnemyPerceptionScript := preload("res://scripts/enemies/enemy_perception.gd")
 
 @export var player_path: NodePath
 
@@ -71,6 +73,9 @@ var _hurtbox: Hurtbox
 ## `BS-01` "vulnerability" phases: a procedurally-spawned weak-point Hurtbox, freed once the phase
 ## that authored it ends.
 var _weak_point_hurtbox: Hurtbox
+## The current phase owns the durable vulnerability. Boss-specific mechanics may temporarily
+## replace it (for a committed recovery, for example), then restore this exact authored contract.
+var _phase_vulnerability_spec: Dictionary = {}
 var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
@@ -132,6 +137,11 @@ var _catalog_id_override := ""
 var _damage_multiplier := 1.0
 var _base_damage_multiplier := 1.0
 var _phase_damage_multiplier := 1.0
+## Arena/boss-omen tuning persists through authored health-threshold phases.  These used to be
+## applied to the current numbers only, so a later phase silently erased a seed-selected variant.
+var _arena_move_speed_mult := 1.0
+var _arena_attack_cooldown_mult := 1.0
+var _arena_poise_mult := 1.0
 var _sync_hitbox_from_anim := false
 const DEAGGRO_LOS_TIMEOUT := 3.0
 
@@ -229,11 +239,14 @@ func apply_arena_modifier(mods: Dictionary) -> void:
 	if mods.has("damageMult"):
 		set_damage_multiplier(_base_damage_multiplier * float(mods["damageMult"]))
 	if mods.has("moveSpeedMult"):
-		_move_speed = maxf(0.01, _move_speed * float(mods["moveSpeedMult"]))
+		_arena_move_speed_mult = maxf(0.1, float(mods["moveSpeedMult"]))
+		_move_speed = maxf(0.01, _move_speed * _arena_move_speed_mult)
 	if mods.has("attackCooldownMult"):
-		_attack_cooldown_data = maxf(0.0, _attack_cooldown_data * float(mods["attackCooldownMult"]))
+		_arena_attack_cooldown_mult = maxf(0.1, float(mods["attackCooldownMult"]))
+		_attack_cooldown_data = maxf(0.0, _attack_cooldown_data * _arena_attack_cooldown_mult)
 	if mods.has("poiseMult") and _poise:
-		_poise.configure(_poise.max_poise * float(mods["poiseMult"]), _stagger_duration_data)
+		_arena_poise_mult = maxf(0.1, float(mods["poiseMult"]))
+		_poise.configure(_poise.max_poise * _arena_poise_mult, _stagger_duration_data)
 
 
 func get_health_ratio() -> float:
@@ -244,19 +257,32 @@ func get_health_ratio() -> float:
 
 func apply_phase_modifiers(mods: Dictionary) -> void:
 	_move_speed = maxf(
-		0.01, float(_data.get("move_speed", 3.5)) * float(mods.get("moveSpeedMult", 1.0))
+		0.01, float(_data.get("move_speed", 3.5)) * float(mods.get("moveSpeedMult", 1.0)) * _arena_move_speed_mult
 	)
 	_attack_cooldown_data = maxf(
-		0.0, float(_data.get("attack_cooldown", 1.5)) * float(mods.get("attackCooldownMult", 1.0))
+		0.0, float(_data.get("attack_cooldown", 1.5)) * float(mods.get("attackCooldownMult", 1.0)) * _arena_attack_cooldown_mult
 	)
 	_phase_damage_multiplier = maxf(0.1, float(mods.get("damageMult", 1.0)))
 	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
 	if _poise and mods.has("poiseMult"):
 		_poise.configure(
-			float(_data.get("poise", 40.0)) * maxf(0.1, float(mods["poiseMult"])),
+			float(_data.get("poise", 40.0)) * maxf(0.1, float(mods["poiseMult"])) * _arena_poise_mult,
 			_stagger_duration_data
 		)
-	_apply_vulnerability(mods.get("vulnerability", {}) as Dictionary)
+	var vulnerability: Variant = mods.get("vulnerability", {})
+	_phase_vulnerability_spec = vulnerability.duplicate(true) if vulnerability is Dictionary else {}
+	_apply_vulnerability(_phase_vulnerability_spec)
+
+
+## A boss identity can expose a short, readable counterplay window without discarding a phase's
+## normal weak-point rules.  This is intentionally a narrow contract rather than letting child
+## bosses mutate Hurtbox fields independently.
+func apply_temporary_vulnerability(spec: Dictionary) -> void:
+	_apply_vulnerability(spec)
+
+
+func restore_phase_vulnerability() -> void:
+	_apply_vulnerability(_phase_vulnerability_spec)
 
 
 ## `BS-01` "vulnerability" phases: while `spec` is non-empty, the boss's own body `Hurtbox` takes
@@ -286,12 +312,29 @@ func _apply_vulnerability(spec: Dictionary) -> void:
 		shape.name = "CollisionShape3D"
 		shape.shape = SphereShape3D.new()
 		_weak_point_hurtbox.add_child(shape)
+		var readability_marker := MeshInstance3D.new()
+		readability_marker.name = "ReadabilityMarker"
+		var marker_mesh := SphereMesh.new()
+		marker_mesh.radial_segments = 8
+		marker_mesh.rings = 4
+		readability_marker.mesh = marker_mesh
+		var marker_material := StandardMaterial3D.new()
+		marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		marker_material.albedo_color = Color(1.0, 0.72, 0.2, 0.9)
+		marker_material.emission_enabled = true
+		marker_material.emission = Color(1.0, 0.38, 0.08)
+		marker_material.emission_energy_multiplier = 1.4
+		readability_marker.material_override = marker_material
+		_weak_point_hurtbox.add_child(readability_marker)
 		add_child(_weak_point_hurtbox)
 		_weak_point_hurtbox.damaged.connect(_on_weak_point_hurt)
 	_weak_point_hurtbox.region = String(spec.get("region", "weakpoint"))
 	_weak_point_hurtbox.region_damage_mult = maxf(0.0, float(spec.get("regionDamageMult", 1.5)))
 	var sphere := (_weak_point_hurtbox.get_node("CollisionShape3D") as CollisionShape3D).shape as SphereShape3D
 	sphere.radius = maxf(0.1, float(spec.get("radius", 0.4)))
+	var marker := _weak_point_hurtbox.get_node_or_null("ReadabilityMarker") as MeshInstance3D
+	if marker:
+		marker.scale = Vector3.ONE * sphere.radius * 1.35
 	var offset := Vector3(0.0, 1.6, 0.0)
 	var raw_offset: Variant = spec.get("offset", null)
 	if raw_offset is Array and (raw_offset as Array).size() >= 3:
@@ -408,8 +451,12 @@ func _ready() -> void:
 	_setup_diorama_visual()
 	if _health:
 		_attach_health_bar()
+	_apply_role_silhouette()
 	if _is_elite():
 		_apply_elite_status()
+	if _is_boss_enemy():
+		_apply_boss_silhouette()
+		_apply_boss_variant_visual()
 	_setup_phase_controller()
 	if not boss_phase_entered.is_connected(_relay_phase_changed):
 		boss_phase_entered.connect(_relay_phase_changed)
@@ -774,6 +821,47 @@ func _setup_diorama_visual() -> void:
 	_animator.hitbox_close_frame.connect(_on_anim_hitbox_close)
 
 
+## The authored rigs already make melee, shields, ranged enemies, brutes and hounds immediately
+## distinct. Casters, flyers and swarms shared a fallback body, though, which made their behaviour
+## more legible than their silhouette. These tiny pixel-diorama attachments preserve the low-poly
+## style while giving each of those roles a readable shape at a glance.
+func _apply_role_silhouette() -> void:
+	if _diorama_visual == null or _is_boss_enemy():
+		return
+	var enemy_type := str(_data.get("enemy_type", ""))
+	if not enemy_type in ["caster", "flyer", "swarm"]:
+		return
+	if _diorama_visual.get_node_or_null("RoleSilhouette"):
+		return
+	var theme := CharacterSkin.theme_for_enemy_id(get_enemy_id())
+	var tint := PixelStyleScript.get_palette_color(theme, PixelStyleScript.PaletteSlot.EMISSIVE)
+	var glow := PixelStyleScript.make_glow_material(tint.lightened(0.12), tint.darkened(0.28), 1.45, 1.3)
+	var accent := Node3D.new()
+	accent.name = "RoleSilhouette"
+	_diorama_visual.add_child(accent)
+	match enemy_type:
+		"caster":
+			for offset in [Vector3(-0.3, 1.15, 0.08), Vector3(0.3, 1.15, 0.08), Vector3(0.0, 1.46, 0.08)]:
+				_add_role_shard(accent, offset, Vector3(0.1, 0.28, 0.1), glow, "CasterRune")
+			LightEmbersScript.attach(accent, Vector3(0.0, 1.15, 0.08), tint, 0.34, 0.4)
+		"flyer":
+			_add_role_shard(accent, Vector3(-0.44, 0.94, 0.1), Vector3(0.5, 0.07, 0.2), glow, "WingL")
+			_add_role_shard(accent, Vector3(0.44, 0.94, 0.1), Vector3(0.5, 0.07, 0.2), glow, "WingR")
+		"swarm":
+			for offset in [Vector3(-0.34, 0.5, 0.06), Vector3(0.34, 0.72, 0.08), Vector3(0.04, 1.05, 0.06)]:
+				_add_role_shard(accent, offset, Vector3(0.12, 0.12, 0.12), glow, "SwarmMote")
+
+
+func _add_role_shard(parent: Node3D, pos: Vector3, size: Vector3, material: Material, node_name: String) -> void:
+	var shard := MeshInstance3D.new()
+	shard.name = node_name
+	shard.mesh = PixelStyleScript.bevel_box_mesh(size, 0.025)
+	shard.position = pos
+	shard.rotation.y = deg_to_rad(45.0)
+	shard.material_override = material
+	parent.add_child(shard)
+
+
 ## Tolerant by design: `windup_variance` can land the animation's open frame a tick or two before
 ## `_start_attack()` transitions, and returning early there drops the swing entirely. Promote the
 ## phase instead. `WeaponController.enable_hitbox_from_anim` handles the same race the same way.
@@ -807,8 +895,15 @@ func _default_weapon_for_profile() -> String:
 
 
 func _on_anim_swing_frame() -> void:
-	var anchor: Array = VfxService.resolve_combat_anchor(self)
-	VfxService.play_weapon_trail(anchor[0], anchor[1], Color(0.95, 0.62, 0.42))
+	var trajectory := VfxService.resolve_combat_trajectory(self)
+	var trail_color := Color(0.95, 0.62, 0.42)
+	if _is_boss_enemy():
+		trail_color = Color(0.92, 0.42, 0.9)
+	elif _is_elite():
+		trail_color = ELITE_RIM_TINT
+	VfxService.play_weapon_trajectory(
+		trajectory["base"], trajectory["tip"], trail_color
+	)
 
 
 func get_diorama_visual() -> Node3D:
@@ -872,9 +967,82 @@ func _apply_elite_status() -> void:
 	var embers := LightEmbersScript.attach(self, rim_anchor, ELITE_RIM_TINT, 0.6, 0.9)
 	if embers:
 		embers.name = "EliteRim"
+	var crown := MeshInstance3D.new()
+	crown.name = "EliteCrown"
+	var crown_mesh := CylinderMesh.new()
+	crown_mesh.top_radius = 0.08
+	crown_mesh.bottom_radius = 0.27
+	crown_mesh.height = 0.18
+	crown_mesh.radial_segments = 4
+	crown.mesh = crown_mesh
+	crown.position = Vector3(0.0, get_hp_bar_height() * 0.48, 0.0)
+	crown.rotation.y = deg_to_rad(45.0)
+	crown.material_override = PixelStyleScript.make_glow_material(
+		ELITE_RIM_TINT.lightened(0.16), ELITE_RIM_TINT.darkened(0.24), 1.65, 1.5
+	)
+	add_child(crown)
 	if _hp_bar:
 		var display_name := str(_data.get("title", _data.get("name", "")))
 		_hp_bar.mark_elite(display_name)
+
+
+func _apply_boss_silhouette() -> void:
+	if get_node_or_null("BossHalo") != null:
+		return
+	var halo := Node3D.new()
+	halo.name = "BossHalo"
+	halo.position = Vector3(0.0, get_hp_bar_height() * 0.52, 0.0)
+	add_child(halo)
+	var boss_color := Color(0.88, 0.34, 0.96)
+	var glow := PixelStyleScript.make_glow_material(
+		boss_color.lightened(0.18), boss_color.darkened(0.26), 2.1, 1.05
+	)
+	for offset in [Vector3(-0.38, 0.0, 0.0), Vector3(0.0, 0.16, 0.0), Vector3(0.38, 0.0, 0.0)]:
+		var shard := MeshInstance3D.new()
+		shard.name = "BossCrestShard"
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.01
+		mesh.bottom_radius = 0.13
+		mesh.height = 0.38
+		mesh.radial_segments = 4
+		shard.mesh = mesh
+		shard.position = offset
+		shard.rotation.y = deg_to_rad(45.0)
+		shard.material_override = glow
+		halo.add_child(shard)
+	LightEmbersScript.attach(halo, Vector3(0.0, 0.06, 0.0), boss_color, 0.75, 1.1)
+
+
+## The seed-selected boss modifier needs a visual read before the first wind-up.  A compact
+## tinted crest/name is enough: it communicates a different encounter without obscuring the
+## authored boss silhouette or adding another UI panel.
+func _apply_boss_variant_visual() -> void:
+	var variant_id := str(get_meta("boss_variant_id", ""))
+	if variant_id == "":
+		return
+	var tint := Color(0.95, 0.42, 0.28)
+	if variant_id == "ironbound":
+		tint = Color(0.82, 0.72, 0.4)
+	elif variant_id == "restless":
+		tint = Color(0.38, 0.88, 0.92)
+	var halo := get_node_or_null("BossHalo") as Node3D
+	if halo:
+		for child in halo.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).material_override = PixelStyleScript.make_glow_material(
+					tint.lightened(0.12), tint.darkened(0.32), 2.3, 1.05
+				)
+	var label := Label3D.new()
+	label.name = "BossVariantLabel"
+	label.text = str(get_meta("boss_variant_label", variant_id)).to_upper()
+	label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	label.font_size = 14
+	label.outline_size = 7
+	label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	label.modulate = tint
+	label.position = Vector3(0.0, get_hp_bar_height() + 0.36, 0.0)
+	label.no_depth_test = true
+	add_child(label)
 
 
 ## `EN-09`: the HUD's off-screen danger chevron walks this group on its own slow tick rather than
@@ -1771,29 +1939,11 @@ func _update_perception(delta: float) -> void:
 
 
 func _player_inside_vision_cone() -> bool:
-	if _player == null:
-		return false
-	var to_player := _player.global_position - global_position
-	to_player.y = 0.0
-	if to_player.length_squared() < 0.01:
-		return true
-	var facing := CombatFacing.forward_of(self)
-	facing.y = 0.0
-	if facing.length_squared() < 0.01:
-		return true
-	return facing.normalized().dot(to_player.normalized()) >= _vision_cone_cos
+	return EnemyPerceptionScript.is_inside_vision_cone(self, _player, _vision_cone_cos)
 
 
 func _player_noise_level() -> float:
-	if _player == null:
-		return 0.0
-	if _player.has_method("get_noise_level"):
-		return clampf(float(_player.call("get_noise_level")), 0.0, 1.0)
-	if not (_player is CharacterBody3D):
-		return 0.0
-	var flat := (_player as CharacterBody3D).velocity
-	flat.y = 0.0
-	return clampf((flat.length() - 2.0) / 4.5, 0.0, 1.0)
+	return EnemyPerceptionScript.noise_level(_player)
 
 
 func _latch_aggro() -> void:
@@ -2045,20 +2195,7 @@ func _has_line_of_sight_to_player() -> bool:
 	if frame == _los_cache_frame:
 		return _los_cache_result
 	_los_cache_frame = frame
-	var space := get_world_3d().direct_space_state
-	if space == null:
-		_los_cache_result = true
-		return true
-	var from := global_position + Vector3(0, 1.2, 0)
-	var to := _player.global_position + Vector3(0, 1.0, 0)
-	var params := PhysicsRayQueryParameters3D.create(from, to)
-	params.collision_mask = los_mask
-	params.collide_with_areas = false
-	params.collide_with_bodies = true
-	params.exclude = [get_rid()]
-	if _player is CollisionObject3D:
-		params.exclude.append((_player as CollisionObject3D).get_rid())
-	_los_cache_result = space.intersect_ray(params).is_empty()
+	_los_cache_result = EnemyPerceptionScript.has_line_of_sight(self, _player, los_mask)
 	return _los_cache_result
 
 
@@ -2069,7 +2206,7 @@ func _distance_to_player_sq() -> float:
 	if frame == _dist_to_player_sq_cache_frame:
 		return _dist_to_player_sq_cache
 	_dist_to_player_sq_cache_frame = frame
-	_dist_to_player_sq_cache = global_position.distance_squared_to(_player.global_position)
+	_dist_to_player_sq_cache = EnemyPerceptionScript.distance_squared(self, _player)
 	return _dist_to_player_sq_cache
 
 
@@ -2297,42 +2434,16 @@ func _end_attack() -> void:
 
 
 func _select_attack_data() -> bool:
-	if _attacks.is_empty():
-		_current_attack_data = _data
-		_combo_step = 0
-		return true
 	if _combo_step > 0:
 		return true
 	_combo_step = 0
-	if _attacks_ordered:
-		return _select_ordered_attack_data()
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
-	var candidates: Array[Dictionary] = []
-	var weights: Array[float] = []
-	var total := 0.0
-	for entry in _attacks:
-		if not (entry is Dictionary):
-			continue
-		var atk: Dictionary = entry
-		if dist < float(atk.get("min_range", 0.0)):
-			continue
-		if dist > float(atk.get("max_range", _attack_range)):
-			continue
-		var weight := maxf(0.01, float(atk.get("weight", 1.0)))
-		candidates.append(atk)
-		weights.append(weight)
-		total += weight
-	if candidates.is_empty():
-		_current_attack_data = {}
-		return false
-	var roll := _enemy_rng.randf() * total
-	for i in candidates.size():
-		roll -= weights[i]
-		if roll <= 0.0:
-			_current_attack_data = candidates[i]
-			return true
-	_current_attack_data = candidates[candidates.size() - 1]
-	return true
+	var selection := AttackSchedulerScript.choose(
+		_attacks, _attacks_ordered, _ordered_attack_index, dist, _attack_range, _enemy_rng, _data
+	)
+	_ordered_attack_index = int(selection.get("next_index", _ordered_attack_index))
+	_current_attack_data = selection.get("attack", {}) as Dictionary
+	return bool(selection.get("found", false))
 
 
 ## `BS-01` "pattern" phases: a fixed, learnable sequence instead of a weighted roll. Walks
@@ -2341,22 +2452,12 @@ func _select_attack_data() -> bool:
 ## move the player is currently too far (or too close) to be hit by.
 func _select_ordered_attack_data() -> bool:
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
-	var attempts := 0
-	while attempts < _attacks.size():
-		var entry: Variant = _attacks[_ordered_attack_index % _attacks.size()]
-		_ordered_attack_index = (_ordered_attack_index + 1) % _attacks.size()
-		attempts += 1
-		if not (entry is Dictionary):
-			continue
-		var atk: Dictionary = entry
-		if dist < float(atk.get("min_range", 0.0)):
-			continue
-		if dist > float(atk.get("max_range", _attack_range)):
-			continue
-		_current_attack_data = atk
-		return true
-	_current_attack_data = {}
-	return false
+	var selection := AttackSchedulerScript.choose(
+		_attacks, true, _ordered_attack_index, dist, _attack_range, _enemy_rng, _data
+	)
+	_ordered_attack_index = int(selection.get("next_index", _ordered_attack_index))
+	_current_attack_data = selection.get("attack", {}) as Dictionary
+	return bool(selection.get("found", false))
 
 
 func _first_attack_entry() -> Dictionary:

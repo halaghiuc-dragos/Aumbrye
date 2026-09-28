@@ -12,6 +12,7 @@ const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const ConsumableServiceScript := preload("res://scripts/inventory/consumable_service.gd")
 const ForgeServiceScript := preload("res://scripts/items/forge_service.gd")
 const ItemCellScript := preload("res://scripts/ui/item_cell.gd")
+const ContentTextScript := preload("res://scripts/content/content_text.gd")
 
 const _NAV_DIRECTIONS := [
 	[&"ui_left", Vector2i(-1, 0)],

@@ -9,6 +9,7 @@ signal quest_progress_advanced(quest_id: String, count: int, required: int)
 signal quest_progress_changed(
 	quest_id: String, objective_id: String, old_count: int, new_count: int, required: int
 )
+signal quest_tracker_changed(primary_quest_id: String, secondary_quest_ids: Array[String])
 
 const STATE_INACTIVE := "inactive"
 const STATE_ACTIVE := "active"
@@ -37,6 +38,7 @@ const QUEST_TYPES: Array[String] = [
 
 const RunLifecycleScript := preload("res://scripts/app/run_lifecycle.gd")
 const REWARD_RECEIPTS_FLAG := "quest_reward_receipts"
+const MAX_SECONDARY_TRACKER_PINS := 2
 
 var _active_by_type: Dictionary = {}
 var _index_built := false
@@ -83,6 +85,7 @@ func _rebuild_active_index() -> void:
 			_active_by_type[quest_type] = []
 		(_active_by_type[quest_type] as Array).append(quest_id)
 	_index_built = true
+	_sanitize_tracker_pins()
 
 
 func _active_quest_ids(quest_type: String) -> Array:
@@ -150,6 +153,9 @@ func accept_quest(quest_id: String) -> bool:
 	CharacterService.set_quest_progress(quest_id, progress)
 	BountyService.notify_accepted(quest_id)
 	_rebuild_active_index()
+	var tracker := CharacterService.get_quest_tracker()
+	if str(tracker.get("primary", "")) == "":
+		set_primary_tracker_pin(quest_id)
 	quest_updated.emit(quest_id, STATE_ACTIVE)
 	if str(QuestCatalog.get_definition(quest_id).get("type", "")) == TYPE_FETCH:
 		_reconcile_fetch_quest(quest_id)
@@ -205,6 +211,112 @@ func get_active_quests() -> Array[Dictionary]:
 		if CharacterService.get_quest_state(quest_id) == STATE_ACTIVE:
 			result.append(QuestCatalog.get_definition(quest_id))
 	return result
+
+
+## A run HUD carries one deliberate objective plus at most two quiet secondary reminders. Keeping
+## this policy in QuestService prevents every UI surface from inventing a different active order.
+func get_tracked_quests() -> Array[Dictionary]:
+	_sanitize_tracker_pins()
+	var tracker := CharacterService.get_quest_tracker()
+	var result: Array[Dictionary] = []
+	var primary := str(tracker.get("primary", ""))
+	if primary != "":
+		var primary_def := QuestCatalog.get_definition(primary)
+		if not primary_def.is_empty():
+			result.append(primary_def)
+	var secondary: Variant = tracker.get("secondary", [])
+	if secondary is Array:
+		for raw_id in secondary:
+			var quest := QuestCatalog.get_definition(str(raw_id))
+			if not quest.is_empty():
+				result.append(quest)
+	return result
+
+
+func tracker_role_for(quest_id: String) -> String:
+	var tracker := CharacterService.get_quest_tracker()
+	if str(tracker.get("primary", "")) == quest_id:
+		return "primary"
+	var secondary: Variant = tracker.get("secondary", [])
+	return "secondary" if secondary is Array and quest_id in secondary else ""
+
+
+func set_primary_tracker_pin(quest_id: String) -> bool:
+	if not _is_active_quest(quest_id):
+		return false
+	var tracker := CharacterService.get_quest_tracker()
+	var secondary: Array[String] = []
+	var requested_secondary: Variant = tracker.get("secondary", [])
+	if requested_secondary is Array:
+		for raw_id in requested_secondary:
+			var secondary_id := str(raw_id)
+			if secondary_id != "" and secondary_id != quest_id and secondary_id not in secondary:
+				secondary.append(secondary_id)
+	_publish_tracker({"primary": quest_id, "secondary": secondary})
+	return true
+
+
+func toggle_secondary_tracker_pin(quest_id: String) -> bool:
+	if not _is_active_quest(quest_id):
+		return false
+	var tracker := CharacterService.get_quest_tracker()
+	if str(tracker.get("primary", "")) == quest_id:
+		return false
+	var secondary: Array[String] = []
+	var requested_secondary: Variant = tracker.get("secondary", [])
+	if requested_secondary is Array:
+		for raw_id in requested_secondary:
+			var secondary_id := str(raw_id)
+			if secondary_id != "" and secondary_id not in secondary:
+				secondary.append(secondary_id)
+	if quest_id in secondary:
+		secondary.erase(quest_id)
+	else:
+		if secondary.size() >= MAX_SECONDARY_TRACKER_PINS:
+			return false
+		secondary.append(quest_id)
+	_publish_tracker({"primary": str(tracker.get("primary", "")), "secondary": secondary})
+	return true
+
+
+func _is_active_quest(quest_id: String) -> bool:
+	return quest_id != "" and CharacterService.get_quest_state(quest_id) == STATE_ACTIVE
+
+
+func _sanitize_tracker_pins() -> void:
+	if CharacterService == null:
+		return
+	var tracker := CharacterService.get_quest_tracker()
+	var primary := str(tracker.get("primary", ""))
+	if not _is_active_quest(primary):
+		primary = ""
+		for quest in get_active_quests():
+			primary = str(quest.get("id", ""))
+			if primary != "":
+				break
+	var secondary: Array[String] = []
+	var requested_secondary: Variant = tracker.get("secondary", [])
+	if requested_secondary is Array:
+		for raw_id in requested_secondary:
+			var quest_id := str(raw_id)
+			if (
+				quest_id != "" and quest_id != primary and _is_active_quest(quest_id)
+				and quest_id not in secondary and secondary.size() < MAX_SECONDARY_TRACKER_PINS
+			):
+				secondary.append(quest_id)
+	var normalized := {"primary": primary, "secondary": secondary}
+	if JSON.stringify(normalized) != JSON.stringify(tracker):
+		_publish_tracker(normalized)
+
+
+func _publish_tracker(tracker: Dictionary) -> void:
+	CharacterService.set_quest_tracker(tracker)
+	var secondary: Array[String] = []
+	var raw_secondary: Variant = tracker.get("secondary", [])
+	if raw_secondary is Array:
+		for raw_id in raw_secondary:
+			secondary.append(str(raw_id))
+	quest_tracker_changed.emit(str(tracker.get("primary", "")), secondary)
 
 
 func get_completed_quests() -> Array[Dictionary]:

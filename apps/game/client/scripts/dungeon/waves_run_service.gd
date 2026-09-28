@@ -454,6 +454,38 @@ func final_wave() -> int:
 	return _final_wave
 
 
+## The Vigil has authored chapters rather than an unlabelled fifty-wave stat slope.  Encounter
+## selection and presentation can read the same record instead of maintaining divergent bands.
+func chapter_for_wave(wave: int) -> Dictionary:
+	_ensure_definition()
+	for raw in _definition.get("chapters", []):
+		if not raw is Dictionary:
+			continue
+		var chapter: Dictionary = raw
+		if wave >= int(chapter.get("from", 1)) and wave <= int(chapter.get("to", _final_wave)):
+			return chapter.duplicate(true)
+	return {
+		"id": "unassigned",
+		"title": "The Vigil",
+		"lesson": "mixed_pressure",
+		"spawnPattern": "dynamic",
+		"fuelPolicy": "cresset",
+	}
+
+
+## Chapter data owns the shape of a Vigil lesson.  Callers consume this normalized record rather
+## than independently turning a presentational lesson name into combat rules.
+func chapter_directives_for_wave(wave: int) -> Dictionary:
+	var chapter := chapter_for_wave(wave)
+	return {
+		"id": str(chapter.get("id", "unassigned")),
+		"lesson": str(chapter.get("lesson", "mixed_pressure")),
+		"spawnPattern": str(chapter.get("spawnPattern", "dynamic")),
+		"fuelPolicy": str(chapter.get("fuelPolicy", "cresset")),
+		"maxOrdinaryEnemies": int(chapter.get("maxOrdinaryEnemies", 0)),
+	}
+
+
 ## Every fifth wave the walls come back up, a fresh set of caches rises, and the player gets to
 ## breathe and re-kit. The final wave never breaks — it ends the run instead.
 func is_intermission_wave(wave: int) -> bool:
@@ -680,6 +712,12 @@ func _enemy_count_for_wave(wave: int) -> int:
 		count = maxi(2, count >> 1)
 	elif is_intermission_wave(wave):
 		count += int(count_cfg.get("milestone_bonus", 2))
+	else:
+		var chapter_cap := int(chapter_directives_for_wave(wave).get("maxOrdinaryEnemies", 0))
+		if chapter_cap > 0:
+			# Caps are authored chapter pacing, not a hidden difficulty scalar. Boss escorts stay
+			# governed by their own branch above so a warden still gets its readable support cast.
+			count = mini(count, chapter_cap)
 	return count
 
 

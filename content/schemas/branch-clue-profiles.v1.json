@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/branch-clue-profiles.v1.json",
+  "title": "BranchClueProfiles",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "contentTypes"],
+  "properties": {
+    "id": { "const": "branch_clue_profiles" },
+    "contentTypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reward": { "$ref": "#/$defs/profile" },
+        "trap": { "$ref": "#/$defs/profile" },
+        "hazard": { "$ref": "#/$defs/profile" },
+        "puzzle": { "$ref": "#/$defs/profile" },
+        "lore": { "$ref": "#/$defs/profile" }
+      }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hint", "clueQuality"],
+      "properties": {
+        "hint": { "type": "string", "enum": ["reward", "danger", "unknown"] },
+        "clueQuality": { "type": "integer", "minimum": 0, "maximum": 3 }
+      }
+    }
+  }
+}

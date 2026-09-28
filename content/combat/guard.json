@@ -1,5 +1,6 @@
 {
   "id": "guard",
+  "translationId": "guard_tuning",
   "name": "Guard Tuning",
   "description": "Parry window, per-attack-class parry generosity, block reduction and grab duration.",
   "parry_window": 0.18,

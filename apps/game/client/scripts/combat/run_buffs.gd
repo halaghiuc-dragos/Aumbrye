@@ -7,6 +7,13 @@ signal offer_taken(relic_id: String)
 const RULE_SOURCE_PREFIX := "relic/"
 const SYNERGY_MULTIPLIER := 1.75
 const SYNERGY_CAP := 4.0
+## These are intentionally broad build families.  They translate a relic's existing event rules
+## into offer relevance, so authored flavour tags need not carry every mechanical responsibility.
+const EVENT_FAMILY := {
+	"onExecute": "execution", "onRiposte": "execution", "onPerfectDodge": "dodge",
+	"onDodge": "dodge", "onParry": "guard", "onBlock": "guard",
+	"onCrit": "critical", "onBackstab": "critical",
+}
 
 var _active: Array[Dictionary] = []
 var _temporary_effects: Array[Dictionary] = []
@@ -14,6 +21,9 @@ var _registered_sources: Array = []
 var _procs: Dictionary = {}
 var _contributions: Dictionary = {}
 var _trap_catches := 0
+## Kept deliberately small: these are the three readable combat moments the run can celebrate,
+## not an exhaustive telemetry ledger.
+var _combat_moments: Dictionary = {"perfectDodges": 0, "parries": 0, "executions": 0}
 
 var _best_hit: Dictionary = {}
 var _offers_taken := 0
@@ -139,7 +149,7 @@ func roll_offer(offer_key: String, count: int = 3) -> Array[String]:
 		offer.append(candidates[picked])
 		total -= weights[picked]
 		weights[picked] = 0.0
-		var picked_tags: Array = RelicCatalog.get_definition(candidates[picked]).get("tags", [])
+		var picked_tags: Array = _build_tags(RelicCatalog.get_definition(candidates[picked]))
 		var picked_role := _offer_role(candidates[picked])
 		for i in candidates.size():
 			if weights[i] <= 0.0:
@@ -166,7 +176,7 @@ func take_offer(relic_id: String) -> bool:
 		return false
 	_pending_offer_ids.clear()
 	_offers_taken += 1
-	for tag in RelicCatalog.get_definition(relic_id).get("tags", []):
+	for tag in _build_tags(RelicCatalog.get_definition(relic_id)):
 		_offer_tag_history.append(str(tag))
 	while _offer_tag_history.size() > 12:
 		_offer_tag_history.pop_front()
@@ -192,6 +202,17 @@ func note_player_hit(resolution: Variant) -> void:
 func note_trap_catch(count: int = 1) -> void:
 	if count > 0:
 		_trap_catches += count
+
+
+func note_combat_moment(moment: String) -> void:
+	var key: String = {
+		"perfect_dodge": "perfectDodges",
+		"parry": "parries",
+		"execution": "executions",
+	}.get(moment, "")
+	if key == "":
+		return
+	_combat_moments[key] = mini(100000, int(_combat_moments.get(key, 0)) + 1)
 
 
 func get_run_highlights() -> Dictionary:
@@ -227,6 +248,7 @@ func get_run_highlights() -> Dictionary:
 		"pendingOffer": _pending_offer_ids.duplicate(),
 		"offerTagHistory": _offer_tag_history.duplicate(),
 		"trapCatches": _trap_catches,
+		"combatMoments": _combat_moments.duplicate(true),
 		"bestHit": _best_hit,
 	}
 
@@ -238,6 +260,7 @@ func clear_all() -> void:
 	_procs.clear()
 	_contributions.clear()
 	_trap_catches = 0
+	_combat_moments = {"perfectDodges": 0, "parries": 0, "executions": 0}
 	_offers_taken = 0
 	_pending_offer_ids.clear()
 	_offer_tag_history.clear()
@@ -263,6 +286,7 @@ func offer_state_to_save() -> Dictionary:
 		"contributions": _contributions.duplicate(true),
 		"procs": _procs.duplicate(true),
 		"trapCatches": _trap_catches,
+		"combatMoments": _combat_moments.duplicate(true),
 		"bestHit": _best_hit.duplicate(true),
 	}
 
@@ -274,6 +298,7 @@ func offer_state_from_save(data: Variant) -> void:
 	_contributions.clear()
 	_procs.clear()
 	_trap_catches = 0
+	_combat_moments = {"perfectDodges": 0, "parries": 0, "executions": 0}
 	_best_hit = {}
 	if not data is Dictionary:
 		return
@@ -306,6 +331,10 @@ func offer_state_from_save(data: Variant) -> void:
 			if not RelicCatalog.get_definition(relic_id).is_empty():
 				_procs[relic_id] = clampi(int(saved_procs[raw_id]), 0, 100000)
 	_trap_catches = clampi(int(data.get("trapCatches", 0)), 0, 100000)
+	var saved_moments: Variant = data.get("combatMoments", {})
+	if saved_moments is Dictionary:
+		for key in _combat_moments:
+			_combat_moments[key] = clampi(int((saved_moments as Dictionary).get(key, 0)), 0, 100000)
 	var saved_best: Variant = data.get("bestHit", {})
 	if saved_best is Dictionary and float(saved_best.get("amount", 0.0)) > 0.0:
 		_best_hit = {
@@ -378,8 +407,10 @@ func _carried_tags() -> Dictionary:
 	var tags: Dictionary = {}
 	for entry in _active:
 		var def := RelicCatalog.get_definition(str(entry.get("relicId", "")))
-		for tag in def.get("tags", []):
-			tags[str(tag)] = true
+		for tag in _build_tags(def):
+			tags[tag] = true
+	for tag in _equipped_build_tags():
+		tags[tag] = true
 	return tags
 
 
@@ -387,11 +418,11 @@ func _offer_weight(relic_id: String, carried: Dictionary) -> float:
 	var def := RelicCatalog.get_definition(relic_id)
 	var weight := maxf(0.01, float(def.get("weight", 1.0)))
 	var synergy := 1.0
-	for tag in def.get("tags", []):
-		if carried.has(str(tag)):
+	for tag in _build_tags(def):
+		if carried.has(tag):
 			synergy = minf(SYNERGY_CAP, synergy * SYNERGY_MULTIPLIER)
 	var recent_matches := 0
-	for tag in def.get("tags", []):
+	for tag in _build_tags(def):
 		for previous in _offer_tag_history:
 			if str(tag) == previous:
 				recent_matches += 1
@@ -414,6 +445,17 @@ func offer_relevance(relic_id: String) -> Dictionary:
 		"requiredStatuses": required,
 		"missingStatuses": missing,
 	}
+
+
+## The weight calculation already knows these matches. Exposing the short list lets the offer
+## UI explain *why* a relic was presented without turning the screen into a build spreadsheet.
+func offer_family_matches(relic_id: String) -> Array[String]:
+	var carried := _carried_tags()
+	var matches: Array[String] = []
+	for tag in _build_tags(RelicCatalog.get_definition(relic_id)):
+		if tag in ["execution", "dodge", "guard", "critical", "status"] and carried.has(tag):
+			matches.append(tag)
+	return matches
 
 
 func _ensure_immediately_useful_offer(offer: Array[String], candidates: Array[String]) -> void:
@@ -464,10 +506,44 @@ func _add_rule_capabilities(capabilities: Dictionary, definition: Dictionary) ->
 
 
 func _shares_tag(relic_id: String, tags: Array) -> bool:
-	for tag in RelicCatalog.get_definition(relic_id).get("tags", []):
+	for tag in _build_tags(RelicCatalog.get_definition(relic_id)):
 		if tag in tags:
 			return true
 	return false
+
+
+func _build_tags(definition: Dictionary) -> Array[String]:
+	var tags: Array[String] = []
+	for raw_tag in definition.get("tags", []):
+		var tag := str(raw_tag)
+		if tag != "" and tag not in tags:
+			tags.append(tag)
+	for rule in definition.get("rules", []):
+		if not rule is Dictionary:
+			continue
+		var family := str(EVENT_FAMILY.get(str((rule as Dictionary).get("event", "")), ""))
+		if family != "" and family not in tags:
+			tags.append(family)
+		var effect := str((rule as Dictionary).get("effect", ""))
+		if effect in ["apply_status", "spread_status"] and "status" not in tags:
+			tags.append("status")
+	return tags
+
+
+func _equipped_build_tags() -> Array[String]:
+	var tags: Array[String] = []
+	var player := get_tree().get_first_node_in_group("player") if get_tree() else null
+	var weapon := player.get_node_or_null("WeaponController") if player else null
+	if weapon and weapon.has_method("get_archetype"):
+		var archetype := str(weapon.call("get_archetype"))
+		if archetype != "":
+			tags.append(archetype)
+			if archetype == "dagger":
+				tags.append("critical")
+				tags.append("status")
+			elif archetype in ["sword", "spear", "greatsword", "axe"]:
+				tags.append("execution")
+	return tags
 
 
 func _offer_role(relic_id: String) -> String:

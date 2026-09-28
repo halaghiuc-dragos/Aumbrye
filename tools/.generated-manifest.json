@@ -1,4 +1,2202 @@
 {
+  "apps/game/client/assets/audio/crystal_caverns/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "517297af063a89d3256cf5d6fd09955d8f68f99ac4f4399a1ee22386cbfa4d9f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/crystal_caverns/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "4f738d09a48cc4e3768bf37bc69012f6a2eb0e1a7e881d7f43fedf0f32919a36",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/crystal_caverns/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "9f622f82c5162a215bbfd2a7fac0cf25dab9e5fe8033b9e0dbf62d518d50dd7e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/crystal_caverns/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "9d746176a8c02c0be39bead0a76170697ab26968f45de287944d6d6ebb0e397c",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/dark_cathedral/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "58763b461412b1dd6e34adb0e8a69612dc480f71231798132243b0e29c52628c",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/dark_cathedral/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "e187f31542ed7dbeb995c31367c13c312fea6e73584f26836c3bfa5b20f3da3f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/dark_cathedral/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "f96b15595869f80ea57cba599f7d8f69b6cc52f0edb513dac16f5af7793e5de3",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/dark_cathedral/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "475fcb4f35b0b9fc417de3eb1e342c0445386bec6055260fc844803b731cd298",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/forgotten_castle/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "cc1d044a217d02664149513097bb84f2ed37f2710223dfaea0c443cc3c71ea30",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/forgotten_castle/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "320b2b33b457f93b44789fde84922d3e0cdcba7399b10e9e48ca753f12890867",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/forgotten_castle/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "83fc5cf4fc75bef2c132e7a9e257052c0182dc87ae57036a04e796d0f3bde6e5",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/forgotten_castle/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "462995715ca21a3c1721eace976255d300f45632d870b833429a85411932fac0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/frozen_fortress/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "07f45ccf1e443fd83046376f77249d314bbd57896c9b571c7d4eef47ef4c2104",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/frozen_fortress/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "7686943c8ceb48d58514fda127e6095b39df76e762eafa97f2c2920074bb0dc2",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/frozen_fortress/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "83fc6d89f4dcba1f09b55678839317fb0d845c0d378aca4add354cffa23b0376",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/frozen_fortress/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "d0ba76ea940ffce1a246287ce622b1ae76644d944b1179317c40706c2a6f734e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/glacial_hollow/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "6a006611a08b80ffcbb7a76b85819a927fd3bc5f4d65c15bbe60868c3ce96977",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/glacial_hollow/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "bb883f0449a8666141bf468dc94fe9afe9df4213a31393954e69c5c15a32c238",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/glacial_hollow/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "b7c391ca6cbaf6a21a5601a4daf770092d31dc6848e16f07798bdc9a998c0bcf",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/glacial_hollow/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "31add69ceb06c4e968a6d822f1bd5b84e8aca031bafd746cb24cb24bdca27806",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/iron_vault/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "26228df5434733c8eb57d640fa6cce110350950c64945d15e3fd18188dd0d2d3",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/iron_vault/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3d29dbfd05c9eed275843c1cad7f3bb025b48d70785a5767bf58bf2fca00224f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/iron_vault/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "fd9aea20734a1ab60d53fb321defb77a82bbe7ef1f3120ef6b0c1f8bf7cf6521",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/iron_vault/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "0058f7740b5c9cc5f12f7c004a9f61c67a91ac681e213ca1cf7a5ed5d89ab112",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/poison_swamp/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "663fb09c102890f380a2491fc443b8ce1c21fb5b96b5a1549126de5252f4a54c",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/poison_swamp/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "595fedb25542facc8bc9a387eabc12c4210dc597720d24f72b0f8445496a6294",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/poison_swamp/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "4f2679f55524d8449d2a351c69551a36a99eeeb1c19bf572122c44fa1082fcac",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/poison_swamp/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3365255d9308fb66d905c280ad7049ec4fd4f9c6e0abba902f8bfa0900fe4556",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/prism_depths/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3238eccc08cb87c0db9aa35bde38b8c83e78cca14e8284c9678a765dd7024939",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/prism_depths/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "66e92147e4b5911863b2db89b79c843c3b709177c7ddfdd396f1484a8477a87e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/prism_depths/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "90bee1645cb65fa88a9570a23d2bcbc60d24a66a461a9703b9f870c8ec562fe7",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/prism_depths/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "9c65600a0221b5ee4f238d2dadd7e5629782c37263f8169cf0c45be499d840bd",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/block.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "fd873d9988b133b5d332780fd8943a9e9ebce262163d53817e5154f727c79f7f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/block_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "9f13c5b5caeafb5a50615ba0ae6d5ee1bc99a994b3f3d40c5bcc91b00b1645f3",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/block_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "437f1420f32c4700218fef1bf6abd4c14bc4ef7149199a35468ddd22443c8256",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/brazier_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "f094ee7435e4953d703b2d8c265a49c96aa76b393a1b930b7b04b279a2a0ca82",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/death_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "af9de9bc9c5add2e658b3aa96af2532230239b1a57d0aaad5bb75b49da136443",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/death_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "b814b54d79e4d3c1de8639958968d106978f1aaf703b63b33e8d0e7301f29319",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/death_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "a0472727db26cd37f38fee0bec7a9c9793ddfc7bcac716c93eb5b677de5c27f7",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/dodge_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "6793264dacc6574c4240b182f653e2170da64dfbba9710187657ba2b38132131",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/dodge_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "552a6269c4b224dc96f5f05149483eeb7642802921555c5aafe76a943a26396f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/dodge_perfect.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "c8d178f935273ed2e44192fb37f32f9e517df051a112db572704316b95f97c12",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/door_open.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "23d312a996f8e24b9f1a5203ec15fcd5a7879c06d3f088d233ae2a9cf1a9cc85",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/door_release.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "cfc1d96451effa70a27d0dde2ab5f55518a97582b380c439d8fc97976406908d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/door_seal.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "4041413fb82124243e9ab133236c917be3df7d0113a1982c943eec8c07bf8b4e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/execution_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "bd33866d3e2ef7c5b57211f508224191a4167dc91b84083bcad185a156ff85b9",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/execution_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3a2842ceb87823aa9fe6a687257a227405a8c425a45938539acfb57297cd70db",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/exhausted.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "cda3c367177eff757c0b01caef1e3485d05e4b04dd69ec5f5adc765e403114ff",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/footstep_snow.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "3785a0c6dcdf86403d0b2e1dbc34e4c51eeb993622048ffe21e7e6aff8166dbc",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/fountain_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "28bbc34684f0fa0117eba4c07fd00ed66ca66420cfc4b9d01a8814770297bc1d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/guard_break.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "93b97e5946ec23289206b43444193c09f60e914fd792951ba484c34452f33f80",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/heal_commit.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "522ec66e523206161aa98a70e7a13756d2d2d551edae84aa438186df6aa3f623",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/heal_gulp.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "f19b63acc867d691743f1ed6ce771ff0f5856c464b5e7ba651c45379b2eb74a8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/heal_raise.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "7477fd18378e20fbfcca9c97015505b18605ff22d73c0ec50a68741c2d8af6f9",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "181ec650987cc88ff1a33a93ef4decd30470f55f3ec64375a32092dd8bd1a6ac",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_armor.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "4d24c9638a8f24e94c4e390e1073879614362c13f59141ba5bca0f46028c3b19",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_armor_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "001e32a3abcfdf0aed7ff4ee060e68760ce962a26039599f22ea568a25b592e0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_armor_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3a1e590d8633b12a56f906d12d8bbe3621c26954a8a64ea95c63ac2df9aa5ea0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_bone.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "07d507baa4262275013a9af02e7e6e26950a0f96cccf08ca16d65f247259961d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_bone_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "863ad9badde3fb224d0268dcd15dc4c7e44fd0d670232fd9638e8d1052ba3d62",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_bone_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "65f6f36df2d8376f54e09f178a31f95f2425f8f97ca2e617375eb9a00d61aec9",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_crystal.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "ab1f51f6f783761aa8048c9067e80504c372fce79435564324368f1fee4e45be",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_crystal_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "a6e2124ed923a08d6d32bae296ca185b72c466c3c8a6fcc8dc38f39f6c37f17f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_crystal_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "a034db55f6a73c3998705cfaba0fe42c0acba63ed0b4d235b7e8bae9d7ec3607",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_flesh_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "e32a5b7341f19086770b306d6c429d1c9964aa007a0a0facaf514ee995b9138b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_flesh_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "d31eb110f277a9206add81f33e99826882154a00c51653696f4d7eaed0a0fbfd",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_flesh_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "4d708a14be8f0ca630eaf209de1c01de329816dc06373733473f786f81ec06a1",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_ooze.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "5c3031e15391d4ab67837242d986a0de3a7489fbf307b02b890ac1106cf04be3",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_ooze_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3dea594bd6f19bf6db1bd8f3712be71d9e1d29d8a2e6a651379b336d5a7f69f8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_ooze_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "be18016fe028c22da1b1af752f308e0195dbd5c61d2b4e62f83ae4326e117b2d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_poise_break.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "68b568ce97b1833fc64ef7811509f91ff27cd8538bae52fedf4b52876fc58e0b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_stone.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "c6e9a592693bade2f42908794bb3705d33dee92c78561d07aa202a647560a26b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_stone_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "9cbf3b99ff7fb666588f56af4a266a2df37aad1be943e44508d4884a55540861",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/hit_stone_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "bf9188571a5b86899c019471cd36aafb6076f89b3119cbdbd914d7da4352ae79",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/key_taken.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "cdfc84aee2dedb67c3d3dc46a7a027bdb41cc7feb7be969c90312f9af87f0eec",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/lever_pull.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "2fe1378f9c6a02d53b373141374f674117bd0f1d65a63628c671529be56ceceb",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/lever_unlock.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "a5c4e3e16e2ea480d183171546c781d2943f5332d1973e1cbca9a8e1eb68952b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/lock_opened.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "53956c2eaec3b3196178e41e59586da78014b95c337b307f86a3612800b9b756",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_aumbral.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "18afe2a325a444352c05f79db82a233e73623ea09ebd393ddfe6aa057f31cf17",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_common.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "a3465c483cc509478d654206adc0d506ab3ad7c6272318487107f5ef5d0d53c8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_epic.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "3af9c236a7a20caf938285e0d76f2a2d0ef70d3d05a796aee2390f62ef2cea01",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_legendary.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "bed098959d9f6667efd19486ebd7d75086fd9e1b99aadfc1532b68d858544893",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_magic.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "404366a2740b7f65f9876aa4b05dcfeda596e7fe1a5a14ab74bfab126b10fbfc",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/loot_drop_rare.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "30fdfbf6325481f1166035e2bab240e477b825a97ef56803f5ae124cf0683c49",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/npc_murmur_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "254ff614abddc7cf68530839295b8237c4ed121fe197ce4733a17496d379f405",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/npc_murmur_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "1e7c67e37508f45ebd9930e8871828cc133cd2993c2aab715a16aef0160cc675",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/npc_murmur_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "36d07aec465d813fde7c04e203a247e0b068eb2e39a52692b503970d40b42a08",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/npc_murmur_04.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "07cb39e78509a87af8ae5d24afa1e0066bfb3498a6bcb319c300e551e360c08e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/parry.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "2d3eed7f0df7cb8f0dd4e3dec2d3dba1cf6443346d254d60f7cc3ccf460a8ba0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/parry_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "d02bdd17e581b39e0a7febc2e339c744c41598b391fd026a393c8919d4db0d96",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/parry_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3b4005dadc060ead9f10ac5891178e2d791ce0ca04045f5d973e690dc218ae39",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/personal_best.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "375536dec60025e7f5c5bb35ba2671558fd2137fc8e56cea1a2a87ef6027a7ed",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_enter.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "9fc1c8427930b56d0d3347cc1d9cadfe647191ebfe3fda5bc3924af2c5f430a8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_castle.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "2d64e528b8001275ea27550db4454e95d59b60a15717d9e34aa9880c971d441b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_cathedral.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "a47c46730ec4b8b84219c5981c1bd0163150a8dd1aca0dd80c60aaecd082c3c6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_crystal.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "879b1a8c3a3acda7d3396dac231d96cb6ddcc03820a3b588d1e53cd20db9c28f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_frozen.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "9ff43ee021335801de33ae1c72cea77baee87fb1139dbe1e47574ed4f9ed1c5e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_hollow.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "b3b019c74adf5e67b7deedb9e3cff4333ccdbe77a838aaadbd1fc576f609323a",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_mire.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "0b7e5290f6feae455d0f81394e33fd2726eeff6e5702d28d3561983245ba9d97",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_prism.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "5eaca74e371b811906d05805911d18b884bb62a35d1f07d3fb02e98c4c19be0e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_skies.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "b8bbf80619bb3a6fcdff512504172ade47e48166e2bcdd6cc1cd95a646d6b77c",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_swamp.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "6dd5d568e707d6d7a1028fabc881c15df7839473ec6a1f7f11ff62cb378009c1",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_training.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "5e0c2e2d8c671b0d74a71f2c99bc5d88bf6c00bca4cb711c69f7d1ede8ea73da",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_umbral.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "404e222e514b3a1e56977b8488d2c513489d1ece0b6911989afa962a004fede1",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_hum_vault.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "18eb6704a7446d8170f44d0e3f5c74423f888ed40a0c0971f0b6b8a228d38001",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/portal_open.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "612420a8bbef16b81014a034275bf0d665bfaa04cd92bfcb317f50899a1971a7",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/rare_drop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "1087f691007d03bdbe3517c53b89b2906ee204d11d053cacd2402d09e1ea06de",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/resource_denied.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "f6a51e9ded79bd2f842dde3e892885380aa22db55852f45851e2bba8f624524b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/secret_found.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "b51fe2a827a9facc1784e79993c72fb01004ed8216e8b4a46fde74684f5a73e4",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/shortcut_opened.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "7f25fee6244525ea825372285d7907186059fa9adf056d80c1dc38c9dfd1d1bd",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_snow_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "b95b6cfd1371685ebfd67b8727a5a44dff76027c8abb731573139ed08e1c59b0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_snow_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "97dfb6ea52eed7c0485a5d45a95d9a58cde21ff856093421e10b3da2832e79c2",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_snow_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "c8664b58f3ad0277080cdef72f8a174908455512d2ab6169193f30190562d4e1",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_stone_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "fbb5a9921656e30f4797f964734221aab2fbee0f151bb90ed9d3886c383d7a48",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_stone_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "495afa639e842fa5e58de9ad999d543df776fb3553e6c2ea1697ecdcfd457a3d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_stone_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "1243741bd56079a364ae9865b7ff8c2d256509d8267e854a9a1b1db24acc8b62",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_water_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "c3188d7fe829f260497cb0e3e010b2c47a596fd8acbbb4890de14601ae720f4f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_water_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "df3c0a571e573604110ba320974f199b5bb217aaf86e6a087c7f51c601d42442",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_water_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "3bda83a5e16a520a6f8787862444cfc89f5b883ce488519425276e2a5ef4da94",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_wood_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "75b5d61b1760264356e8e751c772b7fad757d2bf0458117e73836edce44c72d9",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_wood_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "3ccd2d3050c90a99a9e726f4bb0023aceed505de81e9193b5fab1ffc3c4a2991",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/step_wood_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "098a5aad3e1aded290fcdd7a2c1c4a2efbe80fb20d29606dccb3a0603192ffa0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/stray_bark.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "91cb5ab59dd5d1a9ab69315811410d3d334889a0532160af8c398303b8b17e47",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/stray_meow.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "b1839da5ea0bf4eca3ce8876bf08309eecae645b9cfcc4245a2b512dcf9ce4a9",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/swing_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "76b38aa506a424b14d57065e41222641b70f1be898ef7352e5359ea3864be0c6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/swing_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "8541b0f40efdd113677397a293f0b2e55ad9b152d75528e91cfea2b555f9e838",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/swing_03.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "145e9a520f193369e51b2dfc2e05549956f5cc8fffbcbc90b6337a40eb894a6d",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/swing_04.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "5f70ed29a30c5b70308738853517e5333a0a135383b11f6013d3c4ae925a793a",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/ui_click_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "0b8fb126c5693d07a66546b5d8c999b98b694c6839b9a4f3406c683a99889dd8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/ui_interact_near.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "19843e3628a7ad2888a4a7e6be0c8a2ff7be7c3f1304db78bc3aaf6f773dcd67",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/weather_rain_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "856b7bd6bf737c951cb4f098952a5d6298f5d69eb9c0300cf1d723669df23629",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/weather_wind_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "cea7f2c46b50447c5f30ed35d7a3c44ceb854c37db561d45e8ee57b97283b3c6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_01.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "082ca6e457096efcd91aa662a6228456ce318389cda20e00c661c3d4769423bc",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_02.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "1620b3b4b9dcf7aeaa94fe425911dd9dc950e96abba40453b532b1dbdb0ebe53",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_blockable.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "f8545b3c89f5c0c63acbd2c78110146c3024e83ac82dc1f35ac272f8ca280fc0",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_grab.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "aa046d5f263560f6bd6b9b918a76355435a9ed116fb9268d1b9759528c5823b6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_parryable.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "e925bd0a69607f94fc35d993252aa29aa29b42aae3c818aa3517543a21b0d83b",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/sfx/windup_unblockable.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": true,
+    "outputSha256": "527927ff8344c27725b120dbfe16535fc86bd7912678701a8165e65e5d87a4af",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/hub_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "832a0aa560a62c900bb9df0cec36dc84138fa7e355c9150f2c0e1fdf129d38d6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_boss.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "b3eb92d4a2f350869a965f9185ea7ce0d6bb2a1d020b90b57cd494c3c272ced3",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_clear.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "87bd629362193e805016807b7abdbff68988f88c8666d58cc6da2135afbeca61",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_key.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "ed8ba06d6fd574a6554f0315a8bfabd74aea4379fe64ec4ec7c52dd0ef8c4e30",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_lock.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "aecef737e30d740225488e0ae3153d6270280f742b898010d79024d039a8dca6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_personal_best.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "611601e6569457b572e826735ce8c62f9ab4a1dbe58288ed8e2b24cb6e378654",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_poise_break.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "c3d221789187d0f8aebad3c8fde51528fab3cce46b906fb20bd725f2f483cb43",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_rare_drop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "3be8559a31880d1cd071e8ee4d8f3228733438fc7c7fea3889441d21cbd60939",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_secret.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "51c6ddb60ff9b85e2dcc4f2177d3b05b708af4c81fe69a9f7d24585991e804c5",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/sting_shortcut.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "d08ed2a6149202daa97f0ba2be148b086d3fe27cfe0d88112a013a4afa9329cc",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/shared/title_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "510375be76a7ef2e36726464fb9faf48acaf2762ec87172f8ab1f5fa189b1d0e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/umbral_chapel/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "f76ec3ea7973c662759f403db87d996aa0e0abe6ba4eb6f8fadb1bddd0770544",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/umbral_chapel/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "23283627f75eb16f09f24139a97f3f8002c923ec280231c85221bd40cdb9a59e",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/umbral_chapel/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "077157af93c9be699e74f32c853dd87ed0b99b284280863b8d4c1f8d0b7b2fcf",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/umbral_chapel/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "ec59c350bfdc796d47b49eb6b85f9fbe5d3feb0ba0ba00bdbae4accb80f5d639",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/venom_mire/ambience_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "149cebe6515038e544278ac676d0084d057239d800660448b3702bc7f83b7c18",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/venom_mire/boss_theme.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "fd18e95d8cf042394b0cf0f0042de4ca0425e371029cb2a4f69c4c6e824c69f8",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/venom_mire/combat_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "b7f656fb1abdfd945978cba0f7e0fa861fe5e31ab31d751ba6fac452120c1d3f",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
+  "apps/game/client/assets/audio/venom_mire/explore_loop.ogg": {
+    "generator": "tools/generate_dark_audio.py",
+    "generatorSha256": "0a4ecf18322da33b851e643ade29d6bcaf04c6265cd4f27260c7f03118e03ac0",
+    "manualOverride": false,
+    "outputSha256": "5d12454fefc728387e5e0daf2dbbe2fe29843d4944142b70c2b8a14eaa1517c6",
+    "seed": 20260928,
+    "sources": {
+      "tools/audio_synth.py": "e422d0a3bf9071cb7a2cd7376e181f87aaf1c2bd38409e11fdc539f050794ad7",
+      "tools/generate_foley.py": "107b8063ccbfbeec59ccb71e788946d89b1064814e7fb4a0e80b9ef6ed22157c",
+      "tools/generate_sfx.py": "d06bdb66139aa13bfa53458fbf5ec0c6107eb92203824f3bce9f158681d3b82b",
+      "tools/generate_weather_audio.py": "054b50d78b01f0629b7bffb64ac7ae34428b7c84e6f3c1886210984b8c0c4b64",
+      "tools/generated_manifest.py": "90a6e2aa710ef3f80ee96da706077e8547da1b0ec8a10dfbdced61df1f935488"
+    }
+  },
   "apps/game/client/assets/characters/enemy_biome_castle/arml.voxels.json": {
     "generator": "tools/generate_character_voxels.py",
     "generatorSha256": "045786d130e491628aa700e885262860edd1344f8aecce78f36b9b1d41732329",

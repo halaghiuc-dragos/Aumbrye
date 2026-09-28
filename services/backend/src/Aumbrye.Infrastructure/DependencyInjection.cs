@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddSingleton<ISteamAuthService, SteamAuthService>();
         services.AddSingleton<IDungeonGenerator, ProceduralDungeonGenerator>();
         services.AddScoped<IRunService, RunService>();
+        services.AddScoped<IRankedProgressionObserver, RankedProgressionObserver>();
         services.AddScoped<ISaveService, SaveService>();
         services.AddScoped<ILeaderboardService, LeaderboardService>();
 

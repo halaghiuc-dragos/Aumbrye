@@ -20,10 +20,12 @@
     "hit_armor": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/hit_armor.ogg"
+        "res://assets/audio/sfx/hit_armor_02.ogg",
+        "res://assets/audio/sfx/hit_armor_03.ogg"
       ],
       "volume_db": -1.0,
       "pitch_jitter": 0.06,
+      "pitch_variants": [-0.16, 0.0, 0.13],
       "max_concurrent": 3,
       "cooldown_ms": 40,
       "fallback_tone": {
@@ -34,10 +36,12 @@
     "hit_stone": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/hit_stone.ogg"
+        "res://assets/audio/sfx/hit_stone_02.ogg",
+        "res://assets/audio/sfx/hit_stone_03.ogg"
       ],
       "volume_db": -1.5,
       "pitch_jitter": 0.05,
+      "pitch_variants": [-0.12, 0.08],
       "max_concurrent": 3,
       "cooldown_ms": 40,
       "fallback_tone": {
@@ -48,10 +52,12 @@
     "hit_crystal": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/hit_crystal.ogg"
+        "res://assets/audio/sfx/hit_crystal_02.ogg",
+        "res://assets/audio/sfx/hit_crystal_03.ogg"
       ],
       "volume_db": -2.0,
       "pitch_jitter": 0.09,
+      "pitch_variants": [-0.18, 0.1, 0.22],
       "max_concurrent": 3,
       "cooldown_ms": 40,
       "fallback_tone": {
@@ -62,10 +68,12 @@
     "hit_bone": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/hit_bone.ogg"
+        "res://assets/audio/sfx/hit_bone_02.ogg",
+        "res://assets/audio/sfx/hit_bone_03.ogg"
       ],
       "volume_db": -2.0,
       "pitch_jitter": 0.07,
+      "pitch_variants": [-0.14, 0.06],
       "max_concurrent": 3,
       "cooldown_ms": 40,
       "fallback_tone": {
@@ -76,10 +84,12 @@
     "hit_ooze": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/hit_ooze.ogg"
+        "res://assets/audio/sfx/hit_ooze_02.ogg",
+        "res://assets/audio/sfx/hit_ooze_03.ogg"
       ],
       "volume_db": -2.0,
       "pitch_jitter": 0.1,
+      "pitch_variants": [-0.2, 0.0, 0.18],
       "max_concurrent": 3,
       "cooldown_ms": 40,
       "fallback_tone": {
@@ -119,15 +129,47 @@
     "parry": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/parry_01.ogg"
+        "res://assets/audio/sfx/parry_01.ogg",
+        "res://assets/audio/sfx/parry_02.ogg"
       ],
       "volume_db": 0.0,
       "pitch_jitter": 0.04,
+      "pitch_variants": [-0.08, 0.0, 0.12],
+      "layers": [{"key": "hit_crystal", "volume_db": -15.0, "pitch": 1.55, "chance": 0.7}],
       "max_concurrent": 2,
       "cooldown_ms": 60,
       "fallback_tone": {
         "freq": 440.0,
         "duration": 0.12
+      }
+    },
+    "dodge": {
+      "bus": "SFX",
+      "variants": ["res://assets/audio/sfx/dodge_01.ogg", "res://assets/audio/sfx/dodge_02.ogg"],
+      "volume_db": -12.0,
+      "pitch_jitter": 0.05,
+      "pitch_variants": [-0.22, -0.08, 0.08],
+      "max_concurrent": 2,
+      "cooldown_ms": 120,
+      "fallback_tone": {"freq": 220.0, "duration": 0.1}
+    },
+    "execution": {
+      "bus": "SFX",
+      "variants": [
+        "res://assets/audio/sfx/execution_01.ogg",
+        "res://assets/audio/sfx/execution_02.ogg"
+      ],
+      "volume_db": -1.5,
+      "pitch_jitter": 0.04,
+      "pitch_variants": [-0.08, 0.0, 0.1],
+      "layers": [{"key": "hit_poise_break", "volume_db": -11.0, "pitch": 0.8, "chance": 0.85}],
+      "max_concurrent": 2,
+      "cooldown_ms": 180,
+      "priority": 3,
+      "spatial": {"unit_size": 14.0, "max_distance": 48.0, "occlusion": true, "occluded_volume_db": -4.0},
+      "fallback_tone": {
+        "freq": 392.0,
+        "duration": 0.28
       }
     },
     "heal_raise": {
@@ -175,11 +217,12 @@
     "swing": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/swing_01.ogg",
-        "res://assets/audio/sfx/swing_02.ogg"
+        "res://assets/audio/sfx/swing_03.ogg",
+        "res://assets/audio/sfx/swing_04.ogg"
       ],
-      "volume_db": -6.0,
+      "volume_db": -4.8,
       "pitch_jitter": 0.06,
+      "pitch_variants": [-0.18, 0.0, 0.14],
       "max_concurrent": 3,
       "cooldown_ms": 30,
       "fallback_tone": {
@@ -190,10 +233,13 @@
     "death": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/death_01.ogg"
+        "res://assets/audio/sfx/death_02.ogg",
+        "res://assets/audio/sfx/death_03.ogg"
       ],
       "volume_db": -3.0,
       "pitch_jitter": 0.1,
+      "pitch_variants": [-0.2, 0.0, 0.16],
+      "layers": [{"key": "hit_armor", "volume_db": -16.0, "pitch": 0.68, "chance": 0.45}],
       "max_concurrent": 4,
       "cooldown_ms": 80,
       "fallback_tone": {
@@ -237,10 +283,12 @@
     "windup": {
       "bus": "SFX",
       "variants": [
-        "res://assets/audio/sfx/windup_01.ogg"
+        "res://assets/audio/sfx/windup_01.ogg",
+        "res://assets/audio/sfx/windup_02.ogg"
       ],
       "volume_db": -6.0,
       "pitch_jitter": 0.05,
+      "pitch_variants": [-0.12, 0.0, 0.1],
       "max_concurrent": 3,
       "cooldown_ms": 100,
       "fallback_tone": {
@@ -289,6 +337,8 @@
       ],
       "volume_db": -5.0,
       "pitch_jitter": 0.04,
+      "pitch_variants": [-0.1, 0.0, 0.08],
+      "layers": [{"key": "windup", "volume_db": -16.0, "pitch": 0.62, "chance": 0.75}],
       "max_concurrent": 3,
       "cooldown_ms": 100,
       "fallback_tone": {
@@ -305,6 +355,8 @@
       ],
       "volume_db": -4.0,
       "pitch_jitter": 0.03,
+      "pitch_variants": [-0.08, 0.0, 0.09],
+      "layers": [{"key": "windup", "volume_db": -17.0, "pitch": 0.78, "chance": 0.65}],
       "max_concurrent": 3,
       "cooldown_ms": 100,
       "fallback_tone": {

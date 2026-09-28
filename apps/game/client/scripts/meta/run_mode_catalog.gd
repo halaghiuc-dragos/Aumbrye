@@ -56,7 +56,7 @@ static func scoring_of(mode_id: String) -> String:
 
 
 static func base_modifiers(mode_id: String) -> Array[String]:
-	return _string_array(get_mode(mode_id).get("modifiers", []))
+	return RunModifierService.normalize_compatible(_string_array(get_mode(mode_id).get("modifiers", [])))
 
 
 static func modifiers_for_floor(mode_id: String, floor_index: int) -> Array[String]:
@@ -71,7 +71,7 @@ static func modifiers_for_floor(mode_id: String, floor_index: int) -> Array[Stri
 			for modifier_id in _string_array((step as Dictionary).get("modifiers", [])):
 				if modifier_id not in active:
 					active.append(modifier_id)
-	return active
+	return RunModifierService.normalize_compatible(active)
 
 
 static func unlock_condition(mode_id: String) -> Dictionary:
@@ -144,6 +144,13 @@ static func _ensure_loaded() -> void:
 			continue
 		var mode_id := str((entry as Dictionary).get("id", ""))
 		if mode_id == "":
+			continue
+		if _modes.has(mode_id):
+			push_error("RunModeCatalog: duplicate mode id '%s'; keeping the first entry" % mode_id)
+			continue
+		var base_mode := str((entry as Dictionary).get("baseMode", ""))
+		if base_mode not in [RunModeConfig.MODE_CASTLE, RunModeConfig.MODE_ENDLESS]:
+			push_error("RunModeCatalog: mode '%s' has unsupported base mode '%s'" % [mode_id, base_mode])
 			continue
 		_modes[mode_id] = entry
 		_order.append(mode_id)

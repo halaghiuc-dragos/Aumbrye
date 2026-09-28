@@ -41,6 +41,8 @@ const DISTANCE_CHECK_INTERVAL := 0.5
 ## colour in this file already uses -- red damage, tan poise, class-tinted telegraphs.
 const ELITE_NAME_COLOR := Color(0.95, 0.78, 0.25, 1.0)
 const ELITE_NAME_OFFSET_Y := (BAR_TEX_H * PixelStyle.WORLD_PIXEL) + 0.14
+const EXECUTION_LABEL_COLOR := Color(1.0, 0.84, 0.3, 1.0)
+const EXECUTION_LABEL_OFFSET_Y := (BAR_TEX_H * PixelStyle.WORLD_PIXEL) + 0.28
 
 var _bg_sprite: Sprite3D
 var _fill_sprite: Sprite3D
@@ -55,6 +57,7 @@ var _alive := true
 var _in_range := true
 var _distance_timer: Timer
 var _elite_label: Label3D
+var _execution_label: Label3D
 
 
 func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise = null) -> void:
@@ -168,12 +171,35 @@ func _on_poise_changed(current: float, max_value: float) -> void:
 		_apply_fill(_poise_fill_sprite, ratio)
 		if ratio > 0.001:
 			_poise_fill_sprite.modulate = POISE_FILL_COLOR
+	if ratio > 0.001 and _execution_label:
+		_execution_label.visible = false
 
 
 func _on_poise_broken() -> void:
 	if _poise_fill_sprite == null:
 		return
 	_poise_fill_sprite.modulate = Color(0.95, 0.4, 0.25, 1.0)
+	_show_execution_window()
+
+
+## A broken poise bar alone is easy to miss in a crowded fight. This small, short-lived marker
+## states the opportunity in the same world space as the enemy, then disappears as soon as poise
+## begins recovering or the enemy dies.
+func _show_execution_window() -> void:
+	if _execution_label == null:
+		_execution_label = Label3D.new()
+		_execution_label.name = "ExecutionWindow"
+		_execution_label.text = "EXECUTE"
+		_execution_label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		_execution_label.font_size = 18
+		_execution_label.outline_size = 8
+		_execution_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+		_execution_label.modulate = EXECUTION_LABEL_COLOR
+		_execution_label.position.y = EXECUTION_LABEL_OFFSET_Y
+		_execution_label.no_depth_test = true
+		_execution_label.render_priority = BAR_PRIORITY_GLYPH + 1
+		add_child(_execution_label)
+	_execution_label.visible = true
 
 
 
@@ -255,5 +281,7 @@ func _on_died() -> void:
 		_poise_bg_sprite.visible = false
 	if _poise_fill_sprite:
 		_poise_fill_sprite.visible = false
+	if _execution_label:
+		_execution_label.visible = false
 	_alive = false
 	_apply_visibility()

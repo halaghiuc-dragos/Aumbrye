@@ -50,4 +50,12 @@ static func bulwark_stability_bonus(body: Node) -> float:
 
 
 static func arcane_focus_mana_on_hit(body: Node) -> float:
-	return ARCANE_FOCUS_MANA_ON_HIT if is_player_perk(body, ARCANE_FOCUS) else 0.0
+	if not is_player_perk(body, ARCANE_FOCUS):
+		return 0.0
+	var weapon := body.get_node_or_null("WeaponController")
+	# The Scholar can carry a bow or dagger as a safety valve, but only staff contact routes mana
+	# back into casting. That makes the mixed stamina/mana staff kit a deliberate loop rather than
+	# a generic class refund that follows every weapon.
+	if weapon == null or not weapon.has_method("get_archetype") or str(weapon.call("get_archetype")) != "staff":
+		return 0.0
+	return ARCANE_FOCUS_MANA_ON_HIT

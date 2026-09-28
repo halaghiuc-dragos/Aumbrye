@@ -33,7 +33,11 @@ const CLAMP_REPORT_MARGIN := 0.35
 const CLAMP_REPORT_FRAMES := 30
 
 const STRIDE_SCALE_BY_PROFILE := {
-	"hound": 0.55,
+	# The shared quadruped clip travels 1.6m per cycle. A 0.55 scale made a hound's
+	# 4.6m/s chase demand 4.2x playback, which was safety-clamped to 2.2x and left its
+	# feet visibly behind its actual travel.  This calibrated stride keeps the same chase
+	# inside the authored playback ceiling while preserving the gait's contact cadence.
+	"hound": 1.1,
 	"brute": 1.25,
 }
 

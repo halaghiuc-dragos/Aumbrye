@@ -5,6 +5,7 @@
   "damage_type": "physical",
   "buffer_window": 0.15,
   "lunge_distance": 0.35,
+  "perfect_dodge_moment": {"label": "Iron Answer", "duration": 2.4, "damageMult": 1.25, "poiseMult": 1.5, "hyperarmor": true},
   "cancel_into": [
     "dodge",
     "guard"

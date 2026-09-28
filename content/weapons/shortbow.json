@@ -4,6 +4,7 @@
   "archetype": "bow",
   "damage_type": "physical",
   "draw_time": 0.52,
+  "perfect_dodge_moment": {"label": "Hunter's Opening", "duration": 2.4, "damageMult": 1.32, "poiseMult": 1.25},
   "projectile_speed_multiplier": 0.9,
   "buffer_window": 0.18,
   "cancel_into": ["dodge", "guard"],

@@ -15,7 +15,7 @@ from archetypes import (
     equipment_archetypes,
     theme_colours,
 )
-from godot_mesh_writer import mesh_resource_path, write_mesh
+from godot_mesh_writer import mesh_resource_path
 from mesh_builder import EDGE, mesh_model, validate_mesh_on_grid
 from palette import snap_colour
 from vox_io import build_box_model, write_vox
@@ -67,36 +67,14 @@ def generate_all(write_vox_files: bool = True) -> None:
 def convert_vox_tree(
     source_root: Path, output_root: Path, *, force: bool = False, dry_run: bool = False
 ) -> None:
-    outputs: list[tuple[Path, bytes]] = []
-    sources: list[Path] = []
-    from vox_io import read_vox
-
-    with tempfile.TemporaryDirectory(prefix="aumbrye-voxel-cli-stage-") as temp_dir:
-        stage_root = Path(temp_dir)
-        for vox_path in sorted(source_root.rglob("*.vox")):
-            model = read_vox(vox_path)
-            for index, colour in enumerate(model.palette):
-                if index == 0:
-                    continue
-                try:
-                    snap_colour(colour)
-                except ValueError:
-                    pass
-            mesh = mesh_model(model)
-            validate_mesh_on_grid(mesh)
-            rel = vox_path.relative_to(source_root)
-            staged_path = stage_root / rel.with_suffix(".tres")
-            write_mesh(staged_path, mesh)
-            outputs.append((output_root / rel.with_suffix(".tres"), staged_path.read_bytes()))
-            sources.append(vox_path)
-    if not outputs:
-        raise ValueError(f"No .vox inputs found under {source_root}")
-    write_generated_bytes_set(
-        outputs,
-        generator=Path(__file__).resolve(),
-        sources=sources,
-        force=force,
-        dry_run=dry_run,
+    _ = source_root
+    _ = output_root
+    _ = force
+    _ = dry_run
+    raise SystemExit(
+        "convert-tree is retired: its Godot 3 .tres serializer cannot produce usable Godot 4 "
+        "ArrayMeshes. Use tools/generate_character_voxels.py; runtime mesh construction owns "
+        "the supported voxel asset format."
     )
 
 

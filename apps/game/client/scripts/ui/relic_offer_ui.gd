@@ -135,6 +135,18 @@ func _make_card(relic_id: String) -> Control:
 		GameUISkinScript.style_hint_label(ready_label)
 		card.add_child(ready_label)
 
+	var family_matches: Array[String] = RunBuffs.offer_family_matches(relic_id) if RunBuffs else []
+	if not family_matches.is_empty():
+		var synergy_label := Label.new()
+		var labels: Array[String] = []
+		for family in family_matches:
+			labels.append(family.capitalize())
+		synergy_label.text = "Build synergy: %s" % " • ".join(labels)
+		synergy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		synergy_label.add_theme_color_override("font_color", Color(COLOR_GIVES))
+		card.add_child(synergy_label)
+
 	var body := RichTextLabel.new()
 	body.bbcode_enabled = true
 	body.fit_content = true

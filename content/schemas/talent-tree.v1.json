@@ -36,6 +36,10 @@
           "type": "string",
           "minLength": 1
         },
+        "translationId": {
+          "type": "string",
+          "minLength": 1
+        },
         "nameKey": {
           "type": "string",
           "minLength": 1

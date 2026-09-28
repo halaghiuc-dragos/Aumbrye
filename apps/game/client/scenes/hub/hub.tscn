@@ -95,6 +95,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0.5)
 billboard = 1
 font_size = 22
 
+[node name="ServiceRouteLabel" type="Label3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 3.4, 3)
+billboard = 1
+modulate = Color(0.88, 0.79, 0.56, 1)
+font_size = 18
+outline_size = 4
+
 [node name="CastlePortal" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.0, -17.0)
 

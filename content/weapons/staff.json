@@ -5,6 +5,7 @@
   "damage_type": "arcane",
   "buffer_window": 0.2,
   "lunge_distance": 0.25,
+  "perfect_dodge_moment": {"label": "Resonant Reply", "duration": 2.2, "damageMult": 1.32, "poiseMult": 1.4},
   "cancel_into": [
     "dodge",
     "guard"

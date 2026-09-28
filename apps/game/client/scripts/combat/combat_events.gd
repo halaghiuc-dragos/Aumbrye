@@ -307,6 +307,15 @@ func _passes_conditions(rule: Dictionary, ctx: Dictionary) -> bool:
 			return false
 		if str(weapon.call("get_archetype")) != required_archetype:
 			return false
+	if rule.has("ifTargetDistanceAtLeast"):
+		var distance_actor := ctx.get("actor") as Node3D
+		var distance_target := ctx.get("target") as Node3D
+		if distance_actor == null or distance_target == null:
+			return false
+		var actor_flat := Vector2(distance_actor.global_position.x, distance_actor.global_position.z)
+		var target_flat := Vector2(distance_target.global_position.x, distance_target.global_position.z)
+		if actor_flat.distance_to(target_flat) < float(rule.get("ifTargetDistanceAtLeast", 0.0)):
+			return false
 	if rule.has("ifHealthBelow"):
 		var actor_health_node := ctx.get("actor") as Node
 		var health := actor_health_node.get_node_or_null("Health") if actor_health_node else null

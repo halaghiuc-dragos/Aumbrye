@@ -137,7 +137,12 @@ var _last_light_index := -1
 var _execution_kind := ""
 var _execution_target: Node3D = null
 var _execution_iframes := false
+var _weapon_moment_announced := false
 var _body_reports_sprint := false
+## A weapon's small, identity-defining counterplay payoff. It is armed only by an actual
+## i-frame evade (not by rolling), expires quickly, and is consumed by the next committed swing.
+var _weapon_moment: Dictionary = {}
+var _weapon_moment_timer := 0.0
 
 
 func _ready() -> void:
@@ -161,6 +166,8 @@ func _ready() -> void:
 	if _dodge:
 		_dodge.dodge_started.connect(_on_dodge_started)
 		_dodge.dodge_ended.connect(_on_dodge_ended)
+		if _dodge.has_signal("perfect_dodge_landed"):
+			_dodge.perfect_dodge_landed.connect(_on_perfect_dodge_landed)
 	if _guard:
 		_guard.block_state_changed.connect(_on_guard_state_changed)
 	if _body.has_signal("landed"):
@@ -189,6 +196,10 @@ func get_debug_state() -> String:
 
 
 func _physics_process(delta: float) -> void:
+	if _weapon_moment_timer > 0.0:
+		_weapon_moment_timer -= delta
+		if _weapon_moment_timer <= 0.0:
+			_weapon_moment.clear()
 	if _body and _body.has_method("is_on_floor"):
 		if _body.is_on_floor():
 			_airborne_timer = 0.0
@@ -301,14 +312,20 @@ func get_weapon_art_cooldown_duration() -> float:
 
 ## HD-06: the HUD reads combat state through getters rather than reaching into private fields.
 func get_next_attack_cost() -> float:
+	return float(get_next_attack_costs().get("stamina", 0.0))
+
+
+## A move may spend either resource (or both in future content).  Returning a named contract
+## avoids encoding the staff's mana-light rule as "zero stamina" in UI consumers.
+func get_next_attack_costs() -> Dictionary:
 	var lights: Array = _weapon_data.get("light_attacks", [])
 	if lights.is_empty():
-		return 0.0
+		return {"stamina": 0.0, "mana": 0.0}
 	var attack: Dictionary = lights[_combo_index % lights.size()]
-	# CB-05: a mana-costed attack (the staff) has nothing to show on the stamina ghost.
-	if float(attack.get("mana_cost", 0.0)) > 0.0:
-		return 0.0
-	return _scaled_stamina_cost(float(attack.get("stamina_cost", 10.0)))
+	return {
+		"stamina": _scaled_stamina_cost(float(attack.get("stamina_cost", 0.0))),
+		"mana": float(attack.get("mana_cost", 0.0)),
+	}
 
 
 func is_two_handed() -> bool:
@@ -989,11 +1006,22 @@ func _try_start_execution() -> bool:
 	# just granted above, so it never costs the player control.
 	if _camera_spring and _camera_spring.has_method("play_execution_framing"):
 		_camera_spring.call("play_execution_framing", victim)
+	# A restrained, warm pulse makes the successful high-commitment action legible without
+	# concealing incoming telegraphs. It follows the player's motion accessibility setting.
+	if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_screen"):
+		PixelDioramaViewport.pulse_screen(PixelDioramaViewport.ScreenPulse.EXECUTION)
+	if AudioDirector:
+		AudioDirector.play_sfx("execution", _body.global_position + Vector3(0.0, 1.0, 0.0))
+	if VfxService:
+		var execution_anchor: Array = VfxService.resolve_combat_anchor(_body)
+		VfxService.play_execution(execution_anchor[0], execution_anchor[1])
 	_attack_name = kind
 	_combo_index = 0
 	_last_light_index = -1
 	if CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_EXECUTE, {"actor": _body, "target": victim})
+	if RunBuffs:
+		RunBuffs.note_combat_moment("execution")
 	_start_attack(attack)
 	return true
 
@@ -1213,6 +1241,26 @@ func _apply_weapon_role(attack: Dictionary) -> Dictionary:
 	attack["recovery"] = float(attack.get("recovery", 0.0)) * float(profile.get("recovery_mult", 1.0))
 	if bool(profile.get("hyperarmor", false)):
 		attack["hyperarmor"] = true
+	return _apply_weapon_moment(attack)
+
+
+## Each weapon authors one concise response to a precisely timed evade. Keeping this on the
+## weapon definition makes the mechanic easy to tune and prevents a universal roll bonus from
+## flattening the arsenal into the same play pattern.
+func _apply_weapon_moment(attack: Dictionary) -> Dictionary:
+	if _weapon_moment.is_empty():
+		return attack
+	var moment := _weapon_moment
+	_weapon_moment.clear()
+	_weapon_moment_timer = 0.0
+	attack["damage"] = float(attack.get("damage", 0.0)) * float(moment.get("damageMult", 1.0))
+	attack["poise_damage"] = float(attack.get("poise_damage", 0.0)) * float(moment.get("poiseMult", 1.0))
+	attack["lunge_distance"] = float(attack.get("lunge_distance", 0.0)) * float(moment.get("lungeMult", 1.0))
+	if bool(moment.get("hyperarmor", false)):
+		attack["hyperarmor"] = true
+	if moment.has("statusStacks"):
+		attack["status_stacks"] = int(attack.get("status_stacks", 1)) + int(moment["statusStacks"])
+	attack["weaponMoment"] = str(moment.get("label", "Opening"))
 	return attack
 
 
@@ -1591,6 +1639,21 @@ func _on_dodge_ended() -> void:
 	_post_dodge_attack_buffer = POST_DODGE_ATTACK_BUFFER
 
 
+func _on_perfect_dodge_landed(_source: Node) -> void:
+	var moment: Variant = _weapon_data.get("perfect_dodge_moment", {})
+	if not (moment is Dictionary) or (moment as Dictionary).is_empty():
+		return
+	_weapon_moment = (moment as Dictionary).duplicate(true)
+	_weapon_moment_timer = maxf(0.2, float(_weapon_moment.get("duration", 2.0)))
+	if not _weapon_moment_announced and RunFlow:
+		_weapon_moment_announced = true
+		RunFlow.emit_run_warning(TranslationServer.translate("HUD_PERFECT_DODGE_COUNTER"))
+	if _body and VfxService:
+		VfxService.play_rune_flare(_body.global_position + Vector3(0.0, 1.0, 0.0))
+	if _body and AudioDirector:
+		AudioDirector.play_sfx("parry", _body.global_position + Vector3(0.0, 1.0, 0.0))
+
+
 func _scaled_stamina_cost(base_cost: float) -> float:
 	return base_cost * CombatStatModifiersScript.stamina_cost_multiplier(_equipment_stats, _talent_stats)
 
@@ -1772,9 +1835,34 @@ func _apply_hitbox_profile() -> void:
 			box.size = _vector_from(profile.get("size"), DEFAULT_HITBOX_SIZE) * scale
 	_hitbox_shape.position = offset
 	_hitbox_shape.rotation = Vector3(deg_to_rad(float(profile.get("pitch_deg", 0.0))), 0.0, 0.0)
+	_sync_trail_markers()
 	if _hitbox and _hitbox.has_method("configure_arc"):
 		var arc_degrees := float(profile.get("arc_degrees", 150.0)) if String(profile.get("shape", "box")) == "arc" else 360.0
 		_hitbox.call("configure_arc", arc_degrees)
+
+
+## The two marker nodes are exported with the player hitbox and move whenever a weapon changes
+## its real collision shape. Trails therefore sample the same transformed volume used for damage,
+## instead of a decorative radius guessed by the VFX system.
+func _sync_trail_markers() -> void:
+	if _hitbox_shape == null or _hitbox_shape.shape == null:
+		return
+	var trail_base := _hitbox_shape.get_node_or_null("TrailBase") as Node3D
+	var trail_tip := _hitbox_shape.get_node_or_null("TrailTip") as Node3D
+	if trail_base == null or trail_tip == null:
+		return
+	var reach := 1.0
+	var shape := _hitbox_shape.shape
+	if shape is BoxShape3D:
+		reach = maxf((shape as BoxShape3D).size.z * 0.5, 0.08)
+	elif shape is CapsuleShape3D:
+		reach = maxf((shape as CapsuleShape3D).height * 0.5, 0.08)
+	elif shape is CylinderShape3D:
+		reach = maxf((shape as CylinderShape3D).radius, 0.08)
+	elif shape is SphereShape3D:
+		reach = maxf((shape as SphereShape3D).radius, 0.08)
+	trail_base.position = Vector3(0.0, 0.0, -reach * 0.35)
+	trail_tip.position = Vector3(0.0, 0.0, reach)
 
 
 func _vector_from(value: Variant, fallback: Vector3) -> Vector3:

@@ -114,9 +114,7 @@ gdscript/warnings/function_used_as_property=2
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
-# Keep the Full HD design viewport while allowing front-end Controls to fit displays smaller
-# than 1920x1080. PixelDioramaViewport retains the game's deliberately snapped low-res render.
-window/stretch/scale_mode="fractional"
+#KeeptheFullHDdesignviewportwhileallowingfront-endControlstofitdisplayssmaller#than1920x1080.PixelDioramaViewportretainsthegame'sdeliberatelysnappedlow-resrender.window/stretch/scale_mode="fractional"
 
 [editor_plugins]
 

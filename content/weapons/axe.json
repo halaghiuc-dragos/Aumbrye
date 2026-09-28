@@ -5,6 +5,7 @@
   "damage_type": "physical",
   "buffer_window": 0.15,
   "lunge_distance": 0.45,
+  "perfect_dodge_moment": {"label": "Headman's Turn", "duration": 2.0, "damageMult": 1.28, "poiseMult": 1.65, "hyperarmor": true},
   "cancel_into": [
     "dodge",
     "guard"

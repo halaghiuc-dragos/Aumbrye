@@ -4,7 +4,8 @@ extends Node
 const MIX_RATE := 44100.0
 const GENERATOR_BUFFER_SEC := 0.25
 const DEFAULT_CROSSFADE := 0.8
-const SFX_POOL_SIZE := 8
+const SFX_POOL_SIZE := 10
+const SFX_3D_POOL_SIZE := 6
 const SFX_BANK_PATH := "content/audio/sfx.json"
 
 const REVERB_PRESETS := {
@@ -72,7 +73,9 @@ const SFX_PROFILES := {
 const COMBAT_SFX_KEYS: Array[String] = [
 	"hit", "hit_armor", "block", "parry", "swing", "death", "footstep", "windup",
 ]
-const CRITICAL_SFX := ["parry", "guard_break", "boss_reveal", "resource_denied"]
+const CRITICAL_SFX := [
+	"parry", "guard_break", "boss_reveal", "resource_denied", "windup_unblockable", "windup_grab",
+]
 const THREAT_SFX := ["windup", "swing", "door_seal", "portal_open"]
 const IMPACT_SFX := ["hit", "hit_armor", "hit_poise_break", "block", "death"]
 const DEFAULT_SPATIAL_POLICY := {"unit_size": 8.0, "max_distance": 28.0, "occlusion": true}
@@ -104,6 +107,17 @@ const COMBAT_RELEASE_HYSTERESIS := 2.0
 var _ambience: AudioStreamPlayer
 const MENU_THEME_PATH := "res://assets/audio/shared/title_theme.ogg"
 const HUB_THEME_PATH := "res://assets/audio/shared/hub_theme.ogg"
+const DEFAULT_STINGER_PATHS := {
+	"boss_reveal": "res://assets/audio/shared/sting_boss.ogg",
+	"floor_clear": "res://assets/audio/shared/sting_clear.ogg",
+	"secret_found": "res://assets/audio/shared/sting_secret.ogg",
+	"key_taken": "res://assets/audio/shared/sting_key.ogg",
+	"lock_opened": "res://assets/audio/shared/sting_lock.ogg",
+	"shortcut_opened": "res://assets/audio/shared/sting_shortcut.ogg",
+	"rare_drop": "res://assets/audio/shared/sting_rare_drop.ogg",
+	"personal_best": "res://assets/audio/shared/sting_personal_best.ogg",
+	"hit_poise_break": "res://assets/audio/shared/sting_poise_break.ogg",
+}
 
 var _music: AudioStreamPlayer
 var _explore: AudioStreamPlayer
@@ -177,7 +191,7 @@ func _ready() -> void:
 		player.bus = &"SFX"
 		add_child(player)
 		_sfx_pool.append(player)
-	for i in 4:
+	for i in SFX_3D_POOL_SIZE:
 		var player3d := AudioStreamPlayer3D.new()
 		player3d.name = "Sfx3dPlayer%d" % i
 		player3d.bus = &"SFX"
@@ -567,8 +581,9 @@ func play_sfx(kind: String, world_pos: Variant = null, surface: String = "stone"
 		_mark_sfx_played(kind)
 		_duck_for_threat(kind, entry)
 		return
-	_play_stream(stream, world_pos, entry, kind)
+	_play_stream(stream, world_pos, entry, kind, 0.0, _pitch_variant(kind, entry))
 	_mark_sfx_played(kind)
+	_play_supporting_layers(entry, world_pos, surface)
 	_duck_for_threat(kind, entry)
 
 
@@ -630,12 +645,15 @@ func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:
 
 func play_stinger(stinger_id: String) -> void:
 	var stingers: Dictionary = _profile.get("stingers", {})
-	var path := str(stingers.get(stinger_id, ""))
+	var path := str(stingers.get(stinger_id, DEFAULT_STINGER_PATHS.get(stinger_id, "")))
 	var stream: AudioStream = _load_audio_stream(path) if path != "" else null
 	if stream != null:
 		_play_stream_2d(stream, &"SFX", 0.0, 1.0)
 	else:
 		play_sfx(stinger_id)
+	# Content stingers are optional.  A short, profile-aware chord keeps meaningful events from
+	# collapsing into a dry single cue when a biome has not authored a bespoke music asset yet.
+	_play_stinger_accent(stinger_id)
 	var duck_players: Array[AudioStreamPlayer] = []
 	for layer in [LAYER_EXPLORE, LAYER_COMBAT, LAYER_BOSS]:
 		var player := _player_for_layer(layer)
@@ -664,6 +682,133 @@ func _layer_target_db(layer: String) -> float:
 		return LAYER_SILENCE_DB
 	var base_db := float(_layer_base_db.get(layer, 0.0))
 	return clampf(base_db + linear_to_db(gain), LAYER_SILENCE_DB, LAYER_MAX_DB)
+
+
+func _pitch_variant(_kind: String, entry: Dictionary) -> float:
+	var variants: Variant = entry.get("pitch_variants", [])
+	if not variants is Array or (variants as Array).is_empty():
+		return 1.0
+	var values: Array = variants
+	var cents := float(values[_rng.randi_range(0, values.size() - 1)])
+	# Semitone fractions are much easier to author and remain subtle enough for foley.
+	return pow(2.0, cents / 12.0)
+
+
+func _play_supporting_layers(entry: Dictionary, world_pos: Variant, surface: String) -> void:
+	var layers: Variant = entry.get("layers", [])
+	if not layers is Array:
+		return
+	for raw_layer in layers:
+		if not raw_layer is Dictionary:
+			continue
+		var layer: Dictionary = raw_layer
+		if _rng.randf() > float(layer.get("chance", 1.0)):
+			continue
+		var key := str(layer.get("key", ""))
+		if key.is_empty():
+			continue
+		var support_entry: Dictionary = _sfx_bank.get(key, {})
+		if not _can_play_sfx(key, support_entry):
+			continue
+		var support_stream := _pick_sfx_stream(key, support_entry, surface)
+		if support_stream == null:
+			continue
+		_play_stream(
+			support_stream,
+			world_pos,
+			support_entry,
+			key,
+			float(layer.get("volume_db", -12.0)),
+			float(layer.get("pitch", 1.0)) * _pitch_variant(key, support_entry)
+		)
+		_mark_sfx_played(key)
+
+
+func _play_stinger_accent(stinger_id: String) -> void:
+	var notes := PackedFloat32Array([440.0, 554.37, 659.25])
+	var duration := 0.34
+	match stinger_id:
+		"boss_reveal":
+			notes = PackedFloat32Array([73.42, 110.0, 146.83])
+			duration = 0.48
+		"floor_clear", "personal_best":
+			notes = PackedFloat32Array([523.25, 659.25, 783.99])
+			duration = 0.46
+		"secret_found", "rare_drop":
+			notes = PackedFloat32Array([659.25, 783.99, 1046.5])
+			duration = 0.38
+		"key_taken", "lock_opened", "shortcut_opened":
+			notes = PackedFloat32Array([329.63, 440.0, 659.25])
+			duration = 0.32
+		_:
+			return
+	_play_stream_2d(_make_event_chord(notes, duration), &"Music", -13.0, 1.0)
+
+
+func _make_event_chord(notes: PackedFloat32Array, seconds: float) -> AudioStreamWAV:
+	var frames := maxi(1, int(MIX_RATE * seconds))
+	var data := PackedByteArray()
+	data.resize(frames * 2)
+	for i in frames:
+		var progress := float(i) / float(frames)
+		var envelope := minf(progress / 0.045, pow(1.0 - progress, 1.55))
+		var sample := 0.0
+		for note in notes:
+			var phase := TAU * note * float(i) / MIX_RATE
+			sample += sin(phase) * 0.11 + sin(phase * 2.0) * 0.022
+		# A tiny attack transient helps the stinger cut through without turning it into a loud beep.
+		sample += sin(TAU * 1800.0 * float(i) / MIX_RATE) * exp(-progress * 42.0) * 0.025
+		data.encode_s16(i * 2, int(clampf(sample * envelope, -1.0, 1.0) * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = int(MIX_RATE)
+	stream.data = data
+	return stream
+
+
+func play_biome_accent(biome_id: String, world_pos: Vector3) -> void:
+	var profile := _biome_accent_profile(biome_id)
+	var stream := _make_biome_accent_stream(profile)
+	_play_stream(stream, world_pos, {"bus": "Ambience", "volume_db": -18.0, "max_concurrent": 2}, "biome_accent")
+
+
+func _biome_accent_profile(biome_id: String) -> Dictionary:
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			return {"freq": 620.0, "duration": 0.72, "shimmer": 1.0, "noise": 0.04}
+		"poison_swamp", "venom_mire":
+			return {"freq": 92.0, "duration": 0.9, "shimmer": 0.15, "noise": 0.24}
+		"frozen_fortress", "glacial_hollow":
+			return {"freq": 148.0, "duration": 1.0, "shimmer": 0.45, "noise": 0.18}
+		"iron_vault":
+			return {"freq": 118.0, "duration": 0.64, "shimmer": 0.68, "noise": 0.08}
+		"dark_cathedral", "umbral_chapel":
+			return {"freq": 174.0, "duration": 0.88, "shimmer": 0.52, "noise": 0.05}
+		_:
+			return {"freq": 126.0, "duration": 0.72, "shimmer": 0.28, "noise": 0.12}
+
+
+func _make_biome_accent_stream(profile: Dictionary) -> AudioStreamWAV:
+	var seconds := float(profile.get("duration", 0.7))
+	var frames := maxi(1, int(MIX_RATE * seconds))
+	var freq := float(profile.get("freq", 120.0)) * _rng.randf_range(0.92, 1.08)
+	var shimmer := float(profile.get("shimmer", 0.3))
+	var noise_amount := float(profile.get("noise", 0.1))
+	var data := PackedByteArray()
+	data.resize(frames * 2)
+	for i in frames:
+		var progress := float(i) / float(frames)
+		var envelope := minf(progress / 0.08, pow(1.0 - progress, 1.35))
+		var phase := TAU * freq * float(i) / MIX_RATE
+		var sample := sin(phase) * 0.16
+		sample += sin(phase * (1.5 + shimmer * 0.5)) * (0.05 + shimmer * 0.04)
+		sample += _rng.randf_range(-1.0, 1.0) * noise_amount * 0.045
+		data.encode_s16(i * 2, int(clampf(sample * envelope, -1.0, 1.0) * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = int(MIX_RATE)
+	stream.data = data
+	return stream
 
 
 func has_sfx(kind: String) -> bool:
@@ -840,24 +985,35 @@ func _on_voice_finished_generation(player: Node, generation: int) -> void:
 		_release_voice_owner(player)
 
 
-func _play_stream(stream: AudioStream, world_pos: Variant, entry: Dictionary, kind: String) -> void:
+func _play_stream(
+	stream: AudioStream,
+	world_pos: Variant,
+	entry: Dictionary,
+	kind: String,
+	volume_offset_db: float = 0.0,
+	pitch_multiplier: float = 1.0
+) -> void:
 	var bus: StringName = &"SFX"
 	if entry.has("bus"):
 		bus = StringName(str(entry["bus"]))
 	elif SFX_PROFILES.has(kind):
 		bus = SFX_PROFILES[kind].get("bus", &"SFX")
 	var profile: Dictionary = SFX_PROFILES.get(kind, {})
-	var volume_db := float(entry.get("volume_db", profile.get("volume_db", 0.0)))
+	var priority := _cue_priority(kind, entry)
+	# Critical telegraphs and clean impacts should win the mix, even in a dense room.  The gain is
+	# deliberately small: this is clarity, not a permanent loudness war against ambience.
+	var clarity_boost := 1.25 if priority >= 3 else (0.65 if priority >= 2 else 0.0)
+	var volume_db := float(entry.get("volume_db", profile.get("volume_db", 0.0))) + volume_offset_db + clarity_boost
 	var pitch_jitter := float(entry.get("pitch_jitter", profile.get("pitch_jitter", 0.0)))
-	var pitch_scale := float(entry.get("pitch", profile.get("pitch", 1.0)))
+	var pitch_scale := float(entry.get("pitch", profile.get("pitch", 1.0))) * pitch_multiplier
 	if pitch_jitter > 0.0:
 		pitch_scale *= 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
 	if world_pos is Vector3:
-		var player3d := _acquire_sfx_3d_player(_cue_priority(kind, entry), world_pos)
+		var player3d := _acquire_sfx_3d_player(priority, world_pos)
 		if player3d == null:
 			_play_stream_2d(stream, bus, volume_db, pitch_scale, kind, entry)
 			return
-		_prepare_voice(player3d, kind, _cue_priority(kind, entry))
+		_prepare_voice(player3d, kind, priority)
 		player3d.global_position = world_pos
 		player3d.bus = bus
 		player3d.volume_db = volume_db + _configure_spatial_voice(player3d, entry, kind, world_pos)

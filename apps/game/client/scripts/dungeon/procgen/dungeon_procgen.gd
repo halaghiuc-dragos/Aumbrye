@@ -686,6 +686,8 @@ static func _build_expedition_objective(
 const MINIMAP_KIND_BY_CONTENT := {
 	RoomContentTypes.REST: "rest",
 	RoomContentTypes.REWARD: "treasure",
+	# A shrine is a reward decision, and shares the existing treasure map icon until it is in view.
+	RoomContentTypes.SHRINE: "treasure",
 	RoomContentTypes.MERCHANT: "shop",
 	RoomContentTypes.LORE: "lore",
 	RoomContentTypes.PUZZLE: "puzzle",

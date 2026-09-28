@@ -185,6 +185,38 @@ namespace Aumbrye.Infrastructure.Persistence.Migrations
                     b.ToTable("Runs");
                 });
 
+            modelBuilder.Entity("Aumbrye.Domain.Entities.RankedRunMilestone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthorityId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ObservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+                    b.HasIndex("RunId", "Kind").IsUnique();
+                    b.HasIndex("RunId", "Sequence").IsUnique();
+                    b.ToTable("RankedRunMilestones");
+                });
+
             modelBuilder.Entity("Aumbrye.Domain.Entities.SaveBlob", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -222,6 +254,17 @@ namespace Aumbrye.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("Aumbrye.Domain.Entities.RankedRunMilestone", b =>
+                {
+                    b.HasOne("Aumbrye.Domain.Entities.Run", "Run")
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Run");
                 });
 
             modelBuilder.Entity("Aumbrye.Domain.Entities.SaveBlob", b =>

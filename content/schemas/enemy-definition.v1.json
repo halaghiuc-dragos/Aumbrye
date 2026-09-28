@@ -69,6 +69,7 @@
       ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "translationId": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "weight": { "type": "number", "exclusiveMinimum": 0 },
         "min_range": { "type": "number", "minimum": 0 },
@@ -120,6 +121,7 @@
       "required": ["id", "hpBelow", "attacks"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "translationId": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "hpBelow": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
         "attacks": {

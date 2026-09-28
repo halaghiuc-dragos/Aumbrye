@@ -11,7 +11,8 @@
     "rest": 0.07,
     "puzzle": 0.06,
     "npc_quest": 0.06,
-    "merchant": 0.05
+    "merchant": 0.05,
+    "shrine": 0.04
   },
   "deep": {
     "combat": 0.5,
@@ -23,7 +24,8 @@
     "rest": 0.04,
     "puzzle": 0.05,
     "npc_quest": 0.05,
-    "merchant": 0.04
+    "merchant": 0.04,
+    "shrine": 0.07
   },
   "guarantees": {
     "minRewardRooms": 1,
@@ -92,6 +94,16 @@
       "multipliers": {
         "puzzle": 2.5,
         "lore": 1.5,
+        "combat": 0.8
+      }
+    },
+    {
+      "id": "bargain",
+      "label": "Two quiet altars have appeared among the rubble.",
+      "weight": 1,
+      "multipliers": {
+        "shrine": 4,
+        "reward": 1.4,
         "combat": 0.8
       }
     }

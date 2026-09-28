@@ -123,6 +123,36 @@
         "hostile_halls"
       ],
       "scoring": "depth"
+    },
+    {
+      "id": "week_acid_crown",
+      "name": "Acid Crown",
+      "description": "The mire keeps what it takes. The deeper hoards are worth more only because fewer return for them.",
+      "dungeonId": "venom_mire",
+      "difficultyTier": 5,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
+      "modifiers": [
+        "rich_veins",
+        "volatile_foes",
+        "starved_hearth"
+      ],
+      "scoring": "kills"
+    },
+    {
+      "id": "week_prismatic_wound",
+      "name": "Prismatic Wound",
+      "description": "The crystal halls split every route and every mistake. Move quickly, read the light, and take the warden's hoard.",
+      "dungeonId": "prism_depths",
+      "difficultyTier": 5,
+      "objective": "defeat_boss",
+      "successOutcomes": ["escaped"],
+      "modifiers": [
+        "fog_of_war",
+        "frenzied_foes",
+        "boss_hoard"
+      ],
+      "scoring": "time"
     }
   ]
 }

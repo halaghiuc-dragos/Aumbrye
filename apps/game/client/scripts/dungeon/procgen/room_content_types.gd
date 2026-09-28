@@ -15,6 +15,7 @@ const STAIRS := "stairs"
 const REST := "rest"
 const LORE := "lore"
 const MERCHANT := "merchant"
+const SHRINE := "shrine"
 
 const TEMPLATE_BY_TYPE := {
 	TRAP: "trap_spike_pack",
@@ -26,4 +27,5 @@ const TEMPLATE_BY_TYPE := {
 	REST: "rest_bonfire",
 	LORE: "lore_readable",
 	MERCHANT: "dungeon_merchant",
+	SHRINE: "pact_shrine",
 }

@@ -72,6 +72,7 @@ const MaterialFlashScript := preload("res://scripts/art/characters/material_flas
 const COLOR_PARRY := Color(1.0, 0.88, 0.2)
 const COLOR_BLOCK := Color(0.45, 0.78, 1.0)
 const COLOR_JUST_GUARD := Color(0.68, 0.95, 1.0)
+const COLOR_DODGE := Color(0.35, 0.9, 0.95)
 
 signal hit_landed(target: Node, damage: float)
 
@@ -189,6 +190,15 @@ func on_dodge_iframe() -> void:
 		AudioDirector.play_combat_sfx("dodge_perfect")
 	if AchievementService:
 		AchievementService.notify("dodge")
+	var body := get_parent() as Node3D
+	if body:
+		_flash_diorama_body(body, 0.65, COLOR_DODGE)
+		if VfxService:
+			VfxService.play("perfect_dodge", body.global_position + Vector3(0.0, 0.8, 0.0))
+		if show_damage_numbers:
+			_spawn_combat_text(body, "DODGED", COLOR_DODGE)
+	if PixelDioramaViewport and PixelDioramaViewport.has_method("pulse_screen"):
+		PixelDioramaViewport.pulse_screen(PixelDioramaViewport.ScreenPulse.DODGE)
 
 
 func on_hit_received(

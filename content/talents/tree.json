@@ -124,6 +124,7 @@
     },
     {
       "id": "guard",
+      "translationId": "talent_guard",
       "nameKey": "talent.branch.guard",
       "name": "Guard",
       "nodes": [
@@ -784,6 +785,7 @@
     },
     {
       "id": "vigil",
+      "translationId": "talent_vigil",
       "nameKey": "talent.branch.vigil",
       "name": "Vigil",
       "nodes": [

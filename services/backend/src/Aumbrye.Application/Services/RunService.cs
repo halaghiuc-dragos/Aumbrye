@@ -261,7 +261,6 @@ public class RunService : IRunService
                     .SetProperty(r => r.ElapsedSeconds, input.ElapsedSeconds)
                     .SetProperty(r => r.Outcome, input.Outcome)
                     .SetProperty(r => r.FinalObjectiveCompleted, input.FinalObjectiveCompleted)
-                    .SetProperty(r => r.RankedProgressionVerified, false)
                     .SetProperty(r => r.Assists, input.Assists)
                     .SetProperty(r => r.Ruleset, input.Ruleset),
                 ct);

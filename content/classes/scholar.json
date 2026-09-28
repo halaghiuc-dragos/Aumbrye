@@ -35,6 +35,7 @@
       "event": "onCrit",
       "effect": "restore_mana",
       "amount": 14,
+      "ifWeaponArchetype": "staff",
       "chance": 1,
       "cooldown": 0
     },
@@ -42,6 +43,7 @@
       "event": "onHit",
       "effect": "restore_mana",
       "amount": 4,
+      "ifWeaponArchetype": "staff",
       "chance": 0.2,
       "cooldown": 0
     },

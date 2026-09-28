@@ -320,6 +320,11 @@
         "hint": {
           "type": "string",
           "minLength": 1
+        },
+        "clueQuality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
         }
       }
     },

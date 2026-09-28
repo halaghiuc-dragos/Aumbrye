@@ -25,10 +25,16 @@ static func build_into(vbox: VBoxContainer, base_mode: String, on_pressed: Calla
 		var btn := GameUISkinScript.make_button(label)
 		btn.disabled = not unlocked
 		if unlocked:
-			btn.tooltip_text = ContentText.field(mode, "flavour", ContentText.description(mode))
+			btn.tooltip_text = _mode_tooltip(mode, mode_id)
 			btn.pressed.connect(on_pressed.bind(mode_id))
 		else:
 			btn.tooltip_text = RunModeCatalog.unlock_hint(mode_id, counters)
 		vbox.add_child(btn)
 		buttons.append(btn)
 	return buttons
+
+
+static func _mode_tooltip(mode: Dictionary, mode_id: String) -> String:
+	var flavour := ContentText.field(mode, "flavour", ContentText.description(mode))
+	var rules := RunModeCatalog.describe_rules(mode_id)
+	return "%s\n\n%s" % [flavour, rules] if rules != "" else flavour

@@ -477,10 +477,7 @@ static func _ensure_parent_dir(absolute_path: String) -> void:
 
 
 static func _content_root() -> String:
-	var configured := str(ProjectSettings.get_setting("aumbrye/content_root", ""))
-	if not configured.is_empty():
-		return configured
-	return ProjectSettings.globalize_path("res://").path_join("../../..")
+	return ContentLoader.content_root()
 
 
 static func _fetch_biome(biome_id: String) -> Dictionary:

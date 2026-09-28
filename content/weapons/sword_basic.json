@@ -5,6 +5,7 @@
   "damage_type": "physical",
   "buffer_window": 0.2,
   "lunge_distance": 0.35,
+  "perfect_dodge_moment": {"label": "Measured Reply", "duration": 2.2, "damageMult": 1.18, "poiseMult": 1.45},
   "cancel_into": [
     "dodge",
     "guard"

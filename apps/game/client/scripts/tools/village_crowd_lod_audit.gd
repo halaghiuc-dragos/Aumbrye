@@ -37,5 +37,20 @@ func _ready() -> void:
 		int(crowd._agents[0]["lod_updates"]) > int(crowd._agents[2]["lod_updates"]),
 		"Near agents must receive more transform writes than far agents"
 	)
+	# Route radius is only a fallback. A live camera/visibility origin must be able to suppress
+	# every distant walker and restore its slots when the viewpoint returns.
+	crowd.set_visibility_origin_for_testing(Vector3(1000.0, 0.0, 1000.0))
+	crowd._step(1.0 / VillageCrowd.TICK_HZ)
+	_check(
+		int(crowd.lod_metrics().get("culled", 0)) == routes.size(),
+		"Crowd must suppress agents outside the useful camera-distance cap"
+	)
+	crowd.set_visibility_origin_for_testing(Vector3.ZERO)
+	crowd._step(1.0 / VillageCrowd.TICK_HZ)
+	for agent in crowd._agents:
+		_check(
+			str(agent.get("visibility", "")) == "visible",
+			"A returning camera must restore previously culled crowd slots"
+		)
 	print("VILLAGE CROWD LOD RESULT %d failures" % _failures)
 	get_tree().quit(0 if _failures == 0 else 1)

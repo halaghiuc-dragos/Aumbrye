@@ -11,6 +11,7 @@
     "finalWave",
     "intermissionEvery",
     "bossEvery",
+    "chapters",
     "count",
     "base_roster",
     "boss_unlocks",
@@ -24,6 +25,11 @@
     "intermissionEvery": { "type": "integer", "minimum": 1 },
     "bossEvery": { "type": "integer", "minimum": 1 },
     "cashOutFromWave": { "type": "integer", "minimum": 1 },
+    "chapters": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/chapter" }
+    },
     "arenaStates": {
       "type": "array",
       "items": { "type": "string", "enum": ["open", "dimmed", "hazard", "fog", "pillars"] }
@@ -81,6 +87,21 @@
     }
   },
   "$defs": {
+    "chapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "title", "lesson", "spawnPattern", "fuelPolicy"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "from": { "type": "integer", "minimum": 1 },
+        "to": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "lesson": { "type": "string", "enum": ["duel", "mixed_pressure", "territory", "recovery", "mastery"] },
+        "spawnPattern": { "type": "string", "enum": ["ring", "converge", "scatter", "dynamic"] },
+        "fuelPolicy": { "type": "string", "enum": ["none", "cresset", "objective", "recovery"] },
+        "maxOrdinaryEnemies": { "type": "integer", "minimum": 1 }
+      }
+    },
     "waveBand": {
       "type": "object",
       "additionalProperties": false,

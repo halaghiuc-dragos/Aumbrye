@@ -73,6 +73,12 @@ team = "player"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0.55)
 shape = SubResource("BoxShape3D_hit")
 
+[node name="TrailBase" type="Node3D" parent="Facing/WeaponPivot/Hitbox/CollisionShape3D"]
+position = Vector3(0, 0, -0.245)
+
+[node name="TrailTip" type="Node3D" parent="Facing/WeaponPivot/Hitbox/CollisionShape3D"]
+position = Vector3(0, 0, 0.7)
+
 [node name="Health" type="Node" parent="."]
 script = ExtResource("3_health")
 

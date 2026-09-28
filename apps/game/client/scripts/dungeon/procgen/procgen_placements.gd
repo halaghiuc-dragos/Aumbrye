@@ -4,6 +4,15 @@ extends RefCounted
 
 static var _threat_cost_cache: Dictionary = {}
 
+## One seed-selected boss omen per ordinary floor.  These are small modifier profiles layered on
+## top of an authored boss, not a second boss system: the fight keeps its readable phases while
+## a returning player has a fresh pacing pressure to answer.
+const BOSS_VARIANTS: Array[Dictionary] = [
+	{"id": "relentless", "label": "Relentless", "modifier": {"moveSpeedMult": 1.1, "attackCooldownMult": 0.88, "damageMult": 1.05}},
+	{"id": "ironbound", "label": "Ironbound", "modifier": {"poiseMult": 1.28, "damageMult": 1.08}},
+	{"id": "restless", "label": "Restless", "modifier": {"moveSpeedMult": 1.16, "attackCooldownMult": 0.94, "poiseMult": 0.88}},
+]
+
 
 static func place(
 	biome: Dictionary,
@@ -199,7 +208,7 @@ static func _place_enemies(
 		float(combat_rooms.size()) * min_cost
 	)
 	var placements: Array = []
-	var state := {"threat_used": 0.0, "elites_placed": 0, "role_counts": {}}
+	var state := {"threat_used": 0.0, "elites_placed": 0, "role_counts": {}, "room_role_counts": {}}
 	var door_distances := {}
 	if graph != null:
 		door_distances = RoomGraphPaths.bfs_distances(graph, graph.start_id)
@@ -299,9 +308,10 @@ static func _attempt_place_enemy(
 ) -> Dictionary:
 	var room_id := str(room.get("semantic_id", ""))
 	var composition: Dictionary = biome.get("roleComposition", {})
+	var room_role_counts: Dictionary = state["room_role_counts"].get(room_id, {})
 	for _attempt in 4:
 		var entry := _pick_weighted_composed(
-			biome.get("enemyPool", []), rng, composition, state["role_counts"]
+			biome.get("enemyPool", []), rng, composition, state["role_counts"], room_role_counts
 		)
 		if entry.is_empty():
 			return {}
@@ -331,6 +341,8 @@ static func _attempt_place_enemy(
 		var role_counts: Dictionary = state["role_counts"]
 		var role := _enemy_role(enemy_id)
 		role_counts[role] = int(role_counts.get(role, 0)) + 1
+		room_role_counts[role] = int(room_role_counts.get(role, 0)) + 1
+		state["room_role_counts"][room_id] = room_role_counts
 		var placement := {
 			"roomId": room_id,
 			"enemyId": enemy_id,
@@ -563,6 +575,7 @@ static func _place_loot(
 		if not boss_pool.is_empty()
 		else {"enemyId": "boss_castle_knight"}
 	)
+	var boss_variant: Dictionary = BOSS_VARIANTS[boss_rng.randi_range(0, BOSS_VARIANTS.size() - 1)]
 	var boss_room: Dictionary = _first_room_of_type(rooms, "boss")
 	var entrance_room: Dictionary = _first_room_of_type(rooms, "hub")
 	if boss_room.is_empty() or entrance_room.is_empty():
@@ -596,7 +609,8 @@ static func _place_loot(
 		"boss":
 		{
 			"roomId": boss_room["semantic_id"],
-			"enemyId": boss_entry.get("enemyId", "boss_castle_knight")
+			"enemyId": boss_entry.get("enemyId", "boss_castle_knight"),
+			"variant": boss_variant.duplicate(true)
 		},
 		"exit": boss_room["semantic_id"],
 		"entrance": entrance_room["semantic_id"],
@@ -895,20 +909,31 @@ static func _is_reserved_boss_enemy(enemy_id: String, biome: Dictionary) -> bool
 ## behaves exactly like `_pick_weighted()` always did; the bias only ever scales an entry's existing
 ## weight; it never zeroes one out, so an off-mix pick can still land occasionally.
 static func _pick_weighted_composed(
-	pool: Array, rng: RandomNumberGenerator, composition: Dictionary, role_counts: Dictionary
+	pool: Array,
+	rng: RandomNumberGenerator,
+	composition: Dictionary,
+	role_counts: Dictionary,
+	room_role_counts: Dictionary = {}
 ) -> Dictionary:
 	if composition.is_empty() or pool.is_empty():
 		return _pick_weighted(pool, rng)
 	var placed_total := 0
 	for count in role_counts.values():
 		placed_total += int(count)
+	var room_total := 0
+	for count in room_role_counts.values():
+		room_total += int(count)
 	var scored: Array[Dictionary] = []
 	var total := 0.0
 	for entry in pool:
 		var role := _enemy_role(str(entry.get("enemyId", "")))
 		var target: float = float(composition.get(role, 0.0))
 		var actual := float(role_counts.get(role, 0)) / float(maxi(1, placed_total))
-		var bias := clampf(1.0 + (target - actual) * 3.0, 0.2, 3.0)
+		var room_actual := float(room_role_counts.get(role, 0)) / float(maxi(1, room_total))
+		# Global composition preserves a biome's identity; the smaller local correction stops a
+		# two-or-three-enemy room from becoming three copies of the same role.  It creates readable
+		# shield/ranged/melee problems without adding a separate encounter-director system.
+		var bias := clampf(1.0 + (target - actual) * 2.0 + (target - room_actual) * 1.6, 0.2, 3.0)
 		var score := float(entry.get("weight", 1)) * bias
 		total += score
 		scored.append({"entry": entry, "score": score})

@@ -13,6 +13,7 @@ const CONTENT_SCRIPTS := {
 	"rest_bonfire": preload("res://scripts/dungeon/room_content/room_rest_content.gd"),
 	"lore_readable": preload("res://scripts/dungeon/room_content/room_lore_content.gd"),
 	"dungeon_merchant": preload("res://scripts/dungeon/room_content/room_merchant_content.gd"),
+	"pact_shrine": preload("res://scripts/dungeon/room_content/room_pact_shrine_content.gd"),
 }
 
 

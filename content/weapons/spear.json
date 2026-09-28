@@ -5,6 +5,7 @@
   "damage_type": "physical",
   "buffer_window": 0.2,
   "lunge_distance": 0.6,
+  "perfect_dodge_moment": {"label": "Counter-Thrust", "duration": 2.0, "damageMult": 1.2, "poiseMult": 1.25, "lungeMult": 1.65},
   "cancel_into": [
     "dodge",
     "guard"

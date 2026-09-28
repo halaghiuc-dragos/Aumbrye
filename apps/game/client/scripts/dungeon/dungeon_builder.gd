@@ -1279,6 +1279,10 @@ func _setup_boss() -> void:
 	_boss = scene.instantiate() as Node
 	if _boss.has_method("set_catalog_id"):
 		_boss.call("set_catalog_id", enemy_id)
+	var boss_variant: Dictionary = boss_placement.get("variant", {}) as Dictionary
+	if not boss_variant.is_empty():
+		_boss.set_meta("boss_variant_id", str(boss_variant.get("id", "")))
+		_boss.set_meta("boss_variant_label", str(boss_variant.get("label", "")))
 	_boss.set_meta("placement_id", "boss")
 	room.add_child(_boss)
 	_ensure_enemy_groups(_boss)
@@ -1293,6 +1297,10 @@ func _setup_boss() -> void:
 		_boss.call("set_player", _player)
 	_boss.set_meta("catalog_id", enemy_id)
 	_apply_floor_scaling(_boss, true)
+	if not boss_variant.is_empty() and _boss.has_method("apply_arena_modifier"):
+		var modifier: Variant = boss_variant.get("modifier", {})
+		if modifier is Dictionary:
+			_boss.call("apply_arena_modifier", modifier as Dictionary)
 	if _is_final_floor:
 		_apply_final_floor_arena_flavor()
 	if _boss.has_signal("boss_defeated"):

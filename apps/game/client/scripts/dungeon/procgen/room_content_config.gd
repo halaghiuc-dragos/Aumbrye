@@ -6,7 +6,7 @@ const PACING_PATH := "content/progression/room_pacing.json"
 const FloorSeedMixScript := preload("res://scripts/dungeon/floor_seed_mix.gd")
 
 const WEIGHT_KEYS := [
-	"combat", "empty", "trap", "hazard", "reward", "lore", "rest", "puzzle", "npc_quest", "merchant"
+	"combat", "empty", "trap", "hazard", "reward", "lore", "rest", "puzzle", "npc_quest", "merchant", "shrine"
 ]
 
 static var _pacing: Dictionary = {}
@@ -21,6 +21,7 @@ var weight_rest := 0.05
 var weight_puzzle := 0.05
 var weight_npc_quest := 0.02
 var weight_merchant := 0.01
+var weight_shrine := 0.04
 var max_assignment_attempts := 48
 var min_off_path_distance := 2
 var enable_locked_door := true
@@ -30,6 +31,7 @@ var max_locks_per_floor := 3
 var min_reward_rooms := 1
 var min_lore_rooms := 2
 var min_rest_rooms := 1
+var min_shrine_rooms := 0
 var rest_within_of_boss := 3
 var max_consecutive_combat := 2
 var floor_theme_id := "plain"
@@ -77,10 +79,16 @@ static func for_floor(floor_index: int, max_floors: int, run_seed: int) -> RoomC
 	config.weight_puzzle = float(weights.get("puzzle", config.weight_puzzle))
 	config.weight_npc_quest = float(weights.get("npc_quest", config.weight_npc_quest))
 	config.weight_merchant = float(weights.get("merchant", config.weight_merchant))
+	config.weight_shrine = float(weights.get("shrine", config.weight_shrine))
 	var guarantees: Dictionary = pacing.get("guarantees", {})
 	config.min_reward_rooms = int(guarantees.get("minRewardRooms", config.min_reward_rooms))
 	config.min_lore_rooms = int(guarantees.get("minLoreRooms", config.min_lore_rooms))
 	config.min_rest_rooms = int(guarantees.get("minRestRooms", config.min_rest_rooms))
+	config.min_shrine_rooms = int(guarantees.get("minShrineRooms", config.min_shrine_rooms))
+	if config.floor_theme_id == "bargain":
+		# A named bargain floor must deliver a meaningful decision, not merely make one slightly
+		# more likely in a weighted table.
+		config.min_shrine_rooms = maxi(1, config.min_shrine_rooms)
 	config.rest_within_of_boss = int(
 		guarantees.get("restWithinOfBoss", config.rest_within_of_boss)
 	)

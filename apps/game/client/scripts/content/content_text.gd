@@ -13,9 +13,13 @@ static func name(definition: Dictionary, fallback: String = "") -> String:
 	return field(definition, "name", fallback)
 
 
+static func title(definition: Dictionary, fallback: String = "") -> String:
+	return field(definition, "title", fallback)
+
+
 static func field(definition: Dictionary, field_name: String, fallback: String = "") -> String:
 	var authored := str(definition.get(field_name, fallback))
-	var id := str(definition.get("id", ""))
+	var id := str(definition.get("translationId", definition.get("id", "")))
 	if id.is_empty():
 		return authored
 	return text("CONTENT_%s_%s" % [id.to_upper(), field_name.to_upper()], authored)

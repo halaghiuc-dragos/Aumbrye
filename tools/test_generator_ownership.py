@@ -96,7 +96,7 @@ class GeneratorOwnershipTests(unittest.TestCase):
         self.assertIn("generate-all is retired", result.stderr)
         self.assertIn("generate_character_voxels.py", result.stderr)
 
-    def test_voxel_convert_stages_candidates_through_owned_writer(self) -> None:
+    def test_retired_voxel_convert_cannot_publish_invalid_godot3_meshes(self) -> None:
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory(prefix="aumbrye-voxel-ownership-test-") as temp_dir:
             source_root = Path(temp_dir) / "source"
@@ -107,18 +107,8 @@ class GeneratorOwnershipTests(unittest.TestCase):
             source_path.parent.mkdir(parents=True, exist_ok=True)
             source_path.write_bytes(encode_vox(model))
             output_root = root / "apps" / "game" / "client" / "assets" / "characters" / "unused_audit"
-            with patch.object(voxel_import_cli, "write_generated_bytes_set") as writer:
-                voxel_import_cli.convert_vox_tree(
-                    source_root, output_root, dry_run=True
-                )
-            self.assertEqual(writer.call_count, 1)
-            outputs = writer.call_args.args[0]
-            self.assertEqual(len(outputs), 1)
-            output_path, output_bytes = outputs[0]
-            self.assertEqual(output_path, output_root / "sample.tres")
-            self.assertTrue(output_bytes.startswith(b'[gd_resource type="ArrayMesh"'))
-            self.assertEqual(writer.call_args.kwargs["sources"], [source_path])
-            self.assertTrue(writer.call_args.kwargs["dry_run"])
+            with self.assertRaisesRegex(SystemExit, "convert-tree is retired"):
+                voxel_import_cli.convert_vox_tree(source_root, output_root, dry_run=True)
 
     def test_legacy_voxel_writers_fail_closed(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "direct .vox writes are retired"):

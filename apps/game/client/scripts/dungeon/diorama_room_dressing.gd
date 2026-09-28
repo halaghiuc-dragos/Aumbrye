@@ -15,6 +15,8 @@ const ROOM_SUFFIXES := [
 ]
 
 const PROP_BEVEL_RATIO := 0.16
+const BiomeAmbienceEmitterScript := preload("res://scripts/audio/biome_ambience_emitter.gd")
+const BiomeRoomAtmosphereScript := preload("res://scripts/art/vfx/biome_room_atmosphere.gd")
 
 ## RM-21: the corner pillar's procedural fallback height, matched to the authored propKit pillar
 ## mesh (`scenes/props/<biome>/pillar.tscn`, a 3.0m-tall CylinderMesh). Callers ask for pillars of
@@ -130,7 +132,108 @@ static func apply_to_room(room: RoomTemplate, biome_id: String, room_seed: int =
 	_spawn_family_dressing(dressing, room, half_w, half_d, wall_mat, accent_mat, biome_id)
 	_spawn_variant_props(dressing, room, biome_id, accent_mat)
 	_spawn_density_props(dressing, room, half_w, half_d, blockout, biome_id, accent_mat, prop_rng)
+	_spawn_biome_landmark(dressing, room, half_w, half_d, accent_mat, biome_id, prop_rng)
+	BiomeRoomAtmosphereScript.attach(dressing, biome_id, half_w, half_d)
 	_apply_seeded_prop_variation(dressing, prop_rng)
+
+
+## The procedural room kit establishes scale; this compact landmark pass gives each biome a local
+## silhouette, colour focus and sound source.  It avoids door bands and gameplay anchors by living
+## on a back-side third of the room, so visual identity never compromises navigation.
+static func _spawn_biome_landmark(
+	parent: Node3D,
+	room: RoomTemplate,
+	half_w: float,
+	half_d: float,
+	accent_mat: Material,
+	biome_id: String,
+	rng: RandomNumberGenerator
+) -> void:
+	if parent == null or room.room_type == "obstacle":
+		return
+	var suffix := _room_suffix(room.template_id)
+	var special_room := suffix in ["boss", "arena", "treasure", "secret", "puzzle"]
+	if not special_room and rng.randf() > 0.48:
+		return
+	var side := -1.0 if rng.randf() < 0.5 else 1.0
+	var pos := Vector3(side * half_w * 0.32, 0.0, -half_d * 0.32)
+	var landmark := Node3D.new()
+	landmark.name = "BiomeLandmark"
+	landmark.position = pos
+	parent.add_child(landmark)
+	var glow_color := _material_light_color(accent_mat, biome_id)
+	var pulse_mesh: MeshInstance3D = null
+	match biome_id:
+		"crystal_caverns", "prism_depths":
+			pulse_mesh = _add_spire(landmark, Vector3(-0.34, 0.72, 0.0), 0.27, 1.44, accent_mat, "CrystalTall")
+			_add_spire(landmark, Vector3(0.28, 0.44, 0.12), 0.2, 0.88, accent_mat, "CrystalShard")
+			_add_box(landmark, Vector3(0.0, 0.2, -0.32), Vector3(0.72, 0.4, 0.52), accent_mat, "CrystalBase")
+			glow_color = glow_color.lerp(Color(0.55, 0.9, 1.0), 0.35)
+		"poison_swamp", "venom_mire":
+			_add_box(landmark, Vector3(0.0, 0.18, 0.0), Vector3(1.45, 0.36, 1.1), accent_mat, "MireRoot")
+			_add_box(landmark, Vector3(-0.28, 0.66, 0.1), Vector3(0.2, 0.96, 0.2), accent_mat, "MireReed")
+			_add_box(landmark, Vector3(0.32, 0.5, -0.16), Vector3(0.18, 0.72, 0.18), accent_mat, "MireReed")
+			glow_color = glow_color.lerp(Color(0.46, 0.88, 0.48), 0.45)
+		"frozen_fortress", "glacial_hollow":
+			pulse_mesh = _add_spire(landmark, Vector3(0.0, 0.9, 0.0), 0.34, 1.8, accent_mat, "IceSpire")
+			_add_spire(landmark, Vector3(0.43, 0.38, 0.14), 0.22, 0.76, accent_mat, "IceShard")
+			glow_color = glow_color.lerp(Color(0.6, 0.82, 1.0), 0.4)
+		"iron_vault":
+			_add_box(landmark, Vector3(0.0, 0.62, 0.0), Vector3(1.18, 1.24, 0.38), accent_mat, "VaultMachine")
+			pulse_mesh = _add_box(landmark, Vector3(0.0, 1.32, 0.05), Vector3(0.5, 0.16, 0.52), accent_mat, "VaultCrown")
+			glow_color = glow_color.lerp(Color(1.0, 0.62, 0.28), 0.3)
+		"dark_cathedral", "umbral_chapel":
+			_add_box(landmark, Vector3(0.0, 0.68, 0.0), Vector3(1.05, 1.36, 0.62), accent_mat, "ChapelReliquary")
+			pulse_mesh = _add_spire(landmark, Vector3(0.0, 1.52, 0.0), 0.16, 0.42, accent_mat, "ChapelFlame")
+			glow_color = glow_color.lerp(Color(0.68, 0.48, 1.0), 0.35)
+		_:
+			_add_box(landmark, Vector3(0.0, 0.8, 0.0), Vector3(0.72, 1.6, 0.72), accent_mat, "CastleMonument")
+			pulse_mesh = _add_box(landmark, Vector3(0.0, 1.72, 0.0), Vector3(1.05, 0.16, 1.05), accent_mat, "CastleCrown")
+	if pulse_mesh:
+		pulse_mesh.material_override = PixelDioramaStyle.make_glow_material(
+			glow_color.lightened(0.18), glow_color.darkened(0.22), 1.85, 1.35
+		)
+	var light := OmniLight3D.new()
+	light.name = "LandmarkGlow"
+	light.position = Vector3(0.0, 1.1, 0.0)
+	VisualLighting.configure_soft_omni(light, glow_color, 0.38, 5.5, false)
+	landmark.add_child(light)
+	LightEmbers.attach(landmark, Vector3(0.0, 0.75, 0.0), glow_color, 0.42, 0.65)
+	var ambience := BiomeAmbienceEmitterScript.new() as Node3D
+	ambience.name = "BiomeAmbienceAccent"
+	ambience.set("biome_id", biome_id)
+	landmark.add_child(ambience)
+	_spawn_room_purpose_beacon(parent, suffix, half_w, half_d, side, glow_color)
+
+
+static func _spawn_room_purpose_beacon(
+	parent: Node3D, suffix: String, half_w: float, half_d: float, side: float, color: Color
+) -> void:
+	if not suffix in ["boss", "arena", "treasure", "secret", "puzzle"]:
+		return
+	var focus := Node3D.new()
+	focus.name = "RoomPurposeBeacon_%s" % suffix
+	focus.position = Vector3(-side * half_w * 0.33, 0.0, -half_d * 0.3)
+	parent.add_child(focus)
+	var glow := PixelDioramaStyle.make_glow_material(color.lightened(0.2), color.darkened(0.18), 1.7, 1.6)
+	match suffix:
+		"treasure":
+			_add_box(focus, Vector3(0.0, 0.24, 0.0), Vector3(1.15, 0.48, 0.72), glow, "TreasurePedestal")
+			_add_spire(focus, Vector3(0.0, 0.68, 0.0), 0.16, 0.44, glow, "TreasureBeacon")
+		"secret":
+			_add_box(focus, Vector3(0.0, 0.05, 0.0), Vector3(1.18, 0.1, 1.18), glow, "SecretRune")
+			_add_spire(focus, Vector3(0.0, 0.38, 0.0), 0.12, 0.64, glow, "SecretFlame")
+		"puzzle":
+			for offset in [Vector3(-0.42, 0.24, 0.0), Vector3(0.0, 0.42, 0.12), Vector3(0.42, 0.24, 0.0)]:
+				_add_spire(focus, offset, 0.14, offset.y * 2.0, glow, "PuzzleGlyph")
+		_:
+			_add_spire(focus, Vector3(-0.44, 0.65, 0.0), 0.18, 1.3, glow, "ArenaPylon")
+			_add_spire(focus, Vector3(0.44, 0.65, 0.0), 0.18, 1.3, glow, "ArenaPylon")
+	var light := OmniLight3D.new()
+	light.name = "PurposeGlow"
+	light.position = Vector3(0.0, 0.8, 0.0)
+	VisualLighting.configure_soft_omni(light, color, 0.25, 4.2, false)
+	focus.add_child(light)
 
 
 static func _spawn_family_dressing(
@@ -945,6 +1048,24 @@ static func _add_box(
 	mesh_instance.position = pos
 	if mat:
 		mesh_instance.material_override = mat
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+static func _add_spire(
+	parent: Node3D, pos: Vector3, radius: float, height: float, mat: Material, node_name: String
+) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var spire := CylinderMesh.new()
+	spire.top_radius = 0.015
+	spire.bottom_radius = radius
+	spire.height = height
+	spire.radial_segments = 4
+	mesh_instance.mesh = spire
+	mesh_instance.position = pos
+	mesh_instance.rotation.y = deg_to_rad(45.0)
+	mesh_instance.material_override = mat
 	parent.add_child(mesh_instance)
 	return mesh_instance
 

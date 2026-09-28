@@ -912,6 +912,14 @@ def rebuild_catalog():
 
 
 def main():
+    # This historical bulk writer predates generated-output ownership. It writes directly into
+    # mixed authored/generated catalogues, so running it can silently replace hand-tuned items.
+    # Keep the recipes here for archaeology, but make the unsafe publication path impossible.
+    raise SystemExit(
+        "tools/gen_content.py is retired: it has no ownership manifest or complete staged "
+        "publication contract. Use the scoped generator for the target catalogue (for example "
+        "tools/gen_loot_tables.mjs) and add a manifest-backed publisher before reviving it."
+    )
     bases = read_json(os.path.join(ROOT, "tools", "item_bases.json"))
     uniques = read_json(os.path.join(ROOT, "tools", "uniques.json"))
     generated = generate_equipment(bases)

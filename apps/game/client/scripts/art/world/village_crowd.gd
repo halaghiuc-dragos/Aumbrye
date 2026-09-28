@@ -31,6 +31,11 @@ const MID_DETAIL_RADIUS := 120.0
 const FAR_DETAIL_RADIUS := 240.0
 const MID_DETAIL_HZ := 15.0
 const FAR_DETAIL_HZ := 8.0
+## Beyond this distance background walkers are neither useful silhouettes nor useful motion.
+## Their slots are collapsed until they return to view, rather than continuing to submit a
+## transform for every limb just because their route happens to pass through the village.
+const CULL_DISTANCE := 330.0
+const BEHIND_CAMERA_FREEZE_DISTANCE := 145.0
 
 ## How long a figure takes to come to a stop or get going again, in seconds. Gait and
 ## travel are driven by one eased factor, so a figure slows down, its legs wind down in
@@ -92,6 +97,9 @@ var _accum := 0.0
 var _tick_delta := 0.0
 var _ground := 0.0
 var _lod_update_counts := {"near": 0, "mid": 0, "far": 0}
+var _visibility_culled_count := 0
+var _visibility_frozen_count := 0
+var _visibility_origin_override: Variant = null
 
 
 func configure(ground_y: float) -> void:
@@ -242,6 +250,7 @@ func add_agent(
 		"leg": _leg_length(parts),
 		"half": maxf(footprint, 0.3) * 0.5,
 		"offset": _lane_offset(route, band, lane),
+		"visibility": "visible",
 	})
 	var lane_key := "%s:%d:%d" % [key, lane, int(heading)]
 	if not _by_lane.has(lane_key):
@@ -365,6 +374,25 @@ func _process(delta: float) -> void:
 ## figure reads any other figure's position at any point.
 func _step(delta: float, force_draw: bool = false) -> void:
 	for agent in _agents:
+		var visibility := _visibility_state(agent)
+		if visibility == "culled":
+			if str(agent.get("visibility", "visible")) != "culled":
+				_set_agent_slots_visible(agent, false)
+				agent["visibility"] = "culled"
+				_visibility_culled_count += 1
+			continue
+		if visibility == "frozen":
+			if str(agent.get("visibility", "visible")) == "culled":
+				# A far figure returning from outside the cap must be restored once before
+				# freezing, otherwise it remains a permanently invisible hole in the town.
+				_set_agent_slots_visible(agent, true)
+				agent["visibility"] = "frozen"
+				_draw(agent)
+			_visibility_frozen_count += 1
+			continue
+		if str(agent.get("visibility", "visible")) == "culled":
+			_set_agent_slots_visible(agent, true)
+		agent["visibility"] = "visible"
 		if force_draw:
 			_tick_delta = 0.0
 			_draw(agent)
@@ -402,7 +430,59 @@ func _detail_tier(radius: float) -> String:
 
 
 func lod_metrics() -> Dictionary:
-	return _lod_update_counts.duplicate()
+	var metrics := _lod_update_counts.duplicate()
+	metrics["culled"] = _visibility_culled_count
+	metrics["frozen"] = _visibility_frozen_count
+	return metrics
+
+
+## Test-only injection and photo-mode support. Production uses the active Camera3D.
+func set_visibility_origin_for_testing(origin: Variant) -> void:
+	_visibility_origin_override = origin
+
+
+func _visibility_state(agent: Dictionary) -> String:
+	var origin := _agent_origin(agent)
+	var camera: Camera3D = null
+	if _visibility_origin_override is Vector3:
+		var distance := origin.distance_to(_visibility_origin_override as Vector3)
+		if distance > CULL_DISTANCE:
+			return "culled"
+		return "visible"
+	if get_viewport():
+		camera = get_viewport().get_camera_3d()
+	if camera == null:
+		# Headless/audit worlds have no camera; retain the authored route-radius LOD there.
+		return "visible"
+	var camera_distance := origin.distance_to(camera.global_position)
+	if camera_distance > CULL_DISTANCE:
+		return "culled"
+	if camera_distance > BEHIND_CAMERA_FREEZE_DISTANCE and camera.is_position_behind(origin):
+		return "frozen"
+	return "visible"
+
+
+func _agent_origin(agent: Dictionary) -> Vector3:
+	var route: Dictionary = _routes[agent["route"]]
+	var sample := _sample(route, float(agent["s"]))
+	var direction: Vector2 = sample["d"] * float(agent["dir"])
+	var side := Vector2(-direction.y, direction.x) * float(agent["offset"])
+	var point: Vector2 = sample["p"] + side
+	return global_position + Vector3(point.x, _ground, point.y)
+
+
+func _set_agent_slots_visible(agent: Dictionary, should_show: bool) -> void:
+	for slot in agent["slots"]:
+		var multimesh: MultiMesh = _meshes.get(slot["mat"])
+		if multimesh == null:
+			continue
+		if should_show:
+			# `_draw()` replaces this identity transform with the current authored pose.
+			multimesh.set_instance_transform(slot["index"], Transform3D.IDENTITY)
+		else:
+			multimesh.set_instance_transform(
+				slot["index"], Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0))
+			)
 
 
 func _advance(agent: Dictionary, delta: float) -> void:

@@ -307,6 +307,8 @@ func try_parry_attack(
 	_stagger_attacker(attacker)
 	if attacker and attacker.has_method("get_enemy_id"):
 		BestiaryService.record_counter(str(attacker.call("get_enemy_id")), "parry")
+	if RunBuffs:
+		RunBuffs.note_combat_moment("parry")
 	parry_success.emit(attacker)
 	riposte_active = true
 	parried_target = attacker

@@ -25,6 +25,7 @@ var appearance_profile: Dictionary = CharacterAppearance.default_profile()
 var flags: Dictionary = {}
 var quest_states: Dictionary = {}
 var quest_progress: Dictionary = {}
+var quest_tracker: Dictionary = {"primary": "", "secondary": []}
 
 const PERK_RULE_PREFIX := "perk/"
 
@@ -139,6 +140,28 @@ func set_quest_progress(quest_id: String, progress: Dictionary) -> void:
 	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
 
 
+## QuestService decides which active quests may be tracked; this service owns only durable,
+## shape-safe persistence so switching a primary objective survives a reload/cloud merge.
+func get_quest_tracker() -> Dictionary:
+	return quest_tracker.duplicate(true)
+
+
+func set_quest_tracker(tracker: Dictionary) -> void:
+	var primary := str(tracker.get("primary", ""))
+	var secondary: Array[String] = []
+	var requested_secondary: Variant = tracker.get("secondary", [])
+	if requested_secondary is Array:
+		for raw_id in requested_secondary:
+			var quest_id := str(raw_id)
+			if quest_id != "" and quest_id != primary and quest_id not in secondary:
+				secondary.append(quest_id)
+				if secondary.size() >= 2:
+					break
+	quest_tracker = {"primary": primary, "secondary": secondary}
+	quests_changed.emit()
+	LocalSave.request_autosave(LocalSave.SavePriority.DEFERRED)
+
+
 func get_class_id() -> String:
 	return class_id
 
@@ -185,6 +208,7 @@ func to_save_dict() -> Dictionary:
 		{
 			"states": quest_states.duplicate(true),
 			"progress": quest_progress.duplicate(true),
+			"tracker": quest_tracker.duplicate(true),
 		},
 	}
 
@@ -220,6 +244,7 @@ func reset_to_defaults() -> void:
 	flags.clear()
 	quest_states.clear()
 	quest_progress.clear()
+	quest_tracker = {"primary": "", "secondary": []}
 	_unregistered_flag_ids.clear()
 	_sync_perk_rules()
 	gold_changed.emit(gold)
@@ -231,6 +256,7 @@ func reset_to_defaults() -> void:
 func _load_quests_from_save(saved: Variant) -> void:
 	quest_states.clear()
 	quest_progress.clear()
+	quest_tracker = {"primary": "", "secondary": []}
 	if not saved is Dictionary:
 		push_warning("CharacterService: quests payload is %s, expected Dictionary" % typeof(saved))
 		return
@@ -246,6 +272,19 @@ func _load_quests_from_save(saved: Variant) -> void:
 				var entry: Variant = progress[quest_id]
 				if entry is Dictionary:
 					quest_progress[str(quest_id)] = entry.duplicate(true)
+		var tracker: Variant = quests.get("tracker", {})
+		if tracker is Dictionary:
+			var tracker_dict: Dictionary = tracker
+			var secondary: Array[String] = []
+			var saved_secondary: Variant = tracker_dict.get("secondary", [])
+			if saved_secondary is Array:
+				for raw_id in saved_secondary:
+					var quest_id := str(raw_id)
+					if quest_id != "" and quest_id not in secondary and quest_id != str(tracker_dict.get("primary", "")):
+						secondary.append(quest_id)
+						if secondary.size() >= 2:
+							break
+			quest_tracker = {"primary": str(tracker_dict.get("primary", "")), "secondary": secondary}
 		return
 	for key in quests:
 		var quest_key := str(key)

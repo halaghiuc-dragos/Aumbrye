@@ -452,6 +452,21 @@ func _highlight_lines(results: Dictionary) -> Array[String]:
 	var traps := int(highlights.get("trapCatches", 0))
 	if traps > 0:
 		lines.append(tr("RESULTS_TRAPS_HIT").format({"count": traps}))
+	var raw_moments: Variant = highlights.get("combatMoments", {})
+	if raw_moments is Dictionary:
+		var moments: Dictionary = raw_moments
+		var skill_lines: Array[String] = []
+		var perfect_dodges := int(moments.get("perfectDodges", 0))
+		var parries := int(moments.get("parries", 0))
+		var executions := int(moments.get("executions", 0))
+		if perfect_dodges > 0:
+			skill_lines.append("%d perfect dodge%s" % [perfect_dodges, "s" if perfect_dodges != 1 else ""])
+		if parries > 0:
+			skill_lines.append("%d parr%s" % [parries, "ies" if parries != 1 else "y"])
+		if executions > 0:
+			skill_lines.append("%d execution%s" % [executions, "s" if executions != 1 else ""])
+		if not skill_lines.is_empty():
+			lines.append("Combat mastery: %s." % ", ".join(skill_lines))
 	return lines
 
 

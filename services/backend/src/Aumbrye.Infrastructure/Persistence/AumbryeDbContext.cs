@@ -11,6 +11,7 @@ public class AumbryeDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Run> Runs => Set<Run>();
+    public DbSet<RankedRunMilestone> RankedRunMilestones => Set<RankedRunMilestone>();
     public DbSet<SaveBlob> SaveBlobs => Set<SaveBlob>();
     public DbSet<SaveBlobQuarantine> SaveBlobQuarantines => Set<SaveBlobQuarantine>();
 
@@ -61,6 +62,15 @@ public class AumbryeDbContext : DbContext
             e.Property(x => x.Outcome).HasMaxLength(16);
             e.Property(x => x.Mode).HasMaxLength(32);
             e.Property(x => x.Ruleset).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<RankedRunMilestone>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.RunId, x.Sequence }).IsUnique();
+            e.HasIndex(x => new { x.RunId, x.Kind }).IsUnique();
+            e.Property(x => x.AuthorityId).HasMaxLength(128);
+            e.HasOne(x => x.Run).WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SaveBlob>(e =>

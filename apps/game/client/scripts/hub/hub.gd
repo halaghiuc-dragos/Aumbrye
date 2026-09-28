@@ -2,6 +2,7 @@ extends Node3D
 
 
 const HubDioramaScript := preload("res://scripts/hub/hub_diorama.gd")
+const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
 const CharacterCreateUIScript := preload("res://scripts/ui/character_create_ui.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const HubNpcScene := preload("res://scenes/hub/hub_npc.tscn")
@@ -32,6 +33,7 @@ const INTERACT_HANDLERS := {
 @onready var _merchant_ui: Control = $MerchantUI
 @onready var _storage_ui: Control = $StorageUI
 @onready var _quest_board_ui: Control = $QuestBoardUI
+@onready var _service_route_label: Label3D = get_node_or_null("ServiceRouteLabel") as Label3D
 
 var _appearance_mirror_ui: Control
 
@@ -149,6 +151,7 @@ func _boot_save_and_services() -> void:
 	if not reloaded:
 		_on_save_loaded()
 	_auto_equip_starting_weapon()
+	_restore_hub_resources()
 	LocalSave.autosave()
 	show_hub_message("Welcome back, %s." % LocalSave.get_character_name())
 	# Settle the active save/cloud snapshot before consuming persistent announcement queues. The
@@ -156,9 +159,32 @@ func _boot_save_and_services() -> void:
 	_hub_services_ready = true
 	_refresh_castle_portal_label()
 	_refresh_mode_portals()
-	_announce_mode_unlocks()
-	_announce_hub_growth()
-	_announce_combat_teaching()
+	_refresh_hub_service_route()
+	_announce_progression_updates()
+
+
+## A return to town is a recovery point, not an extra menu a wounded player has to hunt down.
+## This is intentionally automatic: the route marker names the restored supplies, then leaves the
+## forge and storage decisions optional before the next expedition.
+func _restore_hub_resources() -> void:
+	var player := get_node_or_null("Player") as Node
+	if player == null:
+		return
+	var health := player.get_node_or_null("Health") as Health
+	if health:
+		health.reset_health()
+	var stamina := player.get_node_or_null("Stamina") as Stamina
+	if stamina:
+		stamina.reset_stamina()
+	var mana := player.get_node_or_null("Mana") as Mana
+	if mana:
+		mana.reset_mana()
+	var heal := player.get_node_or_null("PlayerHeal") as PlayerHeal
+	if heal:
+		heal.refill_charges()
+	var arrows := player.get_node_or_null("PlayerArrows") as PlayerArrows
+	if arrows:
+		arrows.refill_arrows()
 
 
 func _spawn_catalog_npcs() -> void:
@@ -549,20 +575,70 @@ func _set_portal_lit(portal: Node3D, lit: bool) -> void:
 ## player -- a hub message line undersold it. Now: the portal is already lit (see `_ready()`), a
 ## stinger plays, and the announce line gets a region-banner-sized card instead of the small
 ## world-space message label.
-func _announce_mode_unlocks() -> void:
-	var fresh := ModeUnlockService.consume_announcements()
+func _announce_progression_updates() -> void:
+	if not _hub_services_ready:
+		return
+	var updates := _consume_progression_updates()
+	var modes: Array = updates.get("modes", []) as Array
+	var growth: Array = updates.get("growth", []) as Array
+	var teaching: Array = updates.get("teaching", []) as Array
+	if modes.is_empty() and growth.is_empty() and teaching.is_empty():
+		return
+	# One summary owns this return-to-hub beat.  Previously each source consumed and presented its
+	# own queue, so several modes could create overlapping cards and a later tutorial/growth line
+	# could obscure the actual next goal.  The source order is deliberate: route access first,
+	# persistent hub changes second, and optional combat reminders last.
+	_announce_mode_unlocks(modes)
+	var secondary_lines := _progression_secondary_lines(growth, teaching)
+	if not secondary_lines.is_empty():
+		var secondary := "\n".join(secondary_lines)
+		if _message_label and _message_label.visible and _message_label.text != "":
+			show_hub_message("%s\n%s" % [_message_label.text, secondary])
+		else:
+			show_hub_message(secondary)
+
+
+## Drains persistent sources exactly once after the save/cloud snapshot has settled.  Keeping the
+## drains adjacent makes their ordering auditable and prevents a reactive flag signal from
+## interleaving a new growth line between a mode card and its explanation.
+func _consume_progression_updates() -> Dictionary:
+	_growth_reconciling = true
+	var opened := HubGrowthService.evaluate()
+	if not opened.is_empty():
+		HubDioramaScript.reconcile_growth_props(self)
+	var growth := HubGrowthService.consume_announcements()
+	_growth_reconciling = false
+	return {
+		"modes": ModeUnlockService.consume_announcements(),
+		"growth": growth,
+		"teaching": HubTutorialService.consume_pending_combat_teaching(),
+	}
+
+
+func _announce_mode_unlocks(fresh: Array = []) -> void:
 	if fresh.is_empty():
 		return
+	var titles: Array[String] = []
+	var details: Array[String] = []
 	for entry in fresh:
-		var mode_name := str(entry.get("name", ""))
-		var announce := str(entry.get("announce", ""))
-		_show_mode_unlock_card(
-			mode_name, announce if announce != "" else "%s has opened." % mode_name
-		)
+		if not entry is Dictionary:
+			continue
+		var mode_name := str((entry as Dictionary).get("name", ""))
+		if mode_name != "":
+			titles.append(mode_name)
+		var announce := str((entry as Dictionary).get("announce", ""))
+		if announce != "":
+			details.append(announce)
+		elif mode_name != "":
+			details.append("%s is now available for future runs." % mode_name)
+	if not titles.is_empty():
+		var title := titles[0] if titles.size() == 1 else ", ".join(titles)
+		var subtitle := "\n".join(details)
+		_show_mode_unlock_card(title, subtitle if subtitle != "" else "%s is now available for future runs." % title)
 	AudioDirector.play_stinger("floor_clear")
 	# MD-07/VS-09: the one hub moment that deserves the camera turning to look at something --
 	# pans to the first newly-lit portal, reusing the reveal framing built for RM-09 secrets.
-	var first_mode_id := str(fresh[0].get("id", ""))
+	var first_mode_id := str((fresh[0] as Dictionary).get("id", "")) if fresh[0] is Dictionary else ""
 	var portal_node_name := ModeUnlockService.portal_node_name(first_mode_id)
 	if portal_node_name != "":
 		var portal := get_node_or_null(portal_node_name) as Node3D
@@ -587,18 +663,11 @@ func _announce_hub_growth() -> void:
 	if not opened.is_empty():
 		HubDioramaScript.reconcile_growth_props(self)
 	var fresh := HubGrowthService.consume_announcements()
-	if fresh.is_empty():
+	var lines := _progression_secondary_lines(fresh, [])
+	if lines.is_empty():
 		_growth_reconciling = false
 		return
-	var names: Array[String] = []
-	for entry in fresh:
-		var growth_name := str(entry.get("name", ""))
-		if growth_name != "":
-			names.append(growth_name)
-	if names.is_empty():
-		_growth_reconciling = false
-		return
-	var line := tr("HUB_GROWTH_ANNOUNCE").format({"names": ", ".join(names)})
+	var line := "\n".join(lines)
 	if _message_label and _message_label.visible and _message_label.text != "":
 		show_hub_message("%s  %s" % [_message_label.text, line])
 	else:
@@ -609,16 +678,34 @@ func _announce_hub_growth() -> void:
 
 func _announce_combat_teaching() -> void:
 	var messages := HubTutorialService.consume_pending_combat_teaching()
-	if messages.is_empty():
+	var lines := _progression_secondary_lines([], messages)
+	if lines.is_empty():
 		return
-	var wrapped_messages: Array[String] = []
-	for message in messages:
-		wrapped_messages.append(_wrap_world_message(message, 72))
-	var line := "%s\n%s" % [tr("HUB_COMBAT_NOTE_PREFIX"), "\n".join(wrapped_messages)]
+	var line := "\n".join(lines)
 	if _message_label and _message_label.visible and _message_label.text != "":
 		show_hub_message("%s\n%s" % [_message_label.text, line])
 	else:
 		show_hub_message(line)
+
+
+func _progression_secondary_lines(growth: Array, teaching: Array) -> Array[String]:
+	var lines: Array[String] = []
+	var names: Array[String] = []
+	for entry in growth:
+		if entry is Dictionary:
+			var growth_name := str((entry as Dictionary).get("name", ""))
+			if growth_name != "":
+				names.append(growth_name)
+	if not names.is_empty():
+		lines.append(tr("HUB_GROWTH_ANNOUNCE").format({"names": ", ".join(names)}))
+	var wrapped_messages: Array[String] = []
+	for message in teaching:
+		var text := str(message)
+		if text != "":
+			wrapped_messages.append(_wrap_world_message(text, 72))
+	if not wrapped_messages.is_empty():
+		lines.append("%s\n%s" % [tr("HUB_COMBAT_NOTE_PREFIX"), "\n".join(wrapped_messages)])
+	return lines
 
 
 static func _wrap_world_message(message: String, max_characters: int) -> String:
@@ -726,8 +813,82 @@ func _refresh_castle_portal_label() -> void:
 	_refresh_mode_portals()
 
 
+## The service buildings already form the short left-hand route out of the spawn plaza.  This
+## marker turns that geography into useful information rather than asking a returning player to
+## open each panel just to discover whether it matters.  It only advertises actions that the
+## current saved state can genuinely perform, and never asks the player to clear them to run.
+func _refresh_hub_service_route() -> void:
+	if _service_route_label == null or not _hub_services_ready:
+		return
+	var pending: Array[String] = []
+	var blacksmith_actions := _pending_blacksmith_action_count()
+	var blacksmith_status := ""
+	if blacksmith_actions > 0:
+		blacksmith_status = tr("HUB_SERVICE_BLACKSMITH_READY").format(
+			{"count": blacksmith_actions}
+		)
+		pending.append(blacksmith_status)
+	_set_service_interaction_label("blacksmith", tr("HUB_SERVICE_BLACKSMITH"), blacksmith_status)
+
+	var storage_full := _inventory_needs_storage()
+	var storage_status := tr("HUB_SERVICE_STORAGE_FULL") if storage_full else ""
+	if storage_full:
+		pending.append(storage_status)
+	_set_service_interaction_label("storage", tr("HUB_SERVICE_STORAGE"), storage_status)
+
+	var route_status := tr("HUB_SERVICE_ROUTE_CLEAR")
+	if not pending.is_empty():
+		route_status = "%s\n%s" % [
+			"\n".join(pending),
+			tr("HUB_SERVICE_ROUTE_READY"),
+		]
+	_service_route_label.text = "%s\n%s\n%s" % [
+		tr("HUB_SERVICE_ROUTE_TITLE"),
+		tr("HUB_SERVICE_ROUTE_RECOVERED"),
+		route_status,
+	]
+	_service_route_label.visible = true
+
+
+func _set_service_interaction_label(interact_id: String, base_label: String, status: String) -> void:
+	var area := _interactable_by_id.get(interact_id) as HubInteractable
+	if area == null:
+		return
+	area.set_display_name(base_label if status == "" else "%s — %s" % [base_label, status])
+
+
+func _inventory_needs_storage() -> bool:
+	if InventoryService == null or InventoryService.inventory == null:
+		return false
+	# A common one-cell material is a conservative, tangible proxy for whether the pack can take
+	# the next ordinary reward.  Stacks may still accept a matching material, but no empty cell is
+	# enough reason to point the player at storage without falsely calling a usable pack "full".
+	return not InventoryService.inventory.has_space_for("iron_scrap")
+
+
+func _pending_blacksmith_action_count() -> int:
+	if InventoryService == null or InventoryService.inventory == null:
+		return 0
+	var count := 0
+	var inventory := InventoryService.inventory
+	for slot_name in inventory.equipped.keys():
+		if (
+			BlacksmithServiceScript.can_upgrade(str(slot_name))
+			or BlacksmithServiceScript.can_repair(str(slot_name))
+		):
+			count += 1
+	for index in inventory.slots.size():
+		if BlacksmithServiceScript.can_upgrade(index) or BlacksmithServiceScript.can_repair(index):
+			count += 1
+	for unlock in BlacksmithServiceScript.get_available_unlocks():
+		if BlacksmithServiceScript.can_unlock(str(unlock.get("itemId", ""))):
+			count += 1
+	return count
+
+
 func _on_returned_to_hub(_message: String) -> void:
 	_refresh_castle_portal_label()
+	_refresh_hub_service_route()
 
 
 func _show_return_message() -> void:
@@ -765,10 +926,12 @@ func _connect_tip_refresh_sources() -> void:
 
 func _on_tip_source_changed() -> void:
 	_refresh_tip_surface()
+	_refresh_hub_service_route()
 
 
 func _on_flag_source_changed() -> void:
 	_refresh_tip_surface()
+	_refresh_hub_service_route()
 	_announce_hub_growth()
 	if _dialogue_ui and _dialogue_ui.is_open():
 		_npc_availability_pending = true
@@ -786,6 +949,7 @@ func _on_dialogue_closed() -> void:
 
 func _on_tip_source_changed_int(_value: int) -> void:
 	_refresh_tip_surface()
+	_refresh_hub_service_route()
 
 
 func _refresh_tip_surface() -> void:

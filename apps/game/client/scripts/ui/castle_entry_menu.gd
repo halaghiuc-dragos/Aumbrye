@@ -97,7 +97,7 @@ func _build_mode_row() -> void:
 			continue
 		var btn := GameUISkinScript.make_button(ContentText.name(mode, mode_id))
 		btn.name = "Mode_%s" % mode_id
-		btn.tooltip_text = ContentText.field(mode, "flavour", ContentText.description(mode))
+		btn.tooltip_text = AlternateModeRowScript._mode_tooltip(mode, mode_id)
 		btn.disabled = not _can_start_run()
 		btn.pressed.connect(_on_mode_row_pressed.bind(mode_id))
 		row.add_child(btn)

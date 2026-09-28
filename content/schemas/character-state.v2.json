@@ -52,6 +52,20 @@
         "progress": {
           "type": "object",
           "additionalProperties": { "type": "object" }
+        },
+        "tracker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary", "secondary"],
+          "properties": {
+            "primary": { "type": "string" },
+            "secondary": {
+              "type": "array",
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
         }
       }
     },

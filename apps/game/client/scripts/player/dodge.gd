@@ -62,6 +62,9 @@ signal dodge_ended
 signal dash_started
 signal dash_ended
 signal iframes_changed(active: bool)
+## A hit actually passed through this dodge window. This is deliberately separate from
+## `dodge_started`: builds should reward timing, not simply pressing the button on cooldown.
+signal perfect_dodge_landed(source: Node)
 
 var is_dodging := false
 var iframes_active := false
@@ -352,8 +355,16 @@ func _start_dash(skip_cost: bool = false) -> void:
 		VfxService.play_dodge(
 			_body.global_position + Vector3(0.0, 0.05, 0.0), _dodge_direction
 		)
+	if _body and AudioDirector:
+		AudioDirector.play_sfx("dodge", _body.global_position + Vector3(0.0, 0.6, 0.0))
 	if _body and _body.is_in_group("player") and CombatEvents:
 		CombatEvents.dispatch(CombatEvents.ON_DODGE, {"actor": _body})
+
+
+func notify_perfect_dodge(source: Node = null) -> void:
+	if RunBuffs:
+		RunBuffs.note_combat_moment("perfect_dodge")
+	perfect_dodge_landed.emit(source)
 
 
 func _get_attack_backstep_direction() -> Vector3:

@@ -43,38 +43,12 @@ def _fmt_index_array(indices: list[int]) -> str:
 
 
 def write_mesh(path: Path, mesh: MeshData) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    ax, ay, az, sx, sy, sz = _aabb(mesh)
-    arrays = [
-        _fmt_vec3_array(mesh.vertices),
-        _fmt_vec3_array(mesh.normals),
-        "null",
-        _fmt_color_array(mesh.colors),
-        "null",
-        "null",
-        "null",
-        "null",
-        "null",
-        "null",
-        "null",
-        "null",
-        "null",
-        _fmt_index_array(mesh.indices),
-    ]
-    arrays_block = ",\n".join(f"\t{line}" for line in arrays)
-    content = (
-        "[gd_resource type=\"ArrayMesh\" format=3]\n\n"
-        "[resource]\n"
-        "_surfaces = [{\n"
-        f'"aabb": AABB({ax:.6g}, {ay:.6g}, {az:.6g}, {sx:.6g}, {sy:.6g}, {sz:.6g}),\n'
-        '"format": 0,\n'
-        '"primitive": 4,\n'
-        '"arrays": [\n'
-        f"{arrays_block}\n"
-        "]\n"
-        "}]\n"
+    _ = path
+    _ = mesh
+    raise RuntimeError(
+        "legacy Godot 3 ArrayMesh writer is retired; it cannot publish Godot 4 mesh resources. "
+        "Use tools/generate_character_voxels.py and the runtime voxel mesh builder instead."
     )
-    path.write_text(content, encoding="utf-8", newline="\n")
 
 
 def mesh_resource_path(archetype_id: str, part_name: str) -> str:

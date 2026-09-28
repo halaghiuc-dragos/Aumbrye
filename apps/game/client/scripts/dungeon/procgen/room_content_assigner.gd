@@ -3,6 +3,10 @@ extends RefCounted
 
 
 const DungeonQuestCatalogScript := preload("res://scripts/quests/dungeon_quest_catalog.gd")
+const BRANCH_CLUE_PROFILES_PATH := "content/ui/branch_clue_profiles.json"
+
+static var _branch_clue_profiles: Dictionary = {}
+static var _branch_clue_profiles_loaded := false
 
 
 static func assign(
@@ -276,6 +280,7 @@ static func _pick_content_type(
 		RoomContentTypes.LORE: config.weight_lore,
 		RoomContentTypes.REST: 0.0 if not _rest_allowed() else config.weight_rest,
 		RoomContentTypes.MERCHANT: config.weight_merchant,
+		RoomContentTypes.SHRINE: config.weight_shrine,
 	}
 	var total := 0.0
 	for weight in weights.values():
@@ -322,6 +327,15 @@ static func _enforce_pacing(
 		reserved_semantics,
 		RoomContentTypes.LORE,
 		config.min_lore_rooms,
+		critical_semantic,
+		rng
+	)
+	_guarantee_type(
+		room_content,
+		by_room,
+		reserved_semantics,
+		RoomContentTypes.SHRINE,
+		config.min_shrine_rooms,
 		critical_semantic,
 		rng
 	)
@@ -989,9 +1003,13 @@ static func _reserved_semantics(
 
 
 static func build_branch_previews(
-	graph: RoomGraph, assignment: Dictionary, _room_content: Array
+	graph: RoomGraph, assignment: Dictionary, room_content: Array
 ) -> Array:
 	var layout_semantic := _layout_to_semantic(assignment)
+	var content_by_room: Dictionary = {}
+	for entry in room_content:
+		if entry is Dictionary:
+			content_by_room[str((entry as Dictionary).get("roomId", ""))] = entry
 	var critical_layout: Array[String] = RoomGraphPaths.critical_path_ids(graph)
 	var critical_layout_set := {}
 	for layout_id in critical_layout:
@@ -1009,16 +1027,21 @@ static func build_branch_previews(
 			if seen.has(key):
 				continue
 			seen[key] = true
+			var destination_content: Dictionary = content_by_room.get(to_sem, {}) as Dictionary
+			var clue := _branch_clue_for_content_type(
+				str(destination_content.get("contentType", ""))
+			)
 			(
 				previews
 				. append(
 					{
 						"fromRoomId": from_sem,
 						"toRoomId": to_sem,
-						# Don't disclose generated room purpose from the map alone. A later authored
-						# clue may opt into a type preview by setting clueQuality explicitly.
-						"hint": "unknown",
-						"clueQuality": 0,
+						# The profile is authored content, not an inference from map topology. A type
+						# appears only when its room family has a designed doorway clue; every other
+						# branch remains an outline so the map supports spatial learning, not routing.
+						"hint": str(clue.get("hint", "unknown")),
+						"clueQuality": int(clue.get("clueQuality", 0)),
 					}
 				)
 			)
@@ -1029,6 +1052,22 @@ static func build_branch_previews(
 			return ak < bk
 	)
 	return previews
+
+
+static func _branch_clue_for_content_type(content_type: String) -> Dictionary:
+	_ensure_branch_clue_profiles()
+	var profile: Variant = _branch_clue_profiles.get(content_type, {})
+	return profile.duplicate(true) if profile is Dictionary else {}
+
+
+static func _ensure_branch_clue_profiles() -> void:
+	if _branch_clue_profiles_loaded:
+		return
+	_branch_clue_profiles_loaded = true
+	var raw: Dictionary = ContentLoader.load_json(BRANCH_CLUE_PROFILES_PATH)
+	var profiles: Variant = raw.get("contentTypes", {})
+	if profiles is Dictionary:
+		_branch_clue_profiles = (profiles as Dictionary).duplicate(true)
 
 
 static func _layout_to_semantic(assignment: Dictionary) -> Dictionary:

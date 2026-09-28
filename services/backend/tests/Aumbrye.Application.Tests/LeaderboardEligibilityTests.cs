@@ -49,7 +49,8 @@ public static class LeaderboardEligibilityTests
             .Options;
         await using var db = new AumbryeDbContext(options);
         if (!db.Database.GetMigrations().Contains("20260923100000_RunProgressionVerification")
-            || !db.Database.GetMigrations().Contains("20260923130000_RunClientVersionSnapshot"))
+            || !db.Database.GetMigrations().Contains("20260923130000_RunClientVersionSnapshot")
+            || !db.Database.GetMigrations().Contains("20260926090000_RankedRunMilestones"))
         {
             Console.Error.WriteLine("FAIL: run progression verification migration is not discoverable");
             return 1;
@@ -192,6 +193,56 @@ public static class LeaderboardEligibilityTests
             || createdRun.ClientVersion != ApiVersions.ExpectedClientVersion)
         {
             Console.Error.WriteLine("FAIL: server run creation did not return its player-level snapshot");
+            return 1;
+        }
+
+        var observedRunId = Guid.NewGuid();
+        db.Runs.Add(new Run
+        {
+            Id = observedRunId,
+            AccountId = accountId,
+            BiomeId = "forgotten_castle",
+            Seed = 24681,
+            Tier = 1,
+            PlayerLevelSnapshot = 1,
+            ClientVersionSnapshot = ApiVersions.ExpectedClientVersion,
+            Status = RunStatus.Active,
+            Mode = "dungeon",
+            Ruleset = "standard-v1",
+            RankedDefinitionEligible = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+        var observer = new RankedProgressionObserver(db);
+        var outOfOrder = await observer.RecordAuthoritativeMilestoneAsync(
+            new AuthoritativeRunMilestone(
+                observedRunId, accountId, 2, RankedRunMilestoneKind.BossDefeated, "ranked-host-1"));
+        if (outOfOrder.Accepted)
+        {
+            Console.Error.WriteLine("FAIL: observer accepted an out-of-order milestone");
+            return 1;
+        }
+        foreach (var (sequence, kind) in new[]
+        {
+            (1, RankedRunMilestoneKind.EncounterStarted),
+            (2, RankedRunMilestoneKind.BossDefeated),
+            (3, RankedRunMilestoneKind.FinalObjectiveCompleted),
+            (4, RankedRunMilestoneKind.Escaped),
+        })
+        {
+            var observed = await observer.RecordAuthoritativeMilestoneAsync(
+                new AuthoritativeRunMilestone(observedRunId, accountId, sequence, kind, "ranked-host-1"));
+            if (!observed.Accepted || (sequence == 4 && !observed.RankedProgressionVerified))
+            {
+                Console.Error.WriteLine("FAIL: observer did not accept the complete authoritative milestone sequence");
+                return 1;
+            }
+        }
+        var observedRun = await db.Runs.SingleAsync(x => x.Id == observedRunId);
+        var observedEvents = await db.RankedRunMilestones.Where(x => x.RunId == observedRunId).ToListAsync();
+        if (!observedRun.RankedProgressionVerified || observedEvents.Count != 4)
+        {
+            Console.Error.WriteLine("FAIL: authoritative milestones did not persist ranked eligibility");
             return 1;
         }
 

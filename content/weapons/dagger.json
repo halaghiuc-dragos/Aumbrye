@@ -6,6 +6,7 @@
   "status_on_hit": "bleed",
   "buffer_window": 0.25,
   "lunge_distance": 0.3,
+  "perfect_dodge_moment": {"label": "Open Vein", "duration": 2.0, "damageMult": 1.42, "statusStacks": 2, "lungeMult": 1.2},
   "cancel_into": [
     "dodge",
     "guard"

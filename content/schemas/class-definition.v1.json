@@ -117,6 +117,10 @@
           "pct": {
             "type": "number"
           },
+          "multiplier": {
+            "type": "number",
+            "minimum": 0
+          },
           "statusId": {
             "type": "string"
           },
@@ -149,6 +153,13 @@
           },
           "ifDamageType": {
             "type": "string"
+          },
+          "ifWeaponArchetype": {
+            "type": "string"
+          },
+          "ifTargetDistanceAtLeast": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "additionalProperties": false

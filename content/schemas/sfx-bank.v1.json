@@ -45,6 +45,25 @@
         },
         "volume_db": { "type": "number" },
         "pitch_jitter": { "type": "number", "minimum": 0, "maximum": 1 },
+        "pitch_variants": {
+          "type": "array",
+          "items": { "type": "number", "minimum": -12, "maximum": 12 },
+          "description": "Small semitone offsets, shuffled at playback to make a single recorded foley source feel less repetitive."
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "volume_db": { "type": "number" },
+              "pitch": { "type": "number", "minimum": 0.25, "maximum": 4 },
+              "chance": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
         "max_concurrent": { "type": "integer", "minimum": 1 },
         "cooldown_ms": { "type": "integer", "minimum": 0 },
         "priority": { "type": "integer", "minimum": 0, "maximum": 3 },

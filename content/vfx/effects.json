@@ -29,6 +29,14 @@
           "align_to": "forward"
         },
         {
+          "kind": "ribbon",
+          "lifetime": 0.18,
+          "color": "#fff2b8",
+          "emission": 2.8,
+          "radius": 1.0,
+          "arc_degrees": 135.0
+        },
+        {
           "kind": "sfx",
           "key": "swing"
         }
@@ -191,6 +199,55 @@
         {
           "kind": "sfx",
           "key": "parry"
+        }
+      ]
+    },
+    "execution": {
+      "layers": [
+        {
+          "kind": "burst",
+          "backend": "gpu",
+          "amount": 34,
+          "lifetime": 0.32,
+          "explosiveness": 1.0,
+          "spread": 150.0,
+          "velocity": [5.5, 10.5],
+          "gravity": [0.0, -4.5, 0.0],
+          "scale": [0.09, 0.17],
+          "chunk": "shard_small",
+          "color": "#ffd17a",
+          "emission": 5.2,
+          "flatness": 0.12
+        },
+        {
+          "kind": "burst",
+          "backend": "cpu",
+          "amount": 16,
+          "lifetime": 0.82,
+          "explosiveness": 0.48,
+          "spread": 80.0,
+          "velocity": [0.8, 2.3],
+          "gravity": [0.0, 0.8, 0.0],
+          "scale": [0.05, 0.1],
+          "chunk": "dust_flake",
+          "color": "#ff9a4d",
+          "emission": 2.8,
+          "randomness": 0.7
+        },
+        {
+          "kind": "ribbon",
+          "lifetime": 0.3,
+          "color": "#fff0ba",
+          "emission": 4.6,
+          "radius": 1.32,
+          "arc_degrees": 205.0
+        },
+        {
+          "kind": "impact",
+          "hitstop_ms": 150,
+          "shake": 0.34,
+          "shake_ms": 220,
+          "vignette": 0.14
         }
       ]
     },
@@ -660,6 +717,33 @@
           "color": "#7d7a86",
           "emission": 0.1,
           "flatness": 0.9
+        }
+      ]
+    },
+    "perfect_dodge": {
+      "layers": [
+        {
+          "kind": "burst",
+          "backend": "gpu",
+          "amount": 18,
+          "lifetime": 0.38,
+          "explosiveness": 0.9,
+          "spread": 155.0,
+          "velocity": [2.4, 5.8],
+          "gravity": [0.0, -1.2, 0.0],
+          "scale": [0.06, 0.12],
+          "chunk": "shard_small",
+          "color": "#70edff",
+          "emission": 4.1,
+          "flatness": 0.2
+        },
+        {
+          "kind": "ribbon",
+          "lifetime": 0.2,
+          "color": "#b7f7ff",
+          "emission": 3.4,
+          "radius": 0.82,
+          "arc_degrees": 145.0
         }
       ]
     },

@@ -1,0 +1,29 @@
+{
+  "id": "branch_clue_profiles",
+  "contentTypes": {
+    "reward": {
+      "hint": "reward",
+      "clueQuality": 2
+    },
+    "shrine": {
+      "hint": "reward",
+      "clueQuality": 2
+    },
+    "trap": {
+      "hint": "danger",
+      "clueQuality": 2
+    },
+    "hazard": {
+      "hint": "danger",
+      "clueQuality": 2
+    },
+    "puzzle": {
+      "hint": "unknown",
+      "clueQuality": 1
+    },
+    "lore": {
+      "hint": "unknown",
+      "clueQuality": 1
+    }
+  }
+}

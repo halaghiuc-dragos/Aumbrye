@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Aumbrye.Domain.Entities;
 
 namespace Aumbrye.Application.Abstractions;
 
@@ -63,6 +64,30 @@ public interface IRunService
     Task<DungeonDefinitionResult> GetDungeonDefinitionAsync(Guid accountId, Guid runId, int floor = 1, CancellationToken ct = default);
     Task<CompleteRunResult> CompleteRunAsync(Guid accountId, Guid runId, CompleteRunInput input, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Internal-only bridge from an authoritative game-session host to the account backend. It is
+/// deliberately not exposed through the player HTTP API; accepting these milestones from the
+/// client would turn the ranked gate back into a client assertion.
+/// </summary>
+public interface IRankedProgressionObserver
+{
+    Task<RankedProgressionObservationResult> RecordAuthoritativeMilestoneAsync(
+        AuthoritativeRunMilestone milestone,
+        CancellationToken ct = default);
+}
+
+public sealed record AuthoritativeRunMilestone(
+    Guid RunId,
+    Guid AccountId,
+    int Sequence,
+    RankedRunMilestoneKind Kind,
+    string AuthorityId);
+
+public sealed record RankedProgressionObservationResult(
+    bool Accepted,
+    bool RankedProgressionVerified = false,
+    string? Error = null);
 
 /// <summary>
 /// Outcome of a floor-definition request. An out-of-range floor is a client error (400), not a

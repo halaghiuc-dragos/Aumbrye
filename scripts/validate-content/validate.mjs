@@ -221,11 +221,17 @@ function resolveSchemaForFile(filePath) {
   if (name === "ui/input_glyph_atlas.json") {
     return join(schemasRoot, "input-glyph-atlas.v1.json");
   }
+  if (name === "ui/branch_clue_profiles.json") {
+    return join(schemasRoot, "branch-clue-profiles.v1.json");
+  }
   if (name === "art/palettes.json") {
     return join(schemasRoot, "palette.v1.json");
   }
   if (name === "art/lighting.json") {
     return join(schemasRoot, "lighting-profile.v1.json");
+  }
+  if (name === "art/readability_spec.json") {
+    return join(schemasRoot, "art-readability-spec.v1.json");
   }
   if (name === "art/portals.json") {
     return join(schemasRoot, "portal.v1.json");
@@ -449,7 +455,7 @@ function validateContentTranslationCoverage(entries) {
     const key = columns[0]?.trim();
     if (key) translationKeys.set(key, columns);
   }
-  const checkedFields = ["name", "description", "flavour", "gain", "cost"];
+  const checkedFields = ["name", "title", "description", "flavour", "gain", "cost"];
   let checked = 0;
   const checkedKeys = new Set();
   const missing = new Map();
@@ -459,7 +465,10 @@ function validateContentTranslationCoverage(entries) {
       for (const field of checkedFields) {
         if (typeof definition[field] !== "string" || !definition[field].trim()) continue;
         checked++;
-        const key = `CONTENT_${definition.id.toUpperCase()}_${field.toUpperCase()}`;
+        const translationId = typeof definition.translationId === "string" && definition.translationId.trim()
+          ? definition.translationId
+          : definition.id;
+        const key = `CONTENT_${translationId.toUpperCase()}_${field.toUpperCase()}`;
         checkedKeys.add(key);
         const columns = translationKeys.get(key);
         if (columns && columns.length >= 3 && columns[1].trim() && columns[2].trim()) continue;

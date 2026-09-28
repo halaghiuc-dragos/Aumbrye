@@ -40,6 +40,13 @@
       "cooldown": 1
     },
     {
+      "event": "onBlock",
+      "effect": "empower_next",
+      "multiplier": 1.2,
+      "chance": 1,
+      "cooldown": 0.8
+    },
+    {
       "event": "onParry",
       "effect": "apply_status",
       "statusId": "stoneskin",

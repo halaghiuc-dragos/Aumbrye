@@ -44,6 +44,41 @@
       "hidden": false
     },
     {
+      "id": "vault_clear",
+      "name": "Iron Claim",
+      "description": "Clear Iron Vault.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "prism_clear",
+      "name": "Prism Breaker",
+      "description": "Clear Prism Depths.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "mire_clear",
+      "name": "Mirewalker",
+      "description": "Clear Venom Mire.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "hollow_clear",
+      "name": "Hollowbound",
+      "description": "Clear Glacial Hollow.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
+      "id": "umbral_clear",
+      "name": "Night Lantern",
+      "description": "Clear Umbral Chapel.",
+      "category": "biome",
+      "hidden": false
+    },
+    {
       "id": "boss_slayer",
       "name": "Boss Slayer",
       "description": "Defeat any biome boss.",
@@ -53,7 +88,7 @@
     {
       "id": "all_biomes",
       "name": "World Walker",
-      "description": "Clear all five EA biomes.",
+      "description": "Clear every realm.",
       "category": "biome",
       "hidden": false
     },

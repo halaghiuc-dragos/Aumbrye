@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "reference_camera": {
+    "default_render_size": [1920, 1080],
+    "third_person_fov": 70.0,
+    "third_person_zoom": [3.2, 5.2]
+  },
+  "character_scale": {
+    "world_pixel": 0.04,
+    "gameplay_height_world": [1.25, 2.5]
+  },
+  "outline": {
+    "thickness_px": [1.0, 2.0],
+    "strength": [0.65, 1.0],
+    "interior_scale": [0.3, 0.55]
+  },
+  "palette_roles": {
+    "min_surface_value_delta": 0.008,
+    "min_accent_shadow_value_delta": 0.1,
+    "min_emissive_value": 0.65
+  },
+  "lighting": {
+    "torch_range": [7.0, 15.0],
+    "torch_energy": [0.3, 3.0],
+    "ambient_energy": [0.05, 0.5]
+  }
+}

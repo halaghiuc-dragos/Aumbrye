@@ -107,15 +107,15 @@ func unlock_for_biome_clear(biome_id: String) -> void:
 		BiomeRegistry.BIOME_CATHEDRAL:
 			unlock("cathedral_clear")
 		BiomeRegistry.BIOME_VAULT:
-			unlock("castle_clear")
+			unlock("vault_clear")
 		BiomeRegistry.BIOME_PRISM:
-			unlock("crystal_clear")
+			unlock("prism_clear")
 		BiomeRegistry.BIOME_MIRE:
-			unlock("swamp_clear")
+			unlock("mire_clear")
 		BiomeRegistry.BIOME_HOLLOW:
-			unlock("frozen_clear")
+			unlock("hollow_clear")
 		BiomeRegistry.BIOME_UMBRAL:
-			unlock("cathedral_clear")
+			unlock("umbral_clear")
 	_check_all_biomes()
 
 
@@ -159,6 +159,11 @@ func _check_all_biomes() -> void:
 		"swamp_clear",
 		"frozen_clear",
 		"cathedral_clear",
+		"vault_clear",
+		"prism_clear",
+		"mire_clear",
+		"hollow_clear",
+		"umbral_clear",
 	]
 	for id in required:
 		if not is_unlocked(id):

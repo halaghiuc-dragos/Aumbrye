@@ -5,7 +5,7 @@ const DisplayServiceScript := preload("res://scripts/app/display_service.gd")
 
 signal world_attached(scene_root: Node)
 
-enum ScreenPulse { DAMAGE, HEAL, PARRY, LOW_STAMINA }
+enum ScreenPulse { DAMAGE, HEAL, PARRY, EXECUTION, DODGE, LOW_STAMINA }
 
 const PULSE_TUNING := {
 	ScreenPulse.DAMAGE: {
@@ -25,6 +25,18 @@ const PULSE_TUNING := {
 		"peak": 0.55,
 		"decay": 0.16,
 		"tint": Color(0.98, 0.88, 0.35),
+	},
+	ScreenPulse.EXECUTION: {
+		"param": "damage_pulse",
+		"peak": 0.48,
+		"decay": 0.24,
+		"tint": Color(0.92, 0.58, 0.24),
+	},
+	ScreenPulse.DODGE: {
+		"param": "damage_pulse",
+		"peak": 0.28,
+		"decay": 0.14,
+		"tint": Color(0.28, 0.82, 0.9),
 	},
 	ScreenPulse.LOW_STAMINA: {
 		"param": "damage_pulse",
@@ -50,6 +62,7 @@ var _spring_arm: SpringArm3D
 var _finish_material: ShaderMaterial
 var _distress := 0.0
 var _distress_tween: Tween
+var _pulse_tweens: Dictionary = {}
 var _attached_scene: Node
 var _root_3d_was_disabled: Variant = null
 var _bind_warned := false
@@ -374,9 +387,13 @@ func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 	var peak := float(tuning.peak) * scale * accessibility_scale
 	var decay := float(tuning.decay)
 	var param: String = tuning.param
+	var previous: Variant = _pulse_tweens.get(param)
+	if previous is Tween and (previous as Tween).is_valid():
+		(previous as Tween).kill()
 	_finish_material.set_shader_parameter("pulse_tint", tuning.tint)
 	_finish_material.set_shader_parameter(param, peak)
 	var tween := create_tween()
+	_pulse_tweens[param] = tween
 	tween.tween_method(
 		func(v: float) -> void:
 			if _finish_material:
@@ -384,6 +401,11 @@ func pulse_screen(kind: ScreenPulse, scale: float = 1.0) -> void:
 		peak,
 		0.0,
 		decay
+	)
+	tween.finished.connect(
+		func() -> void:
+			if _pulse_tweens.get(param) == tween:
+				_pulse_tweens.erase(param)
 	)
 
 

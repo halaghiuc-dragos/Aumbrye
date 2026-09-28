@@ -11,10 +11,15 @@ func _ready() -> void:
 	GameUISkinScript.apply_pixel_theme(self)
 	QuestService.quest_updated.connect(_on_quest_updated)
 	QuestService.quest_progress_changed.connect(_on_quest_progress_changed)
+	QuestService.quest_tracker_changed.connect(_on_quest_tracker_changed)
 	_refresh()
 
 
 func _on_quest_updated(_quest_id: String, _state: String) -> void:
+	_refresh()
+
+
+func _on_quest_tracker_changed(_primary_quest_id: String, _secondary_quest_ids: Array[String]) -> void:
 	_refresh()
 
 
@@ -33,24 +38,28 @@ func _refresh() -> void:
 	_rows.clear()
 	for child in _quest_list.get_children():
 		child.queue_free()
-	var active := QuestService.get_active_quests()
-	visible = not active.is_empty()
-	if active.is_empty():
+	var tracked := QuestService.get_tracked_quests()
+	visible = not tracked.is_empty()
+	if tracked.is_empty():
 		return
-	for quest in active:
+	for quest in tracked:
 		var quest_id: String = quest.get("id", "")
 		var line := Label.new()
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_set_row_text(line, quest, CharacterService.get_quest_progress(quest_id))
+		_set_row_text(
+			line, quest, CharacterService.get_quest_progress(quest_id), QuestService.tracker_role_for(quest_id)
+		)
 		line.add_theme_font_size_override("font_size", GameUISkinScript.FONT_SIZE_SMALL)
 		GameUISkinScript.style_body_label(line)
 		_quest_list.add_child(line)
 		_rows[quest_id] = line
 
 
-func _set_row_text(line: Label, quest: Dictionary, progress: Dictionary) -> void:
+func _set_row_text(line: Label, quest: Dictionary, progress: Dictionary, role: String = "") -> void:
 	var quest_id := str(quest.get("id", ""))
-	var title: String = str(quest.get("title", quest_id))
+	var title: String = ContentText.title(quest, quest_id)
+	if role == "primary":
+		title = tr("QUEST_TRACKER_PRIMARY").format({"title": title})
 	var detail: String = _format_progress(quest, progress)
 	line.text = (
 		tr("QUEST_TRACKER_LINE").format({"title": title, "detail": detail})

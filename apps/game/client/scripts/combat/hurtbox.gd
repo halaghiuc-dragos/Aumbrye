@@ -96,6 +96,8 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 				var iframe_feedback := iframe_body.get_node_or_null("HitFeedback")
 				if iframe_feedback and iframe_feedback.has_method("on_dodge_iframe"):
 					iframe_feedback.call("on_dodge_iframe")
+				if dodge and dodge.has_method("notify_perfect_dodge"):
+					dodge.call("notify_perfect_dodge", info.source)
 				# CB-06: "a dodge that actually avoided a hit" -- the timed i-frame dodge, not the
 				# passive evasion-stat roll below (that is a miss chance, not a player action).
 				if CombatEvents:

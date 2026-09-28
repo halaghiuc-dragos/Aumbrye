@@ -136,6 +136,7 @@ var _key_pips: Dictionary = {}
 ## HD-06: readouts the combat model already computes but never showed -- what the next swing
 ## costs, the two-hand/infusion stance, and where you are in the light-attack combo.
 var _stamina_ghost: ColorRect
+var _mana_ghost: ColorRect
 var _stance_row: HBoxContainer
 var _two_hand_swatch: ColorRect
 var _infusion_swatch: ColorRect
@@ -502,6 +503,13 @@ func _ensure_combat_readouts() -> void:
 		_stamina_ghost.color = Color(0.9, 0.85, 0.2, 0.55)
 		_stamina_ghost.visible = false
 		_stamina_bar.add_child(_stamina_ghost)
+	if _mana_ghost == null and _mana_bar:
+		_mana_ghost = ColorRect.new()
+		_mana_ghost.name = "ManaCostGhost"
+		_mana_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_mana_ghost.color = Color(0.48, 0.62, 1.0, 0.55)
+		_mana_ghost.visible = false
+		_mana_bar.add_child(_mana_ghost)
 	if _stance_row == null and _status_row:
 		_stance_row = HBoxContainer.new()
 		_stance_row.name = "StanceRow"
@@ -545,29 +553,46 @@ func _ensure_combat_readouts() -> void:
 func _update_combat_readouts() -> void:
 	if _weapon_controller == null or not is_instance_valid(_weapon_controller):
 		return
-	_update_stamina_ghost()
+	_update_resource_cost_ghosts()
 	_update_stance_row()
 	_update_combo_pips()
 
 
-func _update_stamina_ghost() -> void:
-	if _stamina_ghost == null or _stamina_bar == null:
+func _update_resource_cost_ghosts() -> void:
+	var costs: Dictionary = _weapon_controller.call("get_next_attack_costs")
+	_update_cost_ghost(
+		_stamina_ghost,
+		_stamina_bar,
+		float(costs.get("stamina", 0.0)),
+		Color(0.9, 0.85, 0.2, 0.55),
+		Color(0.86, 0.3, 0.24, 0.6)
+	)
+	_update_cost_ghost(
+		_mana_ghost,
+		_mana_bar,
+		float(costs.get("mana", 0.0)),
+		Color(0.48, 0.62, 1.0, 0.55),
+		Color(0.86, 0.3, 0.24, 0.6)
+	)
+
+
+func _update_cost_ghost(
+	ghost: ColorRect, bar: ProgressBar, cost: float, ready_color: Color, insufficient_color: Color
+) -> void:
+	if ghost == null or bar == null:
 		return
-	var cost: float = _weapon_controller.call("get_next_attack_cost")
-	if cost <= 0.0 or _stamina_bar.max_value <= 0.0:
-		_stamina_ghost.visible = false
+	if cost <= 0.0 or bar.max_value <= 0.0:
+		ghost.visible = false
 		return
-	var ratio := clampf(cost / _stamina_bar.max_value, 0.0, 1.0)
-	var current_ratio := clampf(_stamina_bar.value / _stamina_bar.max_value, 0.0, 1.0)
-	var bar_size := _stamina_bar.size
+	var ratio := clampf(cost / bar.max_value, 0.0, 1.0)
+	var current_ratio := clampf(bar.value / bar.max_value, 0.0, 1.0)
+	var bar_size := bar.size
 	var ghost_width := bar_size.x * ratio
 	var ghost_start := bar_size.x * maxf(0.0, current_ratio - ratio)
-	_stamina_ghost.position = Vector2(ghost_start, 0.0)
-	_stamina_ghost.size = Vector2(ghost_width, bar_size.y)
-	_stamina_ghost.color = (
-		Color(0.86, 0.3, 0.24, 0.6) if cost > _stamina_bar.value else Color(0.9, 0.85, 0.2, 0.55)
-	)
-	_stamina_ghost.visible = true
+	ghost.position = Vector2(ghost_start, 0.0)
+	ghost.size = Vector2(ghost_width, bar_size.y)
+	ghost.color = insufficient_color if cost > bar.value else ready_color
+	ghost.visible = true
 
 
 func _update_stance_row() -> void:

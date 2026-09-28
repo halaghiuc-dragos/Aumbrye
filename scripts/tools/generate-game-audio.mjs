@@ -121,6 +121,153 @@ function generateNoiseBurst(seconds, amp = 0.25) {
   return out;
 }
 
+// The game deliberately uses synthesis instead of a generic music bed so every generated stem
+// has a readable melodic identity: dark orchestral harmony, a restrained tracker-like pulse and
+// a little quantisation that sits naturally beside the pixel-diorama presentation.
+const BIOME_SCORES = {
+  forgotten_castle: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 72, progression: [0, 5, 3, 4] },
+  dark_cathedral: { root: 38, scale: [0, 1, 3, 5, 7, 8, 10], bpm: 60, progression: [0, 5, 1, 4] },
+  crystal_caverns: { root: 40, scale: [0, 2, 4, 6, 7, 9, 11], bpm: 84, progression: [0, 3, 4, 1] },
+  poison_swamp: { root: 33, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 68, progression: [0, 5, 6, 4] },
+  frozen_fortress: { root: 35, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 76, progression: [0, 3, 5, 1] },
+  prism_depths: { root: 42, scale: [0, 2, 4, 6, 7, 9, 11], bpm: 90, progression: [0, 4, 1, 5] },
+  venom_mire: { root: 37, scale: [0, 1, 3, 5, 7, 8, 10], bpm: 70, progression: [0, 4, 5, 1] },
+  glacial_hollow: { root: 41, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 80, progression: [0, 5, 3, 1] },
+  iron_vault: { root: 31, scale: [0, 1, 3, 5, 7, 8, 10], bpm: 96, progression: [0, 4, 1, 5] },
+  umbral_chapel: { root: 35, scale: [0, 1, 3, 5, 6, 8, 10], bpm: 66, progression: [0, 4, 5, 1] },
+};
+
+function midiToFreq(midi) {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function saw(phase) {
+  return 2 * (phase - Math.floor(phase + 0.5));
+}
+
+function voiceSample(voice, phase, vibrato) {
+  if (voice === "brass") return Math.tanh((Math.sin(phase) * 0.72 + saw(phase) * 0.42) * 1.35);
+  if (voice === "choir") return Math.sin(phase) * 0.68 + Math.sin(phase * 2) * 0.18 + Math.sin(phase * 3) * 0.08;
+  if (voice === "bell") return Math.sin(phase) * 0.8 + Math.sin(phase * 2.71) * 0.28 + Math.sin(phase * 4.08) * 0.12;
+  if (voice === "bass") return Math.sin(phase) * 0.76 + Math.sin(phase * 0.5) * 0.22;
+  // Slightly detuned saw/triangle blend: orchestral string motion, rendered with tracker clarity.
+  return saw(phase + vibrato) * 0.34 + Math.sin(phase) * 0.66;
+}
+
+function addOrchestralNote(out, start, seconds, freq, amp, voice = "strings") {
+  const startFrame = Math.max(0, Math.floor(start * SAMPLE_RATE));
+  const frames = Math.max(1, Math.floor(seconds * SAMPLE_RATE));
+  const attack = Math.max(1, Math.floor(Math.min(0.035, seconds * 0.15) * SAMPLE_RATE));
+  const release = Math.max(1, Math.floor(Math.min(0.16, seconds * 0.42) * SAMPLE_RATE));
+  for (let i = 0; i < frames && startFrame + i < out.length; i++) {
+    const progress = i / frames;
+    const env = Math.min(1, i / attack, (frames - i) / release) * (voice === "bell" ? Math.exp(-progress * 2.6) : 1);
+    const phase = 2 * Math.PI * freq * i / SAMPLE_RATE;
+    const vibrato = voice === "strings" || voice === "choir" ? Math.sin(2 * Math.PI * 4.1 * i / SAMPLE_RATE) * 0.012 : 0;
+    out[startFrame + i] += voiceSample(voice, phase, vibrato) * amp * env;
+  }
+}
+
+function addDrum(out, start, type, amp) {
+  const seconds = type === "kick" ? 0.22 : 0.075;
+  const startFrame = Math.floor(start * SAMPLE_RATE);
+  const frames = Math.floor(seconds * SAMPLE_RATE);
+  for (let i = 0; i < frames && startFrame + i < out.length; i++) {
+    const t = i / SAMPLE_RATE;
+    const env = Math.exp(-t * (type === "kick" ? 18 : 50));
+    const tone = Math.sin(2 * Math.PI * (type === "kick" ? 94 - t * 230 : 1600) * t);
+    const noise = random() * 2 - 1;
+    out[startFrame + i] += (type === "kick" ? tone * 0.82 + noise * 0.08 : noise * 0.82 + tone * 0.15) * amp * env;
+  }
+}
+
+function scoreMidi(score, degree, octave = 0) {
+  const scaleLength = score.scale.length;
+  const wrapped = ((degree % scaleLength) + scaleLength) % scaleLength;
+  return score.root + score.scale[wrapped] + 12 * (octave + Math.floor(degree / scaleLength));
+}
+
+function generateOrchestralStem(biomeId, layer) {
+  const score = BIOME_SCORES[biomeId] ?? BIOME_SCORES.forgotten_castle;
+  const seconds = layer === "ambience" ? 12 : layer === "explore" ? 14 : layer === "combat" ? 12 : 16;
+  const out = new Float32Array(Math.floor(seconds * SAMPLE_RATE));
+  const beat = 60 / score.bpm;
+  const bar = beat * 4;
+  const bars = Math.ceil(seconds / bar);
+  const motif = [0, 2, 4, 2, 5, 4, 2, 1];
+
+  for (let measure = 0; measure < bars; measure++) {
+    const chordDegree = score.progression[measure % score.progression.length];
+    const at = measure * bar;
+    // Low strings and choir supply the dark orchestral bed in every layer.
+    addOrchestralNote(out, at, bar * 0.98, midiToFreq(scoreMidi(score, chordDegree, -1)), 0.11, "bass");
+    addOrchestralNote(out, at, bar * 0.96, midiToFreq(scoreMidi(score, chordDegree + 2, 0)), 0.045, "choir");
+    addOrchestralNote(out, at, bar * 0.96, midiToFreq(scoreMidi(score, chordDegree + 4, 0)), 0.04, "choir");
+    if (layer === "ambience") {
+      if (measure % 2 === 0) addOrchestralNote(out, at + beat * 2.5, beat * 1.25, midiToFreq(scoreMidi(score, chordDegree + 4, 2)), 0.04, "bell");
+      continue;
+    }
+    for (let step = 0; step < 8; step++) {
+      const note = chordDegree + motif[(step + measure * 2) % motif.length];
+      const start = at + step * beat * 0.5;
+      const explore = layer === "explore";
+      addOrchestralNote(out, start, beat * (explore ? 0.52 : 0.35), midiToFreq(scoreMidi(score, note, 1)), explore ? 0.052 : 0.065, explore ? "bell" : "strings");
+    }
+    if (layer === "combat" || layer === "boss") {
+      for (let pulse = 0; pulse < 4; pulse++) {
+        const start = at + pulse * beat;
+        addDrum(out, start, "kick", layer === "boss" ? 0.19 : 0.13);
+        addOrchestralNote(out, start, beat * 0.28, midiToFreq(scoreMidi(score, chordDegree + (pulse % 2 ? 4 : 2), 1)), layer === "boss" ? 0.12 : 0.085, "brass");
+        addDrum(out, start + beat * 0.5, "snare", layer === "boss" ? 0.1 : 0.065);
+      }
+    }
+    if (layer === "boss") {
+      addOrchestralNote(out, at + beat * 2, beat * 1.6, midiToFreq(scoreMidi(score, chordDegree + 5, 2)), 0.09, "brass");
+    }
+  }
+  let peak = 0;
+  for (const sample of out) peak = Math.max(peak, Math.abs(sample));
+  const gain = peak > 0 ? 0.76 / peak : 1;
+  for (let i = 0; i < out.length; i++) {
+    // Mild 12-bit quantisation retains a pixel-game edge without crushing the orchestral body.
+    out[i] = Math.round(Math.max(-1, Math.min(1, out[i] * gain)) * 2048) / 2048;
+  }
+  return out;
+}
+
+function generateThematicStinger(kind) {
+  const seconds = kind === "boss" ? 1.35 : kind === "clear" ? 1.05 : 0.65;
+  const out = new Float32Array(Math.floor(seconds * SAMPLE_RATE));
+  const notes = kind === "boss" ? [38, 41, 45, 50] : kind === "clear" ? [62, 65, 69, 74] : [69, 72, 76];
+  notes.forEach((note, index) => addOrchestralNote(out, index * 0.075, seconds - index * 0.075, midiToFreq(note), index === 0 ? 0.22 : 0.12, kind === "boss" ? "brass" : "bell"));
+  return out;
+}
+
+function generateMenuStem(kind) {
+  const biome = kind === "title" ? "dark_cathedral" : "forgotten_castle";
+  const layer = kind === "title" ? "boss" : "explore";
+  const stem = generateOrchestralStem(biome, layer);
+  // Menu themes should linger rather than arrive at combat volume.
+  for (let i = 0; i < stem.length; i++) stem[i] *= kind === "title" ? 0.74 : 0.68;
+  return stem;
+}
+
+function generateFoley(kind, variation = 0) {
+  const seconds = kind.includes("windup") ? 0.34 : kind === "execution" ? 0.46 : kind === "dodge" ? 0.2 : 0.18;
+  const out = new Float32Array(Math.floor(seconds * SAMPLE_RATE));
+  const base = kind === "execution" ? 196 : kind.includes("armor") ? 235 : kind.includes("stone") ? 118 : kind === "dodge" ? 310 : 160;
+  const start = variation * 0.03;
+  addOrchestralNote(out, 0, seconds * 0.88, base * (1 + variation * 0.035), kind === "execution" ? 0.28 : 0.18, kind.includes("armor") || kind === "execution" ? "brass" : "strings");
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SAMPLE_RATE;
+    const env = Math.exp(-t * (kind.includes("windup") ? 4.5 : 16));
+    const noise = (random() * 2 - 1) * (kind === "dodge" ? 0.13 : 0.08) * env;
+    const sweep = Math.sin(2 * Math.PI * (base * (kind === "dodge" ? 2.2 - t * 4 : 1 + t * 0.8)) * t) * 0.08 * env;
+    out[i] = Math.max(-1, Math.min(1, out[i] + noise + sweep + start * 0));
+  }
+  return out;
+}
+
 function resPathToDisk(resPath) {
   const rel = resPath.replace(/^res:\/\//, "");
   return join(repoRoot, "apps", "game", "client", rel);
@@ -168,90 +315,77 @@ function runCheck() {
 }
 
 function generateBiomeStems() {
-  const outputs = [];
+	const outputs = [];
   for (const file of readdirSync(profilesDir).filter((f) => f.endsWith(".json"))) {
     const profile = JSON.parse(readFileSync(join(profilesDir, file), "utf8"));
     const biomeId = profile.biomeId || profile.id;
     const layers = profile.layers ?? {};
-    const ambienceFreq = Number(layers.ambience?.fallback_freq ?? profile.ambienceFreq ?? 110);
-    const exploreFreq = Number(layers.explore?.fallback_freq ?? profile.exploreFreq ?? ambienceFreq);
-    const combatFreq = Number(layers.combat?.fallback_freq ?? profile.combatFreq ?? 130);
-    const bossFreq = Number(layers.boss?.fallback_freq ?? profile.bossFreq ?? 196);
-
-    const specs = [
-      { name: "ambience_loop.ogg", freq: ambienceFreq, sec: 8, harmonics: [{ freq: exploreFreq * 0.5, amp: 0.08 }] },
-      { name: "explore_loop.ogg", freq: exploreFreq, sec: 8, harmonics: [{ freq: ambienceFreq, amp: 0.06 }] },
-      { name: "combat_loop.ogg", freq: combatFreq, sec: 6, harmonics: [{ freq: combatFreq * 1.5, amp: 0.1 }], noise: 0.02 },
-      { name: "boss_theme.ogg", freq: bossFreq, sec: 6, harmonics: [{ freq: bossFreq * 0.5, amp: 0.1 }, { freq: bossFreq * 1.25, amp: 0.06 }] },
-    ];
+	const specs = [
+	  { name: "ambience_loop.ogg", layer: "ambience" },
+	  { name: "explore_loop.ogg", layer: "explore" },
+	  { name: "combat_loop.ogg", layer: "combat" },
+	  { name: "boss_theme.ogg", layer: "boss" },
+	];
 
     const outDir = join(clientAudio, biomeId);
     for (const spec of specs) {
       const oggPath = join(outDir, spec.name);
-      const samples = generateLoop(spec.sec, spec.freq, spec.harmonics, spec.noise ?? 0);
-      outputs.push(writeOggFromSamples(oggPath, samples));
+	  const samples = generateOrchestralStem(biomeId, spec.layer);
+	  outputs.push(writeOggFromSamples(oggPath, samples));
     }
   }
   return outputs;
 }
 
 function generateSharedStingers() {
-  const sharedDir = join(clientAudio, "shared");
-  const specs = [
-    { file: "sting_boss.ogg", seconds: 1.2, freq: 196, harmonics: [{ freq: 392, amp: 0.12 }] },
-    { file: "sting_clear.ogg", seconds: 0.9, freq: 330, harmonics: [{ freq: 495, amp: 0.08 }] },
-    { file: "sting_secret.ogg", seconds: 0.3, freq: 660, harmonics: [{ freq: 990, amp: 0.1 }] },
-    { file: "sting_key.ogg", seconds: 0.22, freq: 440, harmonics: [{ freq: 660, amp: 0.08 }] },
-    { file: "sting_lock.ogg", seconds: 0.35, freq: 220, harmonics: [{ freq: 110, amp: 0.1 }] },
-    { file: "sting_shortcut.ogg", seconds: 0.3, freq: 330, harmonics: [{ freq: 495, amp: 0.06 }] },
-    { file: "sting_rare_drop.ogg", seconds: 0.5, freq: 880, harmonics: [{ freq: 1320, amp: 0.14 }] },
-    { file: "sting_personal_best.ogg", seconds: 0.6, freq: 990, harmonics: [{ freq: 1485, amp: 0.16 }, { freq: 660, amp: 0.1 }] },
-    { file: "sting_poise_break.ogg", seconds: 0.24, freq: 165, harmonics: [{ freq: 330, amp: 0.1 }] },
-  ];
-  for (const spec of specs) {
-    spec.output = writeOggFromSamples(
-      join(sharedDir, spec.file),
-      generateBurst(spec.seconds, spec.freq, spec.harmonics, 0.3),
-    );
+	const sharedDir = join(clientAudio, "shared");
+	const specs = [
+	  { file: "sting_boss.ogg", kind: "boss" },
+	  { file: "sting_clear.ogg", kind: "clear" },
+	  { file: "sting_secret.ogg", kind: "secret" },
+	  { file: "sting_key.ogg", kind: "key" },
+	  { file: "sting_lock.ogg", kind: "lock" },
+	  { file: "sting_shortcut.ogg", kind: "shortcut" },
+	  { file: "sting_rare_drop.ogg", kind: "rare" },
+	  { file: "sting_personal_best.ogg", kind: "best" },
+	  { file: "sting_poise_break.ogg", kind: "poise" },
+	];
+	for (const spec of specs) {
+	  spec.output = writeOggFromSamples(
+		join(sharedDir, spec.file),
+		generateThematicStinger(spec.kind),
+	  );
   }
   return specs.map((spec) => spec.output);
 }
 
 function generateSfx() {
-  const sfxDir = join(clientAudio, "sfx");
-  const specs = [
-    { file: "hit_flesh_01.ogg", seconds: 0.08, freq: 220, harmonics: [{ freq: 440, amp: 0.08 }] },
-    { file: "hit_flesh_02.ogg", seconds: 0.09, freq: 245, harmonics: [{ freq: 490, amp: 0.07 }] },
-    { file: "hit_flesh_03.ogg", seconds: 0.07, freq: 198, harmonics: [{ freq: 396, amp: 0.09 }] },
-    { file: "hit_stone_01.ogg", seconds: 0.12, freq: 130, harmonics: [{ freq: 65, amp: 0.1 }] },
-    { file: "hit_crystal_01.ogg", seconds: 0.1, freq: 780, harmonics: [{ freq: 1170, amp: 0.12 }] },
-    { file: "hit_bone_01.ogg", seconds: 0.06, freq: 340, harmonics: [{ freq: 680, amp: 0.06 }] },
-    { file: "hit_ooze_01.ogg", seconds: 0.16, freq: 95, harmonics: [], noise: 0.06 },
-    { file: "block_01.ogg", seconds: 0.1, freq: 160, harmonics: [{ freq: 320, amp: 0.06 }] },
-    { file: "block_02.ogg", seconds: 0.11, freq: 145, harmonics: [{ freq: 290, amp: 0.05 }] },
-    { file: "parry_01.ogg", seconds: 0.12, freq: 440, harmonics: [{ freq: 880, amp: 0.1 }] },
-    { file: "swing_01.ogg", seconds: 0.06, freq: 130, harmonics: [{ freq: 260, amp: 0.04 }] },
-    { file: "swing_02.ogg", seconds: 0.07, freq: 118, harmonics: [{ freq: 236, amp: 0.05 }] },
-    { file: "death_01.ogg", seconds: 0.35, freq: 90, harmonics: [{ freq: 45, amp: 0.12 }] },
-    { file: "step_stone_01.ogg", seconds: 0.05, freq: 80, harmonics: [] },
-    { file: "step_stone_02.ogg", seconds: 0.055, freq: 72, harmonics: [] },
-    { file: "step_wood_01.ogg", seconds: 0.05, freq: 95, harmonics: [{ freq: 190, amp: 0.03 }] },
-    { file: "step_water_01.ogg", seconds: 0.06, freq: 110, harmonics: [] },
-    { file: "windup_01.ogg", seconds: 0.22, freq: 72, harmonics: [{ freq: 144, amp: 0.06 }] },
-    { file: "windup_blockable_01.ogg", seconds: 0.14, freq: 140, harmonics: [{ freq: 210, amp: 0.06 }] },
-    { file: "windup_parryable_01.ogg", seconds: 0.26, freq: 520, harmonics: [{ freq: 780, amp: 0.08 }] },
-    { file: "windup_unblockable_01.ogg", seconds: 0.4, freq: 55, harmonics: [{ freq: 110, amp: 0.1 }] },
-    { file: "windup_grab_01.ogg", seconds: 0.45, freq: 300, harmonics: [{ freq: 150, amp: 0.1 }] },
-    { file: "ui_click_01.ogg", seconds: 0.04, freq: 520, harmonics: [{ freq: 1040, amp: 0.05 }] },
-    { file: "brazier_loop.ogg", seconds: 4, freq: 55, harmonics: [], noise: 0.08 },
-    { file: "fountain_loop.ogg", seconds: 5, freq: 88, harmonics: [{ freq: 176, amp: 0.04 }], noise: 0.03 },
-  ];
-  const outputs = [];
-  for (const spec of specs) {
-    const samples =
-      spec.noise != null && spec.noise > 0
-        ? generateLoop(spec.seconds, spec.freq, spec.harmonics, spec.noise)
-        : generateBurst(spec.seconds, spec.freq, spec.harmonics);
+	const sfxDir = join(clientAudio, "sfx");
+	const specs = [
+	  { file: "swing_03.ogg", kind: "swing", variation: 2 },
+	  { file: "swing_04.ogg", kind: "swing", variation: 3 },
+	  { file: "windup_02.ogg", kind: "windup", variation: 1 },
+	  { file: "hit_armor_02.ogg", kind: "armor", variation: 1 },
+	  { file: "hit_armor_03.ogg", kind: "armor", variation: 2 },
+	  { file: "hit_stone_02.ogg", kind: "stone", variation: 1 },
+	  { file: "hit_stone_03.ogg", kind: "stone", variation: 2 },
+	  { file: "hit_crystal_02.ogg", kind: "crystal", variation: 1 },
+	  { file: "hit_crystal_03.ogg", kind: "crystal", variation: 2 },
+	  { file: "hit_bone_02.ogg", kind: "bone", variation: 1 },
+	  { file: "hit_bone_03.ogg", kind: "bone", variation: 2 },
+	  { file: "hit_ooze_02.ogg", kind: "ooze", variation: 1 },
+	  { file: "hit_ooze_03.ogg", kind: "ooze", variation: 2 },
+	  { file: "parry_02.ogg", kind: "armor", variation: 3 },
+	  { file: "death_02.ogg", kind: "death", variation: 1 },
+	  { file: "death_03.ogg", kind: "death", variation: 2 },
+	  { file: "dodge_01.ogg", kind: "dodge", variation: 1 },
+	  { file: "dodge_02.ogg", kind: "dodge", variation: 2 },
+	  { file: "execution_01.ogg", kind: "execution", variation: 1 },
+	  { file: "execution_02.ogg", kind: "execution", variation: 2 },
+	];
+	const outputs = [];
+	for (const spec of specs) {
+	  const samples = generateFoley(spec.kind, spec.variation);
     outputs.push(writeOggFromSamples(join(sfxDir, spec.file), samples));
   }
   return outputs;
@@ -271,12 +405,17 @@ if (process.argv.includes("--self-test")) {
 const biomeCount = generateBiomeStems();
 const stingerCount = generateSharedStingers();
 const sfxCount = generateSfx();
-const outputs = [...biomeCount, ...stingerCount, ...sfxCount];
+const menuCount = [
+  writeOggFromSamples(join(clientAudio, "shared", "title_theme.ogg"), generateMenuStem("title")),
+  writeOggFromSamples(join(clientAudio, "shared", "hub_theme.ogg"), generateMenuStem("hub")),
+];
+const outputs = [...biomeCount, ...stingerCount, ...sfxCount, ...menuCount];
 const sourcePaths = [
   ...readdirSync(profilesDir)
     .filter((file) => file.endsWith(".json"))
     .map((file) => join(profilesDir, file)),
   sfxBankPath,
+	join(repoRoot, "apps", "game", "client", "scripts", "audio", "audio_director.gd"),
 ];
 const published = publishGeneratedAssetSet({
   repoRoot,

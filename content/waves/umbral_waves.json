@@ -6,6 +6,55 @@
   "intermissionEvery": 5,
   "bossEvery": 10,
   "cashOutFromWave": 20,
+  "chapters": [
+    {
+      "id": "first_watch",
+      "from": 1,
+      "to": 10,
+      "title": "First Watch",
+      "lesson": "duel",
+      "spawnPattern": "ring",
+      "fuelPolicy": "none",
+      "maxOrdinaryEnemies": 2
+    },
+    {
+      "id": "crossfire",
+      "from": 11,
+      "to": 20,
+      "title": "Crossfire",
+      "lesson": "mixed_pressure",
+      "spawnPattern": "dynamic",
+      "fuelPolicy": "cresset"
+    },
+    {
+      "id": "claimed_ground",
+      "from": 21,
+      "to": 30,
+      "title": "Claimed Ground",
+      "lesson": "territory",
+      "spawnPattern": "converge",
+      "fuelPolicy": "objective"
+    },
+    {
+      "id": "long_breath",
+      "from": 31,
+      "to": 40,
+      "title": "The Long Breath",
+      "lesson": "recovery",
+      "spawnPattern": "ring",
+      "fuelPolicy": "recovery",
+      "maxOrdinaryEnemies": 8
+    },
+    {
+      "id": "last_light",
+      "from": 41,
+      "to": 50,
+      "title": "Last Light",
+      "lesson": "mastery",
+      "spawnPattern": "dynamic",
+      "fuelPolicy": "objective"
+    }
+  ],
   "arenaStates": ["open", "dimmed", "hazard", "fog", "pillars"],
   "count": {
     "base": 3,

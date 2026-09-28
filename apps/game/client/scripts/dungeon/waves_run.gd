@@ -241,10 +241,12 @@ func _build_fuel_objective() -> void:
 func _set_fuel_objective_for_wave(wave: int) -> void:
 	if _fuel_objective_marker == null or not is_instance_valid(_fuel_objective_marker):
 		return
+	var directives := WavesRunService.chapter_directives_for_wave(wave)
+	var objective_active := wave > 0 and str(directives.get("fuelPolicy", "cresset")) == "objective"
 	_fuel_objective_marker.position = fuel_objective_position_for_wave(wave)
-	_fuel_objective_marker.visible = wave > 0
+	_fuel_objective_marker.visible = objective_active
 	if _hud and _hud.has_method("set_radar_objective_marker"):
-		_hud.call("set_radar_objective_marker", _fuel_objective_marker if wave > 0 else null)
+		_hud.call("set_radar_objective_marker", _fuel_objective_marker if objective_active else null)
 
 
 func _fuel_rate_at(world_position: Vector3) -> float:
@@ -253,7 +255,10 @@ func _fuel_rate_at(world_position: Vector3) -> float:
 	if _fuel_objective_marker != null and is_instance_valid(_fuel_objective_marker):
 		objective_position = _fuel_objective_marker.global_position
 		objective_active = _fuel_objective_marker.visible
-	return fuel_rate_for_positions(world_position, objective_position, objective_active)
+	var fuel_policy := str(WavesRunService.chapter_directives_for_wave(
+		WavesRunService.current_wave
+	).get("fuelPolicy", "cresset"))
+	return fuel_rate_for_positions(world_position, objective_position, objective_active, fuel_policy)
 
 
 static func fuel_objective_position_for_wave(wave: int) -> Vector3:
@@ -265,15 +270,20 @@ static func fuel_objective_position_for_wave(wave: int) -> Vector3:
 
 
 static func fuel_rate_for_positions(
-	player_position: Vector3, objective_position: Vector3, objective_active: bool
+	player_position: Vector3, objective_position: Vector3, objective_active: bool, fuel_policy := "cresset"
 ) -> float:
 	var player_flat := Vector2(player_position.x, player_position.z)
+	if fuel_policy == "none":
+		return 0.0
 	if objective_active:
 		var objective_flat := Vector2(objective_position.x, objective_position.z)
 		if player_flat.distance_to(objective_flat) <= FUEL_OBJECTIVE_RADIUS:
 			return 1.0 / FUEL_OBJECTIVE_REFILL_SECONDS
 	if player_flat.length() <= CRESSET_REFUEL_RADIUS:
 		return 1.0 / CRESSET_REFUEL_SECONDS
+	if fuel_policy == "recovery":
+		# Recovery waves remove the away-from-light tax but never add a timer or idle gate.
+		return 0.0
 	return -1.0 / CRESSET_DRAIN_SECONDS
 
 
@@ -430,7 +440,11 @@ func _start_wave() -> void:
 		)
 	# MD-01: one modifier from wave 10 on, so wave 45 fights differently than wave 5 fought.
 	RunModifierServiceScript.apply_waves_wave_modifier(wave, WavesRunService.get_seed())
-	var subtitle := tr("WAVES_TITLE_SUBTITLE") % wave
+	var chapter := WavesRunService.chapter_for_wave(wave)
+	var chapter_title := str(chapter.get("title", "The Vigil"))
+	var lesson := str(chapter.get("lesson", "mixed_pressure")).replace("_", " ")
+	var subtitle := "%s — %s" % [chapter_title, lesson.capitalize()]
+	subtitle += "  ·  " + (tr("WAVES_TITLE_SUBTITLE") % wave)
 	var active_modifier := RunModifierServiceScript.active_modifiers()
 	if not active_modifier.is_empty():
 		subtitle += "  —  %s" % RunModifierServiceScript.describe(active_modifier[0])
@@ -451,8 +465,11 @@ func _start_wave() -> void:
 ## forces the player to turn and hold one direction, "scatter" breaks the even spacing so the ring
 ## itself stops being a readable pattern. Kept to a minority of waves so the ring stays the norm.
 func _spawn_pattern_for_wave(wave: int) -> String:
-	if wave < 3:
-		return "ring"
+	var authored_pattern := str(WavesRunService.chapter_directives_for_wave(wave).get(
+		"spawnPattern", "dynamic"
+	))
+	if authored_pattern != "dynamic":
+		return authored_pattern
 	var rng := RandomNumberGenerator.new()
 	rng.seed = FloorSeedMix.mix(WavesRunService.get_seed(), wave * 811 + 5)
 	var roll := rng.randf()

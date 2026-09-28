@@ -84,6 +84,53 @@
       }
     },
     {
+      "id": "gilded_delve",
+      "name": "Gilded Delve",
+      "baseMode": "castle",
+      "dungeonId": "forgotten_castle",
+      "floors": 4,
+      "description": "Four floors of richer caches and volatile foes. Hunt the hoard, then survive long enough to claim it.",
+      "flavour": "The gold below is warm because it has already buried someone else.",
+      "scoring": "kills",
+      "permadeath": false,
+      "modifiers": [
+        "rich_veins",
+        "volatile_foes",
+        "boss_hoard"
+      ],
+      "escalation": [],
+      "unlock": {
+        "dungeonsCleared": 1
+      }
+    },
+    {
+      "id": "shrouded_pilgrimage",
+      "name": "Shrouded Pilgrimage",
+      "baseMode": "castle",
+      "dungeonId": "forgotten_castle",
+      "floors": 6,
+      "description": "Six floors under a blind map. Barred routes and elite packs make every key and detour matter.",
+      "flavour": "Follow the bell through halls that refuse to be remembered.",
+      "scoring": "time",
+      "permadeath": false,
+      "modifiers": [
+        "fog_of_war",
+        "barred_ways",
+        "elite_packs"
+      ],
+      "escalation": [
+        {
+          "fromFloor": 4,
+          "modifiers": [
+            "relentless_foes"
+          ]
+        }
+      ],
+      "unlock": {
+        "maxUnlockedTier": 3
+      }
+    },
+    {
       "id": "ironman",
       "name": "One Life",
       "baseMode": "endless",
@@ -98,6 +145,36 @@
       "escalation": [],
       "unlock": {
         "endlessBestFloor": 10
+      }
+    },
+    {
+      "id": "treasure_descent",
+      "name": "Treasure Descent",
+      "baseMode": "endless",
+      "floors": 0,
+      "description": "An endless descent with richer caches, escalating threats, and a clean escape whenever greed gives way.",
+      "flavour": "The deeper vaults offer more. They do not offer it twice.",
+      "scoring": "depth",
+      "permadeath": false,
+      "modifiers": [
+        "rich_veins"
+      ],
+      "escalation": [
+        {
+          "fromFloor": 10,
+          "modifiers": [
+            "volatile_foes"
+          ]
+        },
+        {
+          "fromFloor": 20,
+          "modifiers": [
+            "elite_packs"
+          ]
+        }
+      ],
+      "unlock": {
+        "endlessBestFloor": 4
       }
     }
   ]

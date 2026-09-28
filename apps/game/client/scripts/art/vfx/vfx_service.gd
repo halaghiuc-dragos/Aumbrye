@@ -219,6 +219,52 @@ func resolve_combat_anchor(body: Node3D) -> Array:
 	return [pos, forward]
 
 
+## A presentation sample of the *live* damage volume.  Trails used to use a fixed decorative
+## arc, which could imply a reach different from the active hitbox.  This contract deliberately
+## begins with the same CollisionShape3D that Hitbox queries, then falls back to the old anchor
+## only for actors without melee geometry (bows, effects and legacy scenes).
+func resolve_combat_trajectory(body: Node3D) -> Dictionary:
+	var anchor := resolve_combat_anchor(body)
+	var base: Vector3 = anchor[0]
+	var forward: Vector3 = anchor[1]
+	var hitbox := body.get_node_or_null("Facing/WeaponPivot/Hitbox") as Node3D
+	if hitbox == null:
+		return {"base": base, "tip": base + forward * 1.05, "forward": forward, "shared_geometry": false}
+	var shape_node := hitbox.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node:
+		var marker_base := shape_node.get_node_or_null("TrailBase") as Node3D
+		var marker_tip := shape_node.get_node_or_null("TrailTip") as Node3D
+		if marker_base and marker_tip:
+			return {
+				"base": marker_base.global_position,
+				"tip": marker_tip.global_position,
+				"forward": (marker_tip.global_position - marker_base.global_position).normalized(),
+				"shared_geometry": true,
+				"marker_geometry": true,
+			}
+	var reach := 1.05
+	if shape_node and shape_node.shape:
+		reach = _shape_forward_reach(shape_node.shape)
+		base = shape_node.global_position - forward * reach * 0.35
+	return {
+		"base": base,
+		"tip": base + forward * reach * 1.35,
+		"forward": forward,
+		"shared_geometry": shape_node != null and shape_node.shape != null,
+	}
+
+
+static func _shape_forward_reach(shape: Shape3D) -> float:
+	if shape is CylinderShape3D:
+		return maxf((shape as CylinderShape3D).radius, (shape as CylinderShape3D).height * 0.5)
+	if shape is BoxShape3D:
+		var size := (shape as BoxShape3D).size
+		return maxf(size.x, size.z) * 0.5
+	if shape is SphereShape3D:
+		return (shape as SphereShape3D).radius
+	return 1.05
+
+
 func play_attack_swing(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play("attack_swing", world_pos, forward)
 
@@ -245,6 +291,10 @@ func play_parry(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 
 func play_parry_spark(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
 	play_parry(world_pos, forward)
+
+
+func play_execution(world_pos: Vector3, forward: Vector3 = Vector3.FORWARD) -> void:
+	play("execution", world_pos, forward)
 
 
 func play_hit_spark(
@@ -326,6 +376,12 @@ func play_weapon_trail(
 	radius: float = 1.05
 ) -> void:
 	play("weapon_trail", world_pos, forward, tint, Vector3.UP, {"radius": radius})
+
+
+func play_weapon_trajectory(base: Vector3, tip: Vector3, tint: Color = Color(1.0, 0.95, 0.72)) -> void:
+	if tip.distance_squared_to(base) <= 0.0001:
+		return
+	_build_weapon_trail_segment(base, tip, tint)
 
 
 ## The triad lives in AccessibilitySettings alongside the damage-number colours, because it has to
@@ -1089,6 +1145,40 @@ func _build_weapon_trail(
 	var fade := create_tween()
 	fade.tween_property(mesh_instance, "scale", Vector3(0.35, 0.35, 0.35), lifetime)
 	_schedule_free(trail, lifetime + 0.05)
+
+
+func _build_weapon_trail_segment(base: Vector3, tip: Vector3, tint: Color) -> void:
+	var forward := (tip - base).normalized()
+	var side := forward.cross(Vector3.UP)
+	if side.length_squared() <= 0.0001:
+		side = Vector3.RIGHT
+	else:
+		side = side.normalized()
+	var trail := Node3D.new()
+	trail.name = "WeaponTrajectoryTrail"
+	trail.top_level = true
+	_root.add_child(trail)
+	var mesh_instance := MeshInstance3D.new()
+	var ribbon := ImmediateMesh.new()
+	mesh_instance.mesh = ribbon
+	mesh_instance.material_override = _trail_material(Color(tint.r, tint.g, tint.b, 0.94), 1.25)
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	trail.add_child(mesh_instance)
+	var length := base.distance_to(tip)
+	var segments := clampi(int(ceil(length * 8.0)), 4, 18)
+	ribbon.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	for i in segments:
+		var ratio := float(i) / float(maxi(segments - 1, 1))
+		var point := base.lerp(tip, ratio)
+		var width := lerpf(0.13, 0.035, ratio)
+		var color := Color(tint.r, tint.g, tint.b, lerpf(0.9, 0.16, ratio))
+		ribbon.surface_set_color(color)
+		ribbon.surface_add_vertex(point + side * width)
+		ribbon.surface_add_vertex(point - side * width)
+	ribbon.surface_end()
+	var fade := create_tween()
+	fade.tween_property(mesh_instance, "scale", Vector3(0.45, 0.45, 0.45), 0.12)
+	_schedule_free(trail, 0.17)
 
 
 func _build_telegraph_glyph(

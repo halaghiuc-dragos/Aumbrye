@@ -1,0 +1,28 @@
+{
+  "id": "relic_war_bell",
+  "name": "Relic War Bell",
+  "description": "Five health given to the ringing. An execution leaves a ward around you and brings the weapon art closer.",
+  "maxStacks": 1,
+  "stats": {
+    "maxHealth": -5,
+    "poise": 4
+  },
+  "tags": [
+    "poise",
+    "vigil"
+  ],
+  "weight": 0.85,
+  "rules": [
+    {
+      "event": "onExecute",
+      "effect": "grant_barrier",
+      "amount": 14
+    },
+    {
+      "event": "onExecute",
+      "effect": "reduce_cooldown",
+      "amount": 2
+    }
+  ],
+  "offerable": true
+}
