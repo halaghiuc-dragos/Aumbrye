@@ -106,14 +106,6 @@
         "weight": 4
       },
       {
-        "itemId": "frost_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "iron_helm",
         "quantity": [
           1,

@@ -1,10 +1,9 @@
 [gd_scene format=3 uid="uid://hubm4main001"]
 
-[ext_resource type="Script" path="res://scripts/hub/hub.gd" id="1_hub"]
+[ext_resource type="Script" uid="uid://cg2nrpi20naoq" path="res://scripts/hub/hub.gd" id="1_hub"]
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="3_hud"]
-[ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="4_inv"]
-[ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="5_overlay"]
+[ext_resource type="Script" uid="uid://2krxd36g70m2" path="res://scripts/debug/debug_overlay.gd" id="5_overlay"]
 [ext_resource type="PackedScene" path="res://scenes/ui/castle_entry_menu.tscn" id="6_castle_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_ui.tscn" id="7_dialogue"]
 [ext_resource type="PackedScene" path="res://scenes/ui/blacksmith_ui.tscn" id="8_blacksmith"]
@@ -12,7 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/storage_ui.tscn" id="10_storage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quest_board_ui.tscn" id="11_quest"]
 [ext_resource type="PackedScene" path="res://scenes/hub/hub_npc.tscn" id="12_npc"]
-[ext_resource type="Script" path="res://scripts/hub/hub_interactable.gd" id="16_interact"]
+[ext_resource type="Script" uid="uid://brdbwk3htaytf" path="res://scripts/hub/hub_interactable.gd" id="16_interact"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_endless_menu.tscn" id="18_endless_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/umbral_waves_menu.tscn" id="19_waves_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quest_tracker_ui.tscn" id="20_quest_tracker"]
@@ -32,310 +31,255 @@ size = Vector3(3.5, 3.5, 0.5)
 [sub_resource type="BoxMesh" id="BoxMesh_pad"]
 size = Vector3(3.5, 0.1, 1.5)
 
-[sub_resource type="BoxMesh" id="BoxMesh_building"]
-size = Vector3(5, 4, 5)
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
 size = Vector3(4, 4, 4)
 
-[node name="AumbryeTower" type="Node3D"]
+[sub_resource type="BoxMesh" id="BoxMesh_building"]
+size = Vector3(5, 4, 5)
+
+[node name="AumbryeTower" type="Node3D" unique_id=2033515803]
 script = ExtResource("1_hub")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=511691687]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 15, 0)
 light_energy = 1.2
 shadow_enabled = true
 
-[node name="Floor" type="StaticBody3D" parent="."]
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1476921316]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
-metadata/legacy_blockout = true
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=188091934]
 mesh = SubResource("BoxMesh_floor")
+metadata/legacy_blockout = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=927750020]
 shape = SubResource("BoxShape3D_floor")
 
-[node name="LandmarkWalls" type="Node3D" parent="."]
+[node name="LandmarkWalls" type="Node3D" parent="." unique_id=1980520542]
 
-[node name="NorthWall" type="MeshInstance3D" parent="LandmarkWalls"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -20)
+[node name="NorthWall" type="MeshInstance3D" parent="LandmarkWalls" unique_id=1316876810]
+transform = Transform3D(12, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -20)
 mesh = SubResource("BoxMesh_wall")
-scale = Vector3(12, 1, 1)
 
-[node name="EastWall" type="MeshInstance3D" parent="LandmarkWalls"]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 24, 2.5, 0)
+[node name="EastWall" type="MeshInstance3D" parent="LandmarkWalls" unique_id=1371331502]
+transform = Transform3D(-4.371139e-07, 0, 1, 0, 1, 0, -10, 0, -4.371139e-08, 24, 2.5, 0)
 mesh = SubResource("BoxMesh_wall")
-scale = Vector3(10, 1, 1)
 
-[node name="WestWall" type="MeshInstance3D" parent="LandmarkWalls"]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -24, 2.5, 0)
+[node name="WestWall" type="MeshInstance3D" parent="LandmarkWalls" unique_id=1239903053]
+transform = Transform3D(-4.371139e-07, 0, 1, 0, 1, 0, -10, 0, -4.371139e-08, -24, 2.5, 0)
 mesh = SubResource("BoxMesh_wall")
-scale = Vector3(10, 1, 1)
 
-[node name="SouthWall" type="MeshInstance3D" parent="LandmarkWalls"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 18)
+[node name="SouthWall" type="MeshInstance3D" parent="LandmarkWalls" unique_id=1438871125]
+transform = Transform3D(12, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 18)
 mesh = SubResource("BoxMesh_wall")
-scale = Vector3(12, 1, 1)
 
-[node name="Player" parent="." instance=ExtResource("2_player")]
+[node name="Player" parent="." unique_id=315736251 instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
 
-[node name="MessageAnchor" type="Node3D" parent="Player"]
+[node name="MessageAnchor" type="Node3D" parent="Player" unique_id=715452635]
 
-[node name="MessageLabel" type="Label3D" parent="Player/MessageAnchor"]
+[node name="MessageLabel" type="Label3D" parent="Player/MessageAnchor" unique_id=40811667]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0.5)
 billboard = 1
 text = "Welcome to Aumbrye Tower"
 font_size = 24
 
-[node name="TipLabel" type="Label3D" parent="Player/MessageAnchor"]
-visible = false
+[node name="TipLabel" type="Label3D" parent="Player/MessageAnchor" unique_id=1277043688]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0.5)
+visible = false
 billboard = 1
 font_size = 22
 
-[node name="ServiceRouteLabel" type="Label3D" parent="."]
-visible = false
+[node name="ServiceRouteLabel" type="Label3D" parent="." unique_id=2069797786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 3.4, 3)
+visible = false
 billboard = 1
 modulate = Color(0.88, 0.79, 0.56, 1)
 font_size = 18
 outline_size = 4
 
-[node name="CastlePortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.0, -17.0)
+[node name="CastlePortal" type="Node3D" parent="." unique_id=1703646377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0, -17)
 
-[node name="PortalFrame" type="MeshInstance3D" parent="CastlePortal"]
-metadata/legacy_blockout = true
+[node name="PortalFrame" type="MeshInstance3D" parent="CastlePortal" unique_id=2097682788]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BoxMesh_door_frame")
-
-[node name="PortalPad" type="MeshInstance3D" parent="CastlePortal"]
 metadata/legacy_blockout = true
+
+[node name="PortalPad" type="MeshInstance3D" parent="CastlePortal" unique_id=543395046]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 mesh = SubResource("BoxMesh_pad")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="CastlePortal"]
+[node name="InteractArea" type="Area3D" parent="CastlePortal" unique_id=52966221]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Castle Portal"
 interact_id = "castle_portal"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CastlePortal/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CastlePortal/InteractArea" unique_id=781591575]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="PortalLabel" type="Label3D" parent="CastlePortal"]
+[node name="PortalLabel" type="Label3D" parent="CastlePortal" unique_id=1398148646]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
 billboard = 1
 text = "Aumbrye Dungeons — Tier 1"
 font_size = 28
 
-[node name="ArenaDoor" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 0.0, -17.0)
+[node name="ArenaDoor" type="Node3D" parent="." unique_id=1660739474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 0, -17)
 
-[node name="DoorFrame" type="MeshInstance3D" parent="ArenaDoor"]
-metadata/legacy_blockout = true
+[node name="DoorFrame" type="MeshInstance3D" parent="ArenaDoor" unique_id=951357705]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BoxMesh_door_frame")
-
-[node name="DoorPad" type="MeshInstance3D" parent="ArenaDoor"]
 metadata/legacy_blockout = true
+
+[node name="DoorPad" type="MeshInstance3D" parent="ArenaDoor" unique_id=91939025]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 mesh = SubResource("BoxMesh_pad")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="ArenaDoor"]
+[node name="InteractArea" type="Area3D" parent="ArenaDoor" unique_id=633366895]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Training Arena"
 interact_id = "arena_door"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ArenaDoor/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ArenaDoor/InteractArea" unique_id=1490259486]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="DoorLabel" type="Label3D" parent="ArenaDoor"]
+[node name="DoorLabel" type="Label3D" parent="ArenaDoor" unique_id=1296352185]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
 billboard = 1
 text = "Training Arena"
 font_size = 28
 
-[node name="Blacksmith" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 0.0, -2.0)
+[node name="Blacksmith" type="Node3D" parent="." unique_id=1334003097]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -2)
 
-[node name="Building" type="MeshInstance3D" parent="Blacksmith"]
+[node name="Building" type="MeshInstance3D" parent="Blacksmith" unique_id=438617274]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="Blacksmith"]
+[node name="InteractArea" type="Area3D" parent="Blacksmith" unique_id=566341543]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Blacksmith"
 interact_id = "blacksmith"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Blacksmith/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Blacksmith/InteractArea" unique_id=1572032797]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="Label" type="Label3D" parent="Blacksmith"]
+[node name="Label" type="Label3D" parent="Blacksmith" unique_id=590256472]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 billboard = 1
 text = "Blacksmith"
 font_size = 26
 
-[node name="Merchant" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 0.0, -2.0)
+[node name="Merchant" type="Node3D" parent="." unique_id=837470610]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, -2)
 
-[node name="Building" type="MeshInstance3D" parent="Merchant"]
+[node name="Building" type="MeshInstance3D" parent="Merchant" unique_id=1872232891]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="Merchant"]
+[node name="InteractArea" type="Area3D" parent="Merchant" unique_id=742816267]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Merchant"
 interact_id = "merchant"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Merchant/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Merchant/InteractArea" unique_id=479832025]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="Label" type="Label3D" parent="Merchant"]
+[node name="Label" type="Label3D" parent="Merchant" unique_id=1355974482]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 billboard = 1
 text = "Merchant"
 font_size = 26
 
-[node name="Storage" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 0.0, 8.0)
+[node name="Storage" type="Node3D" parent="." unique_id=371035410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, 8)
 
-[node name="Building" type="MeshInstance3D" parent="Storage"]
+[node name="Building" type="MeshInstance3D" parent="Storage" unique_id=1341904939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-metadata/legacy_blockout = true
 mesh = SubResource("BoxMesh_building")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="Storage"]
+[node name="InteractArea" type="Area3D" parent="Storage" unique_id=60054923]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Storage"
 interact_id = "storage"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Storage/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Storage/InteractArea" unique_id=624381409]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="Label" type="Label3D" parent="Storage"]
+[node name="Label" type="Label3D" parent="Storage" unique_id=448156263]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 billboard = 1
 text = "Storage"
 font_size = 26
 
-[node name="QuestBoard" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 0.0, 8.0)
+[node name="QuestBoard" type="Node3D" parent="." unique_id=104908073]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 8)
 
-[node name="Board" type="MeshInstance3D" parent="QuestBoard"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-metadata/legacy_blockout = true
+[node name="Board" type="MeshInstance3D" parent="QuestBoard" unique_id=117346737]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.3, 0, 2, 0)
 mesh = SubResource("BoxMesh_building")
-scale = Vector3(0.8, 0.8, 0.3)
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="QuestBoard"]
+[node name="InteractArea" type="Area3D" parent="QuestBoard" unique_id=231744420]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Quest Board"
 interact_id = "quest_board"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="QuestBoard/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="QuestBoard/InteractArea" unique_id=917723494]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="Label" type="Label3D" parent="QuestBoard"]
+[node name="Label" type="Label3D" parent="QuestBoard" unique_id=1348845249]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 billboard = 1
 text = "Quest Board"
 font_size = 26
 
-[node name="NpcAldric" parent="." instance=ExtResource("12_npc")]
+[node name="NpcAldric" parent="." unique_id=567453867 instance=ExtResource("12_npc")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -14.9, 0, -3.4)
 npc_id = "blacksmith_aldric"
 
-[node name="NpcElara" parent="." instance=ExtResource("12_npc")]
+[node name="NpcElara" parent="." unique_id=2091178862 instance=ExtResource("12_npc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 11.2)
 npc_id = "merchant_elara"
 
-[node name="NpcMira" parent="." instance=ExtResource("12_npc")]
+[node name="NpcMira" parent="." unique_id=355999305 instance=ExtResource("12_npc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 11.2)
 npc_id = "warden_mira"
 
-[node name="CombatHUD" parent="." instance=ExtResource("3_hud")]
+[node name="CombatHUD" parent="." unique_id=1246292326 instance=ExtResource("3_hud")]
 player_path = NodePath("../Player")
 lock_on_path = NodePath("../Player/LockOn")
 
-[node name="InventoryUI" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("4_inv")
-
-[node name="Panel" type="PanelContainer" parent="InventoryUI"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -180.0
-offset_right = 200.0
-offset_bottom = 180.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Margin" type="MarginContainer" parent="InventoryUI/Panel"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="VBox" type="VBoxContainer" parent="InventoryUI/Panel/Margin"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Inventory (Tab)"
-horizontal_alignment = 1
-
-[node name="GridContainer" type="GridContainer" parent="InventoryUI/Panel/Margin/VBox"]
-layout_mode = 2
-columns = 6
-
-[node name="DetailLabel" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Empty"
-
-[node name="HintLabel" type="Label" parent="InventoryUI/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Arrows/D-pad + Enter"
-
-[node name="DebugOverlay" type="CanvasLayer" parent="."]
+[node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1085172412]
 script = ExtResource("5_overlay")
 player_path = NodePath("../Player")
 
-[node name="DebugLabel" type="Label" parent="DebugOverlay"]
+[node name="DebugLabel" type="Label" parent="DebugOverlay" unique_id=1571691810]
+visible = false
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 500.0
@@ -344,204 +288,83 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-text = "Aumbrye Tower debug overlay"
 
-[node name="CastleEntryMenu" parent="." instance=ExtResource("6_castle_menu")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
+[node name="CastleEntryMenu" parent="." unique_id=1719615321 instance=ExtResource("6_castle_menu")]
 
-[node name="DialogueUI" parent="." instance=ExtResource("7_dialogue")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="DialogueUI" parent="." unique_id=551123319 instance=ExtResource("7_dialogue")]
 
-[node name="BlacksmithUI" parent="." instance=ExtResource("8_blacksmith")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="BlacksmithUI" parent="." unique_id=250483448 instance=ExtResource("8_blacksmith")]
 
-[node name="MerchantUI" parent="." instance=ExtResource("9_merchant")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="MerchantUI" parent="." unique_id=1212396539 instance=ExtResource("9_merchant")]
 
-[node name="StorageUI" parent="." instance=ExtResource("10_storage")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="StorageUI" parent="." unique_id=1254246828 instance=ExtResource("10_storage")]
 
-[node name="QuestBoardUI" parent="." instance=ExtResource("11_quest")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="QuestBoardUI" parent="." unique_id=1268573798 instance=ExtResource("11_quest")]
 
-[node name="QuestTrackerUI" parent="." instance=ExtResource("20_quest_tracker")]
-layout_mode = 3
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
+[node name="QuestTrackerUI" parent="." unique_id=187649530 instance=ExtResource("20_quest_tracker")]
 offset_left = -280.0
-offset_top = 20.0
-offset_right = -20.0
 offset_bottom = 160.0
-grow_horizontal = 0
 
-[node name="UmbralEndlessPortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0.0, -17.0)
+[node name="UmbralEndlessPortal" type="Node3D" parent="." unique_id=1482431957]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0, -17)
 
-[node name="PortalFrame" type="MeshInstance3D" parent="UmbralEndlessPortal"]
-metadata/legacy_blockout = true
+[node name="PortalFrame" type="MeshInstance3D" parent="UmbralEndlessPortal" unique_id=141280430]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BoxMesh_door_frame")
-
-[node name="PortalPad" type="MeshInstance3D" parent="UmbralEndlessPortal"]
 metadata/legacy_blockout = true
+
+[node name="PortalPad" type="MeshInstance3D" parent="UmbralEndlessPortal" unique_id=270254169]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 mesh = SubResource("BoxMesh_pad")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="UmbralEndlessPortal"]
+[node name="InteractArea" type="Area3D" parent="UmbralEndlessPortal" unique_id=1664972690]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Aumbrye Prison"
 interact_id = "endless_portal"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralEndlessPortal/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralEndlessPortal/InteractArea" unique_id=1884004859]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="PortalLabel" type="Label3D" parent="UmbralEndlessPortal"]
+[node name="PortalLabel" type="Label3D" parent="UmbralEndlessPortal" unique_id=495961770]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
 billboard = 1
 text = "Aumbrye Prison"
 font_size = 24
 
-[node name="UmbralWavesPortal" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 0.0, -17.0)
+[node name="UmbralWavesPortal" type="Node3D" parent="." unique_id=668688280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 0, -17)
 
-[node name="PortalFrame" type="MeshInstance3D" parent="UmbralWavesPortal"]
-metadata/legacy_blockout = true
+[node name="PortalFrame" type="MeshInstance3D" parent="UmbralWavesPortal" unique_id=1959886231]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BoxMesh_door_frame")
-
-[node name="PortalPad" type="MeshInstance3D" parent="UmbralWavesPortal"]
 metadata/legacy_blockout = true
+
+[node name="PortalPad" type="MeshInstance3D" parent="UmbralWavesPortal" unique_id=1202997079]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 mesh = SubResource("BoxMesh_pad")
+metadata/legacy_blockout = true
 
-[node name="InteractArea" type="Area3D" parent="UmbralWavesPortal"]
+[node name="InteractArea" type="Area3D" parent="UmbralWavesPortal" unique_id=2068858805]
 collision_layer = 0
 collision_mask = 2
 script = ExtResource("16_interact")
 display_name = "Aumbrye Outskirts"
 interact_id = "waves_portal"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralWavesPortal/InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="UmbralWavesPortal/InteractArea" unique_id=736515300]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("BoxShape3D_interact")
 
-[node name="PortalLabel" type="Label3D" parent="UmbralWavesPortal"]
+[node name="PortalLabel" type="Label3D" parent="UmbralWavesPortal" unique_id=1459340935]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
 billboard = 1
 text = "Aumbrye Outskirts"
 font_size = 24
 
-[node name="SkiesPortal" type="Node3D" parent="."]
-visible = false
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.0, 0.0, -17.0)
+[node name="UmbralEndlessMenu" parent="." unique_id=473655825 instance=ExtResource("18_endless_menu")]
 
-[node name="PortalFrame" type="MeshInstance3D" parent="SkiesPortal"]
-metadata/legacy_blockout = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-mesh = SubResource("BoxMesh_door_frame")
-
-[node name="PortalPad" type="MeshInstance3D" parent="SkiesPortal"]
-metadata/legacy_blockout = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-mesh = SubResource("BoxMesh_pad")
-
-[node name="InteractArea" type="Area3D" parent="SkiesPortal"]
-collision_layer = 0
-collision_mask = 2
-script = ExtResource("16_interact")
-enabled = false
-display_name = "Aumbrye Skies — Coming Soon"
-interact_id = "skies_portal"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SkiesPortal/InteractArea"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-shape = SubResource("BoxShape3D_interact")
-
-[node name="PortalLabel" type="Label3D" parent="SkiesPortal"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
-billboard = 1
-text = "Aumbrye Skies — Coming Soon"
-font_size = 22
-
-[node name="CathedralPortal" type="Node3D" parent="."]
-visible = false
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.0, 0.0, -17.0)
-
-[node name="PortalFrame" type="MeshInstance3D" parent="CathedralPortal"]
-metadata/legacy_blockout = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-mesh = SubResource("BoxMesh_door_frame")
-
-[node name="PortalPad" type="MeshInstance3D" parent="CathedralPortal"]
-metadata/legacy_blockout = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-mesh = SubResource("BoxMesh_pad")
-
-[node name="InteractArea" type="Area3D" parent="CathedralPortal"]
-collision_layer = 0
-collision_mask = 2
-script = ExtResource("16_interact")
-enabled = false
-display_name = "Aumbrye Cathedral — Coming Soon"
-interact_id = "cathedral_portal"
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CathedralPortal/InteractArea"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-shape = SubResource("BoxShape3D_interact")
-
-[node name="PortalLabel" type="Label3D" parent="CathedralPortal"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
-billboard = 1
-text = "Aumbrye Cathedral — Coming Soon"
-font_size = 22
-
-[node name="UmbralEndlessMenu" parent="." instance=ExtResource("18_endless_menu")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="UmbralWavesMenu" parent="." instance=ExtResource("19_waves_menu")]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="UmbralWavesMenu" parent="." unique_id=1543383101 instance=ExtResource("19_waves_menu")]

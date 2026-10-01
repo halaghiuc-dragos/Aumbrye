@@ -89,7 +89,7 @@ static func entries() -> Array[Dictionary]:
 		_colorblind_row(),
 		_slider_row(
 			"camera_mouse_sensitivity",
-			"accessibility",
+			"controls",
 			AccessibilitySettings.CAMERA_MOUSE_MIN,
 			AccessibilitySettings.CAMERA_MOUSE_MAX,
 			0.05,
@@ -101,7 +101,7 @@ static func entries() -> Array[Dictionary]:
 		),
 		_slider_row(
 			"camera_stick_sensitivity",
-			"accessibility",
+			"controls",
 			AccessibilitySettings.CAMERA_STICK_MIN,
 			AccessibilitySettings.CAMERA_STICK_MAX,
 			0.05,
@@ -113,7 +113,7 @@ static func entries() -> Array[Dictionary]:
 		),
 		_slider_row(
 			"camera_fov",
-			"accessibility",
+			"controls",
 			AccessibilitySettings.CAMERA_FOV_MIN,
 			AccessibilitySettings.CAMERA_FOV_MAX,
 			1.0,
@@ -125,7 +125,7 @@ static func entries() -> Array[Dictionary]:
 		),
 		_toggle_row(
 			"camera_invert_y",
-			"accessibility",
+			"controls",
 			func() -> bool: return AccessibilitySettings.camera_invert_y,
 			Callable(SettingsSchema, "_set_camera_invert_y")
 		),
@@ -164,12 +164,6 @@ static func entries() -> Array[Dictionary]:
 			Callable(SettingsSchema, "_set_assist_lock_on_range"),
 			func() -> void: AccessibilitySettings.request_commit(),
 			AccessibilitySettings.ASSIST_LOCK_ON_DEFAULT
-		),
-		_toggle_row(
-			"replay_recording",
-			"advanced",
-			func() -> bool: return RunReplay.recording_opt_in(),
-			Callable(SettingsSchema, "_set_replay_recording")
 		),
 		_toggle_row(
 			"assist_telegraph_emphasis",
@@ -234,24 +228,6 @@ static func _motion_slider_row(id: String, setter_name: String) -> Dictionary:
 	)
 
 
-## `_motion_slider_row` builds its getter as `Callable(SettingsSchema, "_get_%s" % id)` for all
-## three motion sliders, but only the setters existed -- the getters were never written. A missing
-## method on a Callable fails quietly rather than erroring the page open, so every slider opened at
-## its Range minimum (0%) regardless of the saved intensity, which defaults to 100%. A player who
-## never touched these sliders was seeing "off" for feedback that was actually running at full
-## strength, and dragging from that 0% starting point would have silently turned it off for real.
-static func _get_camera_shake_intensity() -> float:
-	return AccessibilitySettings.camera_shake_intensity
-
-
-static func _get_hitstop_intensity() -> float:
-	return AccessibilitySettings.hitstop_intensity
-
-
-static func _get_screen_pulse_intensity() -> float:
-	return AccessibilitySettings.screen_pulse_intensity
-
-
 static func _set_camera_shake_intensity(v: float) -> void:
 	AccessibilitySettings.set_camera_shake_intensity(v)
 	AccessibilitySettings.apply_live("camera_shake_intensity", v)
@@ -265,13 +241,6 @@ static func _set_hitstop_intensity(v: float) -> void:
 static func _set_screen_pulse_intensity(v: float) -> void:
 	AccessibilitySettings.set_screen_pulse_intensity(v)
 	AccessibilitySettings.apply_live("screen_pulse_intensity", v)
-
-
-static func _set_replay_recording(v: bool) -> void:
-	RunReplay.set_recording_opt_in(v)
-	if not v:
-		RunReplay.discard()
-	LocalSave.autosave()
 
 
 static func _set_show_fps_overlay(v: bool) -> void:
@@ -488,7 +457,7 @@ static func _set_resolution_index(idx: int) -> void:
 	DisplayService.set_resolution_index(idx)
 
 
-## HD-03: the render preset (`PixelDioramaSettings.RESOLUTION_PRESETS`) is a different axis than
+## The render preset (`PixelDioramaSettings.RESOLUTION_PRESETS`) is a different axis than
 ## `_resolution_row()`'s window size -- this is the internal diorama render resolution that drives
 ## the pixel-art look, comparable side by side against the same option-row pattern.
 static func _render_preset_row() -> Dictionary:

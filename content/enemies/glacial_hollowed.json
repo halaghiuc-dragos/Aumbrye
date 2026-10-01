@@ -41,6 +41,7 @@
   "attacks": [
     {
       "id": "bash",
+      "anim": "attack_heavy",
       "name": "Shield Bash",
       "weight": 3,
       "windup_duration": 0.64,
@@ -54,11 +55,15 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "blockable",
+      "knockback": 3.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "guard_thrust",
+      "anim": "attack_thrust_3",
       "name": "Guarded Thrust",
       "weight": 2,
       "windup_duration": 0.98,
@@ -72,11 +77,12 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "unblockable",
+      "attackClass": "blockable",
       "knockback": 3.0
     },
     {
       "id": "shove",
+      "anim": "attack_heavy",
       "name": "Shove",
       "weight": 2,
       "windup_duration": 1.16,
@@ -110,11 +116,14 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "parryable",
+      "knockback": 3.5,
+      "hold_fraction": 0.3,
+      "feint_chance": 0.2
     },
     {
       "id": "sig_keening",
+      "anim": "attack_thrust_3",
       "name": "Keening",
       "weight": 1.2,
       "windup_duration": 1.5,
@@ -130,7 +139,11 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "guard_chance": 0.4,

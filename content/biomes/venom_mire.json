@@ -4,8 +4,8 @@
   "templatePrefix": "mire",
   "assetFolder": "mire",
   "roomCount": {
-    "min": 26,
-    "max": 32
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "mire_entrance",
@@ -56,32 +56,33 @@
     "rubble": [
       "res://scenes/props/mire/rubble_a.tscn",
       "res://scenes/props/mire/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/mire/banner.tscn",
-    "statue": "res://scenes/props/mire/statue.tscn",
-    "altar": "res://scenes/props/mire/altar.tscn",
-    "debrisPile": "res://scenes/props/mire/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "venom_drifter",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "venom_thresher",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "venom_censer",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "venom_bloat_brute",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "venom_matron",
-      "weight": 1
+      "weight": 1,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -149,14 +150,6 @@
     ],
     "side": [
       {
-        "itemId": "swamp_bog_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "blood_relic_stone",
         "quantity": [
           1,
@@ -223,11 +216,11 @@
   "maxHeightLevel": 2,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 5,
-    "minDeadEnds": 5,
-    "branchMaxDepth": 10,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 5,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -252,5 +245,6 @@
     "lift": -0.02,
     "vignette": 0.3
   },
-  "lootTablePath": "content/loot/tables/venom_mire.json"
+  "lootTablePath": "content/loot/tables/venom_mire.json",
+  "floorSurface": "water"
 }

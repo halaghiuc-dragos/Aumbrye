@@ -21,6 +21,31 @@ static func get_definition(item_id: String) -> Dictionary:
 	return _definitions.get(item_id, {})
 
 
+## "Iron Scrap x3, Ember Dust x1" for a {item id: amount} dictionary.
+static func display_amounts(amounts: Dictionary) -> String:
+	var parts := PackedStringArray()
+	for item_id in amounts:
+		var item_name := str(get_definition(str(item_id)).get("name", item_id))
+		parts.append("%s x%d" % [item_name, int(amounts[item_id])])
+	return ", ".join(parts)
+
+
+## Item names for a list of ids, comma-joined; an id with no definition reads as unknown. `limit`
+## > 0 shows that many and ends with an ellipsis when there are more.
+static func display_names(item_ids: Array, limit: int = 0) -> String:
+	var shown: Array = item_ids
+	if limit > 0:
+		shown = item_ids.slice(0, limit)
+	var names := PackedStringArray()
+	for item_id in shown:
+		var item_name := str(get_definition(str(item_id)).get("name", ""))
+		names.append(item_name if item_name != "" else str(TranslationServer.translate("RESULTS_LOOT_UNKNOWN_ITEM")))
+	var joined := ", ".join(names)
+	if shown.size() < item_ids.size():
+		joined += ", …"
+	return joined
+
+
 static func get_content_path(item_id: String) -> String:
 	var def := get_definition(item_id)
 	return def.get("content_path", "")
@@ -63,23 +88,9 @@ static func _ensure_loaded() -> void:
 	var loaded := ContentDirLoader.load_id_map(CATEGORY_DIRS, "id", "ItemCatalog", true, true)
 	if _is_strict():
 		loaded = _apply_strict_allowlist(loaded)
-	_definitions = _flatten_footprints(loaded)
+	_definitions = loaded
 	if _definitions.is_empty():
 		push_error("ItemCatalog: no item definitions loaded from %s" % str(CATEGORY_DIRS))
-
-
-## Every item occupies exactly one cell.
-##
-## The grid is a plain slot list, not a Diablo-style packing puzzle, so the `gridWidth`/`gridHeight`
-## fields the content files still carry are collapsed here rather than at each of the half-dozen
-## places that read them. Doing it once on load also means a new content file cannot reintroduce a
-## multi-cell item by accident.
-static func _flatten_footprints(defs: Dictionary) -> Dictionary:
-	for item_id in defs:
-		var def: Dictionary = defs[item_id]
-		def["gridWidth"] = 1
-		def["gridHeight"] = 1
-	return defs
 
 
 static func _is_strict() -> bool:

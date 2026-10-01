@@ -3,22 +3,20 @@ extends RefCounted
 
 ## Places every room of a floor on a shared lattice of 4-unit cells.
 ##
-## The layout this replaced resolved a room's world position by walking the graph and adding half
-## extents as it went, which made the position a function of whichever path arrived first. That is
-## only consistent on a tree. Every biome runs `loopBudget` 3-4, and going around a loop the half
-## extents have to cancel exactly -- with eleven different room footprints they almost never do, so
-## the constraint system was over-determined and unsatisfiable for roughly three seeds in four. The
-## generator then threw the layout away, and a floor that could not be laid out was a floor the
-## player could not enter.
+## Resolving a room's world position by walking the graph and adding half extents as it went would make
+## the position a function of whichever path arrived first. That is only consistent on a tree. Every
+## biome runs `loopBudget` 3-4, and going around a loop the half extents have to cancel exactly -- with
+## eleven different room footprints they almost never do, so the constraint system would be
+## over-determined and unsatisfiable for roughly three seeds in four.
 ##
 ## Two things make it satisfiable here. Rooms reserve whole cells out of one occupancy grid, so two
 ## rooms can never be handed the same space no matter what order they are placed in. And a door is
-## no longer pinned to the centre of its wall: a child slides along the wall it shares with its
+## not pinned to the centre of its wall: a child slides along the wall it shares with its
 ## parent until it finds free cells, and the door is cut wherever the two rooms actually overlap.
-## Removing that centre-alignment constraint is what lets rooms of different sizes sit next to each
+## Dropping the centre-alignment constraint is what lets rooms of different sizes sit next to each
 ## other at all.
 ##
-## Every room footprint in `RoomTemplateCatalog` is already an exact multiple of `CELL`, so the
+## Every room footprint in `RoomTemplateCatalog` is an exact multiple of `CELL`, so the
 ## lattice tiles them without gaps and without any change to the room art.
 
 const CELL := 4.0
@@ -62,11 +60,6 @@ static func footprint_cells(template_id: String, yaw_rad: float) -> Vector2i:
 	return Vector2i(maxi(1, int(round(w / CELL))), maxi(1, int(round(d / CELL))))
 
 
-## The world-space centre of a reserved rectangle.
-static func rect_center(origin: Vector2i, size: Vector2i) -> Vector2:
-	return Vector2((origin.x + size.x * 0.5) * CELL, (origin.y + size.y * 0.5) * CELL)
-
-
 class Placement:
 	extends RefCounted
 
@@ -108,9 +101,6 @@ class Occupancy:
 		for x in range(origin.x, origin.x + size.x):
 			for y in range(origin.y, origin.y + size.y):
 				_cells.erase(Vector2i(x, y))
-
-	func owner_at(cell: Vector2i) -> String:
-		return str(_cells.get(cell, ""))
 
 
 ## Candidate origins for `size` placed flush against `anchor` on the `dir` side.
@@ -244,7 +234,7 @@ static func solve(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 		)
 		if not fallback["dropped"].is_empty():
 			continue
-		_place_secrets(graph, rooms_by_layout, fallback)
+		_place_secrets(graph, rooms_by_layout, fallback, int(pattern["rotation"]))
 		fallback["realised_edges"] = _realised_edges(
 			graph, fallback["placements"], fallback["tree_edges"], int(pattern["rotation"])
 		)
@@ -301,10 +291,13 @@ static func _has_required_rooms(
 ## A secret prefers the parent the graph chose for it, but will accept any placed room with a free
 ## side. `RunFloorConfig` wants one or two on every floor, and refusing to relocate a secret whose
 ## nominated parent happens to be boxed in is the main way a floor ends up with none.
+##
+## A wall holds one opening, so a secret never goes on a wall that already has a door.
 static func _place_secrets(
-	graph: RoomGraph, rooms_by_layout: Dictionary, state: Dictionary
+	graph: RoomGraph, rooms_by_layout: Dictionary, state: Dictionary, rotation: int = 0
 ) -> void:
 	var placements: Dictionary = state["placements"]
+	var walls_with_door := _walls_with_doors(graph, placements, state["tree_edges"], rotation)
 	var occupancy := Occupancy.new()
 	for layout_id in placements:
 		var p: Placement = placements[layout_id]
@@ -325,6 +318,8 @@ static func _place_secrets(
 		for host_id in hosts:
 			var host: Placement = placements[host_id]
 			for dir in directions():
+				if walls_with_door.has(_wall_key(host_id, dir)):
+					continue
 				var chosen: Variant = _first_free(
 					occupancy, candidate_origins(host.origin, host.size, size, dir), size, 0
 				)
@@ -332,15 +327,43 @@ static func _place_secrets(
 					continue
 				occupancy.reserve(chosen, size, secret_id)
 				placements[secret_id] = Placement.new(chosen, size, 0.0)
+				walls_with_door[_wall_key(host_id, dir)] = true
+				walls_with_door[_wall_key(secret_id, -dir)] = true
 				if slot != null:
 					slot.secret_parent_id = host_id
-					# Recorded rather than re-derived: a rehomed secret no longer sits one graph
+					# Recorded rather than re-derived: a rehomed secret does not sit one graph
 					# cell from its parent, so this is the only place the shared wall is known.
 					slot.secret_parent_dir = dir
 				seated = true
 				break
 			if seated:
 				break
+
+
+static func _wall_key(layout_id: String, dir: Vector2i) -> String:
+	return "%s|%d,%d" % [layout_id, dir.x, dir.y]
+
+
+## Every wall of a placed room that already carries a door: the walls the room's own door mask
+## opens, and the walls a realised edge (tree or loop) actually cuts a doorway through.
+static func _walls_with_doors(
+	graph: RoomGraph, placements: Dictionary, tree_edges: Array, rotation: int
+) -> Dictionary:
+	var walls := {}
+	for layout_id in placements:
+		var slot := graph.get_slot(layout_id)
+		if slot == null:
+			continue
+		for graph_dir in directions():
+			if slot.door_mask & _door_bit(graph_dir):
+				walls[_wall_key(layout_id, _rotated_dir(graph_dir, rotation))] = true
+	var realised := _realised_edges(graph, placements, tree_edges, rotation)
+	for key in realised:
+		var edge: Dictionary = realised[key]
+		var dir: Vector2i = edge["dir"]
+		walls[_wall_key(str(edge["from"]), dir)] = true
+		walls[_wall_key(str(edge["to"]), -dir)] = true
+	return walls
 
 
 ## Breadth-first over door adjacency, skipping secrets -- they hang off a parent and are placed last.
@@ -549,78 +572,6 @@ static func _first_free(
 		if occupancy.is_free(origin, size):
 			return origin
 	return null
-
-
-## The guarantee of last resort: run the critical rooms out in one direction, then hang whatever
-## optional rooms still fit off them. A straight run never revisits a cell, so it always places.
-static func _straight_line_layout(
-	graph: RoomGraph, rooms_by_layout: Dictionary, entrance_id: String, order: Array
-) -> Dictionary:
-	var occupancy := Occupancy.new()
-	var placements := {}
-	var dropped: Array = []
-	var critical: Array = [entrance_id]
-	for entry in order:
-		var layout_id: String = str(entry["id"])
-		if layout_id != entrance_id and _is_critical(graph, layout_id):
-			critical.append(layout_id)
-	# The walk may not have reached the boss or the stairs at all, which is one of the reasons this
-	# fallback exists. Put them on the end of the run so the floor is at least completable.
-	for required_id in [graph.boss_id, graph.stairs_id]:
-		if required_id == "" or critical.has(required_id):
-			continue
-		if rooms_by_layout.has(required_id):
-			critical.append(required_id)
-	var tree_edges: Array = []
-	var cursor := 0
-	var previous_id := ""
-	for layout_id in critical:
-		# The run always steps east, so every room after the first needs its incoming door rotated
-		# to face west (back toward the room before it) -- a hardcoded yaw=0.0 here left single- or
-		# limited-door rooms (e.g. boss) facing whichever way their template's primary door happens
-		# to point, which is only ever correct by accident.
-		var yaw := 0.0
-		if previous_id != "":
-			yaw = RoomTemplateCatalogScript.yaw_rad_for_incoming_door(
-				str(rooms_by_layout[layout_id]["template_id"]), RoomGraphSlot.DOOR_WEST
-			)
-		var size := footprint_cells(str(rooms_by_layout[layout_id]["template_id"]), yaw)
-		var origin := Vector2i(cursor, 0)
-		occupancy.reserve(origin, size, layout_id)
-		placements[layout_id] = Placement.new(origin, size, yaw)
-		if previous_id != "":
-			# The run is laid out west to east regardless of where the graph put these cells, so the
-			# connection has to be recorded from the placement rather than read back off the graph.
-			tree_edges.append({"from": previous_id, "to": layout_id, "dir": DIR_EAST})
-		previous_id = layout_id
-		cursor += size.x
-	for entry in order:
-		var layout_id: String = str(entry["id"])
-		if placements.has(layout_id):
-			continue
-		var parent_id: String = str(entry["parent"])
-		if not placements.has(parent_id):
-			dropped.append(layout_id)
-			continue
-		var parent: Placement = placements[parent_id]
-		var yaw := _yaw_for(rooms_by_layout, graph, layout_id, entry)
-		var size := footprint_cells(str(rooms_by_layout[layout_id]["template_id"]), yaw)
-		var dir: Vector2i = entry["dir"]
-		var chosen: Variant = _first_free(
-			occupancy, candidate_origins(parent.origin, parent.size, size, dir), size, 0
-		)
-		if chosen == null:
-			dropped.append(layout_id)
-			continue
-		occupancy.reserve(chosen, size, layout_id)
-		placements[layout_id] = Placement.new(chosen, size, yaw)
-		tree_edges.append({"from": parent_id, "to": layout_id, "dir": dir})
-	return {
-		"placements": placements,
-		"dropped": dropped,
-		"tree_edges": tree_edges,
-		"critical_ok": true,
-	}
 
 
 ## Which graph adjacencies the lattice actually honoured, with the door offset for each side.

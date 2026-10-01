@@ -79,14 +79,6 @@ static func _is_item_unlocked(item_id: String) -> bool:
 	return flag_id != "" and CharacterService.is_flag_truthy(flag_id)
 
 
-static func get_repair_recipe(item_id: String) -> Dictionary:
-	_ensure_loaded()
-	for recipe in _definitions:
-		if recipe.get("type", "") == "repair" and recipe.get("itemId", "") == item_id:
-			return recipe
-	return {}
-
-
 static func reload() -> void:
 	_definitions.clear()
 	_loaded = false

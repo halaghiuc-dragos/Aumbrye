@@ -2,13 +2,14 @@
 extends Node3D
 class_name CastleBlockout
 
-## RM-22: a room scene's authored `door_*` values and socket transforms are editor preview only.
+## A room scene's authored `door_*` values and socket transforms are editor preview only.
 ## `DungeonBuilder._close_all_blockout_doors()` clears every door flag on every room at build time
 ## and `_open_blockout_door_toward()` re-opens exactly the ones the floor's room graph names, and
 ## `CastleRoomScene._ensure_socket_completeness()` recomputes every socket's position from the
 ## room's actual dimensions regardless of what a scene authored. The builder is authoritative;
 ## nothing a designer sets here survives past opening the scene standalone in the editor.
 
+const NAV_TEMPLATE_CACHE_LIMIT := 96
 const NAV_CELL_SIZE := 0.25
 const NAV_AGENT_HEIGHT := 1.8
 const NAV_AGENT_RADIUS := 0.45
@@ -16,7 +17,7 @@ const NAV_AGENT_RADIUS := 0.45
 const CEILING_THICKNESS := 0.4
 const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
 
-## `RM-01`: rotunda and octagon wall segment counts. A round room still reserves a square footprint
+## Rotunda and octagon wall segment counts. A round room still reserves a square footprint
 ## on the lattice (`RoomGraphLayout.footprint_cells()` is untouched) -- only the geometry built
 ## inside that square changes.
 const ROUND_WALL_SEGMENTS := 24
@@ -28,7 +29,7 @@ const CURVED_SEGMENT_OVERLAP := 0.06
 		kind = value
 		_request_rebuild()
 
-## `RM-01`: `rect`, `round` or `octagon`. Only the geometry built *inside* the reserved square
+## `rect`, `round` or `octagon`. Only the geometry built *inside* the reserved square
 ## footprint changes -- the lattice, door sliding, loop scoring, overlap validation and the minimap
 ## all keep reading `room_width`/`room_depth` as a rectangle regardless of this. See
 ## `RoomTemplate.contains_world_point()`, which stays a rectangle test on purpose (Trap 1).
@@ -37,7 +38,7 @@ const CURVED_SEGMENT_OVERLAP := 0.06
 		shape = value
 		_request_rebuild()
 
-## RM-03: a biome layout variant's `"shape"` override, applied on top of the kind spec's own
+## A biome layout variant's `"shape"` override, applied on top of the kind spec's own
 ## default every time `_apply_kind_spec()` runs -- setting `shape` directly does not survive the
 ## next `_rebuild()`, since that always re-derives it from the kind spec. Empty means "no override,
 ## use the kind's default shape".
@@ -122,16 +123,20 @@ const CURVED_SEGMENT_OVERLAP := 0.06
 		_request_rebuild()
 
 var _geometry_root: Node3D
-var _cover_root: Node3D
 var _walls_body: StaticBody3D
 var _nav_region: NavigationRegion3D
 var _nav_links: Array[NavigationLink3D] = []
-var _cover_nodes: Array[Node3D] = []
 var _pending_stairs: Array[Dictionary] = []
 var _navigation_map: RID = RID()
 var _geometry_dirty: bool = true
 var _nav_bake_count: int = 0
 static var _navigation_template_cache: Dictionary = {}
+## Solid props standing on the floor, as {"pos": Vector3, "size": Vector3} in this room's space.
+var _nav_obstacles: Array = []
+## Sets what the room's floors sound like underfoot; the room scene fills it from its biome.
+var floor_surface: StringName = &"stone"
+## Which biome this room belongs to, so its walls get that biome's relief (trim, cornice, pilasters).
+var relief_biome: String = ""
 static var _navigation_template_max_usec := 0
 var _applying_kind_spec := false
 var _rebuild_queued := false
@@ -161,10 +166,10 @@ func _ensure_materials() -> void:
 		accent_material = BiomeRegistry.get_accent_material(biome_id)
 
 
-## RM-22: closing all four doors and re-opening one is several `@export` setters firing in a row,
-## each of which used to call `_rebuild()` synchronously -- six to eight rebuilds where one would
-## do. Deferring through `call_deferred` and guarding on `_geometry_dirty` coalesces any number of
-## setter calls within one frame into a single rebuild.
+## Closing all four doors and re-opening one is several `@export` setters firing in a row, and a
+## synchronous `_rebuild()` from each would be six to eight rebuilds where one will do. Deferring
+## through `call_deferred` and guarding on `_geometry_dirty` coalesces any number of setter calls
+## within one frame into a single rebuild.
 func _request_rebuild() -> void:
 	if _applying_kind_spec:
 		return
@@ -187,8 +192,17 @@ func _deferred_rebuild() -> void:
 func finalize_geometry() -> void:
 	if _geometry_dirty:
 		_rebuild()
+	_apply_floor_surface()
 	_build_navigation_mesh()
 	_geometry_dirty = false
+
+
+func _apply_floor_surface() -> void:
+	if _geometry_root == null or not is_instance_valid(_geometry_root):
+		return
+	for body in _geometry_root.find_children("*", "StaticBody3D", true, false):
+		if body.is_in_group("walkable_floor"):
+			body.set_meta("surface", String(floor_surface))
 
 
 func _rebuild() -> void:
@@ -201,6 +215,7 @@ func _rebuild() -> void:
 	if Engine.is_editor_hint():
 		_geometry_root.owner = get_tree().edited_scene_root
 	_walls_body = null
+	_relief.clear()
 
 	if shape == &"round" or shape == &"octagon":
 		if not skip_floor:
@@ -251,14 +266,114 @@ func _rebuild() -> void:
 		_build_pending_stairs()
 		if build_ceiling:
 			_build_ceiling()
+	_flush_wall_relief()
 	_add_room_occluder()
 	_geometry_dirty = false
 
 
+## Wall relief is gathered while the walls are built and placed once at the end, as instanced
+## meshes: the trim along a wall is dozens of repeats of the same two-metre piece.
+var _relief: Dictionary = {}
+
+const RELIEF_MODULE := 2.0
+const RELIEF_CAPITAL_HEIGHT := 0.3
+const RELIEF_BASE_HEIGHT := 0.38
+const PILASTER_SPACING := 4.0
+
+
+func _queue_wall_relief(center: Vector3, size: Vector3) -> void:
+	if hide_walls:
+		return
+	var spans_x := size.x > size.z
+	var length := size.x if spans_x else size.z
+	var thickness := size.z if spans_x else size.x
+	var inward := Vector3(0.0, 0.0, -signf(center.z)) if spans_x else Vector3(-signf(center.x), 0.0, 0.0)
+	if inward == Vector3.ZERO or length < 0.8:
+		return
+	var along := Vector3.RIGHT if spans_x else Vector3.BACK
+	var face := Vector3(center.x, 0.0, center.z) + inward * (thickness * 0.5)
+	var facing := Basis(Vector3.UP, atan2(inward.x, inward.z))
+	_queue_masonry(face, inward, length, center.y, size.y)
+	if size.y < 3.0:
+		return
+	var count := maxi(1, roundi(length / RELIEF_MODULE))
+	var stretch := length / (float(count) * RELIEF_MODULE)
+	for i in count:
+		var offset := -length * 0.5 + (float(i) + 0.5) * length / float(count)
+		var origin := face + along * offset
+		var strip := facing * Basis.from_scale(Vector3(stretch, 1.0, 1.0))
+		_relief_add("base", Transform3D(strip, origin))
+		_relief_add("cornice", Transform3D(strip, origin + Vector3(0.0, size.y, 0.0)))
+	var spots: Array[float] = []
+	if length >= 1.5:
+		spots.append(-length * 0.5 + 0.3)
+		spots.append(length * 0.5 - 0.3)
+		var step := -length * 0.5 + 0.3 + PILASTER_SPACING
+		while step < length * 0.5 - 1.2:
+			spots.append(step)
+			step += PILASTER_SPACING
+	var shaft_height := size.y - RELIEF_BASE_HEIGHT - RELIEF_CAPITAL_HEIGHT
+	for spot in spots:
+		var origin := face + along * spot
+		_relief_add(
+			"pilaster",
+			Transform3D(facing * Basis.from_scale(Vector3(1.0, shaft_height, 1.0)), origin + Vector3(0.0, RELIEF_BASE_HEIGHT, 0.0))
+		)
+		_relief_add("capital", Transform3D(facing, origin + Vector3(0.0, size.y - RELIEF_CAPITAL_HEIGHT, 0.0)))
+
+
+## Courses of Blender ashlar over a wall face, so the bare box behind only shows as mortar.
+func _queue_masonry(face: Vector3, normal: Vector3, length: float, base_y: float, height: float) -> void:
+	for placement in WallCladding.face_transforms(face, normal, length, base_y, height):
+		_relief_add("masonry", placement)
+
+
+## Flagstones over a rectangle of floor, in four-metre tiles stretched to fit.
+func _queue_floor_tiles(centre: Vector3, xz: Vector2, base_y: float) -> void:
+	var columns := maxi(1, roundi(xz.x / 4.0))
+	var rows := maxi(1, roundi(xz.y / 4.0))
+	var stretch := Basis.from_scale(Vector3(xz.x / (float(columns) * 4.0), 1.0, xz.y / (float(rows) * 4.0)))
+	for column in columns:
+		for row in rows:
+			var origin := centre + Vector3(
+				(float(column) + 0.5 - float(columns) * 0.5) * xz.x / float(columns),
+				base_y,
+				(float(row) + 0.5 - float(rows) * 0.5) * xz.y / float(rows)
+			)
+			_relief_add("floor", Transform3D(stretch, origin))
+
+
+func _relief_add(piece: String, placement: Transform3D) -> void:
+	if not _relief.has(piece):
+		_relief[piece] = [] as Array[Transform3D]
+	(_relief[piece] as Array[Transform3D]).append(placement)
+
+
+func _flush_wall_relief() -> void:
+	if _geometry_root == null or _relief.is_empty():
+		return
+	var style := str(PropLibrary.BIOME_STYLES.get(relief_biome, "castle"))
+	var theme := PixelDioramaStyle.theme_from_biome(relief_biome if relief_biome != "" else BiomeRegistry.BIOME_CASTLE)
+	var options := {}
+	var materials := {}
+	if wall_material != null:
+		materials["wall"] = wall_material
+	if accent_material != null:
+		materials["accent"] = accent_material
+	if floor_material != null:
+		materials["floor"] = floor_material
+	if not materials.is_empty():
+		options["materials"] = materials
+	for piece: String in _relief:
+		PropLibrary.scatter_themed(
+			_geometry_root, "walls/%s_%s" % [piece, style], theme, _relief[piece] as Array[Transform3D],
+			"Relief_%s" % piece, options
+		)
+	_relief.clear()
+
+
 func _clear_geometry_children() -> void:
 	for child in get_children():
-		if child.name == "CoverObstacles":
-			continue
 		if child.name == "Geometry" or child is NavigationRegion3D or child is NavigationLink3D:
 			remove_child(child)
 			child.free()
@@ -266,19 +381,6 @@ func _clear_geometry_children() -> void:
 	_walls_body = null
 	_nav_region = null
 	_nav_links.clear()
-
-
-func _ensure_cover_root() -> Node3D:
-	if _cover_root != null and is_instance_valid(_cover_root):
-		return _cover_root
-	_cover_root = get_node_or_null("CoverObstacles") as Node3D
-	if _cover_root == null:
-		_cover_root = Node3D.new()
-		_cover_root.name = "CoverObstacles"
-		add_child(_cover_root)
-		if Engine.is_editor_hint():
-			_cover_root.owner = get_tree().edited_scene_root
-	return _cover_root
 
 
 func _create_walls_body() -> StaticBody3D:
@@ -304,28 +406,19 @@ func _build_floor() -> void:
 	if Engine.is_editor_hint():
 		floor_body.owner = get_tree().edited_scene_root
 
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(room_width, CastleRoomConstants.FLOOR_THICKNESS, room_depth)
-	mesh_instance.mesh = box
-	mesh_instance.position = Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
-	if floor_material:
-		mesh_instance.material_override = floor_material
-	floor_body.add_child(mesh_instance)
-	if Engine.is_editor_hint():
-		mesh_instance.owner = get_tree().edited_scene_root
+	_queue_floor_tiles(Vector3.ZERO, Vector2(room_width, room_depth), 0.0)
 
 	var collision := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
-	box_shape.size = box.size
+	box_shape.size = Vector3(room_width, CastleRoomConstants.FLOOR_THICKNESS, room_depth)
 	collision.shape = box_shape
-	collision.position = mesh_instance.position
+	collision.position = Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
 	floor_body.add_child(collision)
 	if Engine.is_editor_hint():
 		collision.owner = get_tree().edited_scene_root
 
 
-## RM-19: `shape == &"split"` -- a balcony. The room's outer walls and doors are unchanged (a
+## `shape == &"split"` -- a balcony. The room's outer walls and doors are unchanged (a
 ## balcony is still a plain rectangular footprint); only the floor is built in two halves at
 ## different heights, with a railing along the seam. `BALCONY_RISE` matches
 ## `RoomGraphGeometry.HEIGHT_STEP` (both 3.0) on purpose -- the raised half reads as "the next
@@ -368,16 +461,7 @@ func _build_split_floor_half(center: Vector3, xz_size: Vector2, base_y: float, b
 		floor_body.owner = get_tree().edited_scene_root
 	var size := Vector3(xz_size.x, CastleRoomConstants.FLOOR_THICKNESS, xz_size.y)
 	var local_pos := center + Vector3(0.0, base_y - CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
-	mesh_instance.position = local_pos
-	if floor_material:
-		mesh_instance.material_override = floor_material
-	floor_body.add_child(mesh_instance)
-	if Engine.is_editor_hint():
-		mesh_instance.owner = get_tree().edited_scene_root
+	_queue_floor_tiles(center, xz_size, base_y)
 	var collision := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
 	box_shape.size = size
@@ -390,7 +474,7 @@ func _build_split_floor_half(center: Vector3, xz_size: Vector2, base_y: float, b
 
 ## Solid over most of the split edge so a player does not just wander off the raised half, with a
 ## door-width gap in the middle to walk (or deliberately drop) through -- the room-scale version of
-## RM-04's "down" one-way drop-down.
+## "down" one-way drop-down.
 func _build_balcony_railing(half_w: float, rise: float) -> void:
 	var gap := CastleRoomConstants.DOOR_WIDTH
 	var rail_height := 1.0
@@ -448,7 +532,7 @@ func _build_ceiling() -> void:
 		occluder.owner = get_tree().edited_scene_root
 
 
-## `RM-01`: a `CylinderMesh` with `radial_segments` set to the wall segment count doubles as both
+## A `CylinderMesh` with `radial_segments` set to the wall segment count doubles as both
 ## the round floor and the octagon floor -- an octagon prism is just a very-low-poly cylinder, so
 ## one mesh covers the "PrismMesh-style fan" the action text asks for without a second code path.
 func _curved_radius() -> float:
@@ -467,26 +551,14 @@ func _build_curved_floor() -> void:
 
 	var segments := ROUND_WALL_SEGMENTS if shape == &"round" else OCTAGON_WALL_SEGMENTS
 	var radius := _curved_radius()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = radius
-	cyl.bottom_radius = radius
-	cyl.height = CastleRoomConstants.FLOOR_THICKNESS
-	cyl.radial_segments = segments
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.mesh = cyl
-	mesh_instance.position = Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
-	if floor_material:
-		mesh_instance.material_override = floor_material
-	floor_body.add_child(mesh_instance)
-	if Engine.is_editor_hint():
-		mesh_instance.owner = get_tree().edited_scene_root
+	_relief_add("disc%d" % segments, Transform3D(Basis.from_scale(Vector3(radius, 1.0, radius)), Vector3.ZERO))
 
 	var collision := CollisionShape3D.new()
 	var cyl_shape := CylinderShape3D.new()
 	cyl_shape.radius = radius
 	cyl_shape.height = CastleRoomConstants.FLOOR_THICKNESS
 	collision.shape = cyl_shape
-	collision.position = mesh_instance.position
+	collision.position = Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
 	floor_body.add_child(collision)
 	if Engine.is_editor_hint():
 		collision.owner = get_tree().edited_scene_root
@@ -579,28 +651,46 @@ func _angle_diff(a: float, b: float) -> float:
 func _build_curved_perimeter(segment_count: int) -> void:
 	var radius := _curved_radius()
 	var seg_angle := TAU / float(segment_count)
+	# CylinderMesh floors are inscribed polygons. Seat each wall on that polygon's
+	# apothem, with its inner face over the floor edge, including octagon corners.
+	var wall_apothem := radius * cos(seg_angle * 0.5)
 	var doorways := _curved_doorways()
 	var half_thickness := CastleRoomConstants.WALL_THICKNESS * 0.5
-	var chord := 2.0 * radius * tan(seg_angle * 0.5) + CURVED_SEGMENT_OVERLAP
 	for i in segment_count:
 		var center_angle := float(i) * seg_angle
-		var blocked := false
+		var remaining: Array[Vector2] = [Vector2(-seg_angle * 0.5, seg_angle * 0.5)]
 		for doorway in doorways:
-			if absf(_angle_diff(center_angle, doorway["bearing"])) < float(doorway["half_angle"]) + seg_angle * 0.5:
-				blocked = true
-				break
-		if blocked:
-			continue
-		var tangent_center := Vector3(
-			sin(center_angle) * (radius + half_thickness),
-			0.0,
-			-cos(center_angle) * (radius + half_thickness)
-		)
-		_add_curved_wall_segment(
-			tangent_center,
-			Vector3(chord, wall_height, CastleRoomConstants.WALL_THICKNESS),
-			center_angle
-		)
+			var relative := _angle_diff(center_angle, float(doorway["bearing"]))
+			var cut_start := -float(doorway["half_angle"]) - relative
+			var cut_end := float(doorway["half_angle"]) - relative
+			var next_remaining: Array[Vector2] = []
+			for interval in remaining:
+				if cut_end <= interval.x or cut_start >= interval.y:
+					next_remaining.append(interval)
+					continue
+				if cut_start > interval.x:
+					next_remaining.append(Vector2(interval.x, cut_start))
+				if cut_end < interval.y:
+					next_remaining.append(Vector2(cut_end, interval.y))
+			remaining = next_remaining
+		for interval in remaining:
+			var width := interval.y - interval.x
+			if width < 0.01:
+				continue
+			var angle := center_angle + (interval.x + interval.y) * 0.5
+			var chord := 2.0 * radius * tan(width * 0.5) + CURVED_SEGMENT_OVERLAP
+			var tangent_center := Vector3(
+				sin(angle) * (wall_apothem + half_thickness),
+				0.0,
+				-cos(angle) * (wall_apothem + half_thickness)
+			)
+			_add_curved_wall_segment(
+				tangent_center,
+				Vector3(chord, wall_height, CastleRoomConstants.WALL_THICKNESS),
+				angle,
+				null,
+				true
+			)
 	for doorway in doorways:
 		_build_curved_stub(doorway["direction"], doorway["lateral"], radius)
 
@@ -657,22 +747,14 @@ func _build_curved_stub(
 	if Engine.is_editor_hint():
 		floor_body.owner = get_tree().edited_scene_root
 	var floor_size := Vector3(door, CastleRoomConstants.FLOOR_THICKNESS, padded_len)
-	var floor_mesh := MeshInstance3D.new()
-	var floor_box := BoxMesh.new()
-	floor_box.size = floor_size
-	floor_mesh.mesh = floor_box
-	floor_mesh.position = mid + Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
-	floor_mesh.rotation.y = yaw
-	if floor_material:
-		floor_mesh.material_override = floor_material
-	floor_body.add_child(floor_mesh)
-	if Engine.is_editor_hint():
-		floor_mesh.owner = get_tree().edited_scene_root
+	_relief_add(
+		"floor", Transform3D(Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(door / 4.0, 1.0, padded_len / 4.0)), mid)
+	)
 	var floor_collision := CollisionShape3D.new()
 	var floor_shape := BoxShape3D.new()
 	floor_shape.size = floor_size
 	floor_collision.shape = floor_shape
-	floor_collision.position = floor_mesh.position
+	floor_collision.position = mid + Vector3(0.0, -CastleRoomConstants.FLOOR_THICKNESS * 0.5, 0.0)
 	floor_collision.rotation.y = yaw
 	floor_body.add_child(floor_collision)
 	if Engine.is_editor_hint():
@@ -682,8 +764,11 @@ func _build_curved_stub(
 ## Same as `_add_wall_segment()`, with an added Y rotation -- curved-perimeter and stub segments
 ## are not axis-aligned, unlike every rectangular wall in the game.
 func _add_curved_wall_segment(
-	center: Vector3, size: Vector3, y_rotation: float, material_override: Material = null
+	center: Vector3, size: Vector3, y_rotation: float, material_override: Material = null, masonry: bool = false
 ) -> void:
+	if masonry and not hide_walls:
+		var inward := Vector3(-center.x, 0.0, -center.z).normalized()
+		_queue_masonry(center + inward * (size.z * 0.5), inward, size.x, center.y, size.y)
 	var wall_body := _create_walls_body()
 	if not hide_walls:
 		var mesh_instance := MeshInstance3D.new()
@@ -790,6 +875,7 @@ func _build_wall(
 
 
 func _add_wall_segment(center: Vector3, size: Vector3, material_override: Material = null) -> void:
+	_queue_wall_relief(center, size)
 	var wall_body := _create_walls_body()
 	if not hide_walls:
 		var mesh_instance := MeshInstance3D.new()
@@ -896,8 +982,22 @@ func _sync_navigation_region_server() -> void:
 	NavigationServer3D.region_set_transform(region_rid, global_transform)
 
 
+## Cuts the room's solid props out of the walkable floor so agents path around them. A bare room
+## keeps its cached rectangle; a dressed one bakes once per distinct arrangement and is cached by it.
+func carve_obstacles(obstacles: Array) -> void:
+	_nav_obstacles = obstacles
+	if _nav_region != null and is_instance_valid(_nav_region):
+		_build_navigation_mesh()
+
+
+func _carvable() -> bool:
+	return not _nav_obstacles.is_empty() and shape not in [&"round", &"octagon", &"split"]
+
+
 func _navigation_template() -> NavigationMesh:
 	var key := "%s:%.2f:%.2f" % [shape, room_width, room_depth]
+	if _carvable():
+		key += ":" + _obstacle_signature()
 	var cached := _navigation_template_cache.get(key) as NavigationMesh
 	if cached != null:
 		return cached
@@ -908,15 +1008,60 @@ func _navigation_template() -> NavigationMesh:
 	nav_mesh.agent_height = ceilf(NAV_AGENT_HEIGHT / NAV_CELL_SIZE) * NAV_CELL_SIZE
 	nav_mesh.agent_radius = ceilf(NAV_AGENT_RADIUS / NAV_CELL_SIZE) * NAV_CELL_SIZE
 	nav_mesh.agent_max_climb = 0.5
-	if shape == &"split":
+	if _carvable():
+		_bake_carved_navigation_mesh(nav_mesh)
+	elif shape == &"split":
 		_build_split_navigation_mesh(nav_mesh)
 	else:
 		_build_flat_navigation_mesh(nav_mesh)
 	nav_mesh.emit_changed()
+	if _navigation_template_cache.size() >= NAV_TEMPLATE_CACHE_LIMIT:
+		_navigation_template_cache.clear()
 	_navigation_template_cache[key] = nav_mesh
 	_navigation_template_max_usec = maxi(_navigation_template_max_usec, Time.get_ticks_usec() - started_usec)
 	_nav_bake_count += 1
 	return nav_mesh
+
+
+func _obstacle_signature() -> String:
+	var parts := PackedStringArray()
+	for obstacle in _nav_obstacles:
+		var pos: Vector3 = obstacle["pos"]
+		var size: Vector3 = obstacle["size"]
+		parts.append("%.2f,%.2f,%.2f,%.2f" % [pos.x, pos.z, size.x, size.z])
+	return "|".join(parts)
+
+
+## The floor rectangle with each prop's footprint carved out, baked by the navigation server. The
+## floor is the room's full rectangle: the bake erodes it by the agent radius itself.
+func _bake_carved_navigation_mesh(nav_mesh: NavigationMesh) -> void:
+	var half_w := room_width * 0.5
+	var half_d := room_depth * 0.5
+	var source := NavigationMeshSourceGeometryData3D.new()
+	var a := Vector3(-half_w, 0.0, -half_d)
+	var b := Vector3(-half_w, 0.0, half_d)
+	var c := Vector3(half_w, 0.0, half_d)
+	var d := Vector3(half_w, 0.0, -half_d)
+	source.add_faces(PackedVector3Array([a, c, b, a, d, c]), Transform3D.IDENTITY)
+	for obstacle in _nav_obstacles:
+		var pos: Vector3 = obstacle["pos"]
+		var size: Vector3 = obstacle["size"]
+		var hx := size.x * 0.5
+		var hz := size.z * 0.5
+		source.add_projected_obstruction(
+			PackedVector3Array(
+				[
+					Vector3(pos.x - hx, 0.0, pos.z - hz),
+					Vector3(pos.x + hx, 0.0, pos.z - hz),
+					Vector3(pos.x + hx, 0.0, pos.z + hz),
+					Vector3(pos.x - hx, 0.0, pos.z + hz),
+				]
+			),
+			0.0,
+			maxf(size.y, NAV_AGENT_HEIGHT),
+			true
+		)
+	NavigationServer3D.bake_from_source_geometry_data(nav_mesh, source)
 
 
 static func navigation_template_cache_size() -> int:
@@ -1041,31 +1186,6 @@ func sample_random_nav_point(rng: RandomNumberGenerator) -> Dictionary:
 	return {"ok": false}
 
 
-func add_cover_obstacle(local_pos: Vector3, size: Vector3, material: Material = null) -> void:
-	var cover_root := _ensure_cover_root()
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	body.collision_mask = 0
-	cover_root.add_child(body)
-	if Engine.is_editor_hint():
-		body.owner = get_tree().edited_scene_root
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
-	mesh_instance.position = local_pos + Vector3(0.0, size.y * 0.5, 0.0)
-	if material:
-		mesh_instance.material_override = material
-	body.add_child(mesh_instance)
-	var collision := CollisionShape3D.new()
-	var box_shape := BoxShape3D.new()
-	box_shape.size = size
-	collision.shape = box_shape
-	collision.position = mesh_instance.position
-	body.add_child(collision)
-	_cover_nodes.append(body)
-
-
 func add_height_stairs(
 	step_count: int, direction: Vector2i, step_height: float = 0.5, lateral: float = 0.0
 ) -> void:
@@ -1131,26 +1251,32 @@ func _build_height_stairs(
 		else:
 			center = Vector3(-room_width * 0.5 + back, base_y, lateral)
 			size = Vector3(step_depth, step_height, width)
-		_add_stair_segment(stairs_body, center, size)
+		_add_stair_segment(stairs_body, center, size, direction)
 	_build_stair_landing(stairs_body, step_count, direction, step_height, lateral, step_depth, width)
 
 
-func _add_stair_segment(body: StaticBody3D, center: Vector3, size: Vector3) -> void:
-	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh_instance.mesh = box
-	mesh_instance.position = center + Vector3(0.0, size.y * 0.5, 0.0)
-	if floor_material != null:
-		mesh_instance.material_override = floor_material
-	body.add_child(mesh_instance)
-	if Engine.is_editor_hint():
-		mesh_instance.owner = get_tree().edited_scene_root
+## The tread model faces +z, so the riser looks back down the flight: a flight climbing north is
+## left as modelled and every other direction turns it.
+static func _stair_yaw(direction: Vector2i) -> float:
+	if direction == Vector2i(0, 1):
+		return PI
+	if direction == Vector2i(1, 0):
+		return -PI * 0.5
+	if direction == Vector2i(-1, 0):
+		return PI * 0.5
+	return 0.0
+
+
+func _add_stair_segment(body: StaticBody3D, center: Vector3, size: Vector3, direction: Vector2i) -> void:
+	var across := size.z if direction.x != 0 else size.x
+	var run := size.x if direction.x != 0 else size.z
+	var stretch := Basis.from_scale(Vector3(across / 4.0, size.y / 0.5, run / 0.8))
+	_relief_add("step", Transform3D(Basis(Vector3.UP, _stair_yaw(direction)) * stretch, center))
 	var collision := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
 	box_shape.size = size
 	collision.shape = box_shape
-	collision.position = mesh_instance.position
+	collision.position = center + Vector3(0.0, size.y * 0.5, 0.0)
 	body.add_child(collision)
 	if Engine.is_editor_hint():
 		collision.owner = get_tree().edited_scene_root
@@ -1182,7 +1308,7 @@ func _build_stair_landing(
 	else:
 		center = Vector3(-room_width * 0.5 - step_depth * 0.5, base_y, lateral)
 		size = Vector3(step_depth, step_height, width)
-	_add_stair_segment(body, center, size)
+	_add_stair_segment(body, center, size, direction)
 
 
 func sync_dimensions_from_kind() -> void:
@@ -1224,7 +1350,7 @@ func _apply_kind_spec(apply_door_defaults: bool) -> void:
 		door_south = (doors & RoomGraphSlot.DOOR_SOUTH) != 0
 		door_east = (doors & RoomGraphSlot.DOOR_EAST) != 0
 		door_west = (doors & RoomGraphSlot.DOOR_WEST) != 0
-	# RM-14: a corridor's kind spec asks for a lower ceiling than a room -- compression, not a
+	# A corridor's kind spec asks for a lower ceiling than a room -- compression, not a
 	# fight. Anything without its own "wallHeight" keeps the normal height unchanged.
 	wall_height = float(spec.get("wall_height", CastleRoomConstants.WALL_HEIGHT))
 	_applying_kind_spec = false

@@ -19,6 +19,7 @@ var _phase := Phase.LOADING
 var _claimed := false
 var _grace_frames := UNCLAIMED_GRACE_FRAMES
 var _elapsed := 0.0
+var _building_elapsed := 0.0
 var _progress_args: Array = []
 var _root: Control
 var _bar: ProgressBar
@@ -66,13 +67,20 @@ static func report_progress(tree: SceneTree, ratio: float) -> void:
 	transition.set_progress(LOAD_SHARE + clampf(ratio, 0.0, 1.0) * (1.0 - LOAD_SHARE))
 
 
+## The build failed: show the failure box (retry, or back to the hub) instead of a dead world.
+static func fail(tree: SceneTree, message: String) -> void:
+	var transition := active(tree)
+	if transition != null:
+		transition._show_failure(message)
+
+
 static func finish(tree: SceneTree) -> void:
 	var transition := active(tree)
 	if transition != null:
 		transition.dismiss()
 
 
-## UX-06: a floor load is free reading time -- called right after `claim()` with what the
+## A floor load is free reading time -- called right after `claim()` with what the
 ## generator already knows (floor number, biome, theme label, difficulty-tier flavour) so the
 ## overlay teaches the player something instead of sitting on a bare progress bar.
 static func set_flavor_lines(tree: SceneTree, lines: Array) -> void:
@@ -116,10 +124,14 @@ func _process(delta: float) -> void:
 		return
 	if _phase == Phase.FAILED:
 		return
-	if not _claimed:
-		_grace_frames -= 1
-		if _grace_frames <= 0:
-			dismiss()
+	if _claimed:
+		_building_elapsed += delta
+		if _building_elapsed >= BUILD_WATCHDOG_SEC:
+			_show_failure(tr("TRANSITION_BUILD_FAILED"))
+		return
+	_grace_frames -= 1
+	if _grace_frames <= 0:
+		dismiss()
 
 
 func _poll_load() -> void:
@@ -149,7 +161,8 @@ func _swap_to_loaded() -> void:
 
 
 func _on_scene_changed() -> void:
-	if _phase != Phase.BUILDING:
+	# A scene that claimed the overlay dismisses it itself once its build is done.
+	if _phase != Phase.BUILDING or _claimed:
 		return
 	call_deferred("dismiss")
 

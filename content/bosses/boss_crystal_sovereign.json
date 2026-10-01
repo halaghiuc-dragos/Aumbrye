@@ -31,6 +31,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_light_1",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.35,
@@ -42,10 +43,14 @@
       "max_range": 3,
       "telegraph_shape": "circle",
       "attackClass": "blockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.85,
@@ -57,10 +62,15 @@
       "max_range": 3.3,
       "telegraph_shape": "cone",
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     },
     {
       "id": "chain",
+      "anim": "attack_light_3",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.5,
@@ -194,7 +204,7 @@
           "attack_poise_damage": 32,
           "max_range": 3.3,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {
@@ -209,7 +219,7 @@
           "attack_poise_damage": 26,
           "max_range": 4.8,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {
@@ -325,7 +335,7 @@
           "attack_poise_damage": 27,
           "max_range": 7.8,
           "telegraph_shape": "line",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {

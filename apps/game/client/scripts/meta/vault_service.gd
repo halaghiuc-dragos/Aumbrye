@@ -110,6 +110,17 @@ func is_item_available(item_id: String) -> bool:
 	return is_available(TYPE_ITEM, item_id)
 
 
+## Every gated item the character has not unlocked yet.
+func locked_item_ids() -> Array[String]:
+	var locked: Array[String] = []
+	var gated: Variant = _gated_by_type.get(TYPE_ITEM, {})
+	if gated is Dictionary:
+		for grants_id in gated:
+			if not is_item_available(str(grants_id)):
+				locked.append(str(grants_id))
+	return locked
+
+
 func is_pact_available(pact_id: String) -> bool:
 	return is_available(TYPE_PACT, pact_id)
 
@@ -125,7 +136,7 @@ func evaluate() -> Array[Dictionary]:
 		if bool(record.get(entry_id, false)):
 			continue
 		var entry: Dictionary = _entries[entry_id]
-		if not _trigger_met(entry.get("trigger", {})):
+		if not ProgressCounters.trigger_met(entry.get("trigger", {})):
 			continue
 		record[entry_id] = true
 		pending[entry_id] = true
@@ -159,8 +170,8 @@ func describe_progress() -> String:
 	return "Vault %d/%d" % [unlocked_count(), total_count()]
 
 
-## AD-05: the results screen's "Next" block wants the single locked entry closest to opening, not
-## the whole vault -- reuses `_trigger_met()`'s trigger-type switch but returns the progress
+## The results screen's "Next" block wants the single locked entry closest to opening, not
+## the whole vault -- reuses `ProgressCounters.trigger_met()`'s trigger-type switch but returns the progress
 ## numbers instead of collapsing them to a bool.
 func nearest_locked_progress() -> Dictionary:
 	var record := _unlocked_record()
@@ -170,7 +181,7 @@ func nearest_locked_progress() -> Dictionary:
 		if bool(record.get(entry_id, false)):
 			continue
 		var entry: Dictionary = _entries[entry_id]
-		var progress := _trigger_progress(entry.get("trigger", {}))
+		var progress := ProgressCounters.trigger_progress(entry.get("trigger", {}))
 		if progress.is_empty():
 			continue
 		var have := int(progress.get("have", 0))
@@ -189,32 +200,6 @@ func nearest_locked_progress() -> Dictionary:
 	return best
 
 
-func _trigger_progress(raw: Variant) -> Dictionary:
-	if not raw is Dictionary:
-		return {}
-	var trigger: Dictionary = raw
-	var needed := int(trigger.get("value", 1))
-	var key := str(trigger.get("key", ""))
-	match str(trigger.get("type", "")):
-		"biomeCleared":
-			return {"have": 1 if CharacterService.get_flag("theme_%s_cleared" % key) else 0, "need": 1}
-		"dungeonDepth":
-			return {"have": DungeonTierService.get_max_unlocked_tier(), "need": needed}
-		"dungeonDepthCleared":
-			return {"have": DungeonTierService.get_deepest_cleared(), "need": needed}
-		"enemyKills":
-			return {"have": BestiaryService.get_kills(key), "need": needed}
-		"totalKills":
-			return {"have": _total_kills(), "need": needed}
-		"deaths":
-			return {"have": int(CharacterService.get_flag("deaths")), "need": needed}
-		"wavesWave":
-			return {"have": int(CharacterService.get_flag("waves_best_wave")), "need": needed}
-		"wavesCompletions":
-			return {"have": int(CharacterService.get_flag("waves_completions")), "need": needed}
-	return {}
-
-
 func _unlocked_record() -> Dictionary:
 	var stored: Variant = CharacterService.get_flag(FLAG_UNLOCKED, {})
 	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
@@ -223,41 +208,3 @@ func _unlocked_record() -> Dictionary:
 func _pending_record() -> Dictionary:
 	var stored: Variant = CharacterService.get_flag(FLAG_PENDING, {})
 	return (stored as Dictionary).duplicate() if stored is Dictionary else {}
-
-
-func _trigger_met(raw: Variant) -> bool:
-	if not raw is Dictionary:
-		return false
-	var trigger: Dictionary = raw
-	var needed := int(trigger.get("value", 1))
-	var key := str(trigger.get("key", ""))
-	match str(trigger.get("type", "")):
-		"biomeCleared":
-			return bool(CharacterService.get_flag("theme_%s_cleared" % key))
-		"dungeonDepth":
-			return DungeonTierService.get_max_unlocked_tier() >= needed
-		"dungeonDepthCleared":
-			return DungeonTierService.get_deepest_cleared() >= needed
-		"enemyKills":
-			return BestiaryService.get_kills(key) >= needed
-		"totalKills":
-			return _total_kills() >= needed
-		"deaths":
-			return int(CharacterService.get_flag("deaths")) >= needed
-		"wavesWave":
-			return int(CharacterService.get_flag("waves_best_wave")) >= needed
-		"wavesCompletions":
-			return int(CharacterService.get_flag("waves_completions")) >= needed
-	return false
-
-
-func _total_kills() -> int:
-	var stored: Variant = CharacterService.get_flag("bestiary_kills", {})
-	if not stored is Dictionary:
-		return 0
-	var total := 0
-	for enemy_id in (stored as Dictionary):
-		var value: Variant = (stored as Dictionary)[enemy_id]
-		if value is int or value is float:
-			total += int(value)
-	return total

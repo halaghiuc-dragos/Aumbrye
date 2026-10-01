@@ -4,8 +4,8 @@
   "description": "Three armour eaten through — it was never sealed properly either way. One hit in five carries the rot.",
   "maxStacks": 1,
   "stats": {
-    "poisonDamage": 4,
-    "armor": -3
+    "armor": -3,
+    "physicalDamage": 4
   },
   "tags": [
     "venom"

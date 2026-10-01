@@ -67,7 +67,7 @@ const KIND_SPECS := {
 		"width": 8.0,
 		"depth": 12.0,
 		"doors": RoomGraphSlot.DOOR_NORTH | RoomGraphSlot.DOOR_SOUTH,
-		# RM-14: a corridor is compression, not a fight -- lower ceiling than a room, and its own
+		# A corridor is compression, not a fight -- lower ceiling than a room, and its own
 		# "enemy" anchor list is capped at two rather than the usual six.
 		"wallHeight": 4.5,
 		"anchors": {
@@ -101,7 +101,7 @@ const KIND_SPECS := {
 			"trap": [Vector3(0, 0, 0)],
 		},
 	},
-	# RM-19: a balcony is a plain rectangular footprint (walls/doors unchanged) split into two
+	# A balcony is a plain rectangular footprint (walls/doors unchanged) split into two
 	# floor heights internally -- `shape: "split"` is what tells `CastleBlockout` to build it that
 	# way. North/south only, like `corridor`: the split runs along Z (raised half north, lower half
 	# south), and a door on the east/west wall would sit exactly on the seam between the two
@@ -165,7 +165,7 @@ const KIND_SPECS := {
 			"cover":
 			[Vector3(-3, 0, -2), Vector3(3, 0, 2), Vector3(0, 0, -4), Vector3(-2, 0, 3)],
 			# Pulled in from x=(-)6 -- the hall's dressing pass lines both side walls with sconces at
-			# x=(-)7.5 and a pillar at x=(-)7.2, z=0, and the old anchor at (6, 5) sat close enough to
+			# x=(-)7.5 and a pillar at x=(-)7.2, z=0, and an anchor at (6, 5) sat close enough to
 			# the sconce at (7.5, 4.5) for a chest to read as crowded against the wall fixture rather
 			# than placed in the room.
 			"chest": [Vector3(4.5, 0, 4), Vector3(-4.5, 0, 4)],
@@ -274,7 +274,6 @@ const KIND_SPECS := {
 	},
 }
 
-const FALLBACK_KINDS := ["courtyard", "hall", "arena"]
 
 
 static func template_prefix_for_biome(biome_id: String) -> String:
@@ -292,7 +291,7 @@ static func kind_from_template_id(template_id: String) -> String:
 
 
 ## `template_id` is usually `"<prefix>_<kind>"`, but `CastleBlockout._apply_kind_spec()` (via its
-## own `kind` export) can call this with an already-bare kind instead -- and since RM-14/RM-19 a
+## own `kind` export) can call this with an already-bare kind instead -- and since a
 ## kind name can itself contain an underscore ("corridor_long", "corridor_bend"), re-running
 ## `kind_from_template_id()` on one of those corrupts it (`"corridor_long"` -> `"long"`, treating
 ## "corridor" as if it were a biome prefix). Checking `KIND_SPECS` directly first, before assuming
@@ -471,18 +470,12 @@ static func pick_template_for_doors(
 			continue
 		if supports_doors(tid, required_doors):
 			candidates.append(tid)
-	if candidates.is_empty():
-		var prefix := template_prefix_for_biome("forgotten_castle")
-		if not biome_templates.is_empty():
-			prefix = str(biome_templates[0]).split("_", false)[0]
-		for fallback_kind in FALLBACK_KINDS:
-			var candidate := "%s_%s" % [prefix, fallback_kind]
-			if supports_doors(candidate, required_doors):
-				candidates.append(candidate)
-		for fallback_kind in FALLBACK_KINDS:
-			var castle_candidate := "castle_%s" % fallback_kind
-			if supports_doors(castle_candidate, required_doors):
-				candidates.append(castle_candidate)
+	if candidates.is_empty() and required_kind == "":
+		push_error(
+			"RoomTemplateCatalog: no template in this biome supports door mask %d (preferred '%s')"
+			% [required_doors, preferred_template_id]
+		)
+		return ""
 	if required_kind != "":
 		var filtered: Array[String] = []
 		for candidate in candidates:
@@ -491,11 +484,6 @@ static func pick_template_for_doors(
 		candidates = filtered
 		if candidates.is_empty():
 			return ""
-	if candidates.is_empty():
-		var fallback_prefix := template_prefix_for_biome("forgotten_castle")
-		if not biome_templates.is_empty():
-			fallback_prefix = str(biome_templates[0]).split("_", false)[0]
-		return "%s_courtyard" % fallback_prefix
 	if rng != null and candidates.size() > 1:
 		return candidates[rng.randi_range(0, candidates.size() - 1)]
 	return candidates[0]

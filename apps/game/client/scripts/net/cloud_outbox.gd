@@ -29,6 +29,8 @@ static func _read_dead_letters() -> Array:
 
 
 static func _write_dead_letters(entries: Array) -> void:
+	while entries.size() > MAX_ENTRIES:
+		entries.pop_front()
 	var meta := LocalSave.get_meta_data()
 	meta[DEAD_LETTER_KEY] = entries
 	LocalSave.patch_meta(meta)
@@ -189,35 +191,3 @@ static func _classify_error(result: Dictionary) -> String:
 	return "transient"
 
 
-static func get_dead_letters() -> Array:
-	return _read_dead_letters()
-
-
-static func retry_dead_letter(operation_id: String) -> bool:
-	var dead := _read_dead_letters()
-	for index in dead.size():
-		var row: Dictionary = dead[index]
-		if str(row.get("operationId", "")) != operation_id:
-			continue
-		dead.remove_at(index)
-		row.erase("failureKind")
-		row.erase("failedAt")
-		row["attempts"] = 0
-		row["nextRetryAt"] = 0
-		var pending := _read()
-		pending.append(row)
-		_write_dead_letters(dead)
-		_write(pending)
-		return true
-	return false
-
-
-static func discard_dead_letter(operation_id: String) -> bool:
-	var dead := _read_dead_letters()
-	var kept := dead.filter(func(row: Variant) -> bool:
-		return not (row is Dictionary and str((row as Dictionary).get("operationId", "")) == operation_id)
-	)
-	if kept.size() == dead.size():
-		return false
-	_write_dead_letters(kept)
-	return true

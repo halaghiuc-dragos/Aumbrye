@@ -79,10 +79,6 @@ const ALLOWED_ITEM_STAT_KEYS = new Set([
   "staminaMax",
   "bonusDamage",
   "physicalDamage",
-  "fireDamage",
-  "frostDamage",
-  "arcaneDamage",
-  "poisonDamage",
   "attackSpeed",
   "critChance",
   "poiseDamage",
@@ -185,9 +181,6 @@ function resolveSchemaForFile(filePath) {
   if (name === "affixes/prefixes.json" || name === "affixes/suffixes.json") {
     return join(schemasRoot, "affix-pack.v1.json");
   }
-  if (name === "affixes/quality_tiers.json") {
-    return join(schemasRoot, "item-quality.v1.json");
-  }
   if (name === "affixes/rarity_rules.json") {
     return join(schemasRoot, "affix-rarity-rules.v1.json");
   }
@@ -200,8 +193,20 @@ function resolveSchemaForFile(filePath) {
   if (name === "progression/endless_depth.json") {
     return join(schemasRoot, "endless-depth.v1.json");
   }
+  if (name === "combat/elite_affixes.json") {
+    return join(schemasRoot, "elite-affixes.v1.json");
+  }
+  if (name === "progression/relic_synergies.json") {
+    return join(schemasRoot, "relic-synergies.v1.json");
+  }
+  if (name === "progression/floor_recipes.json") {
+    return join(schemasRoot, "floor-recipes.v1.json");
+  }
   if (name === "progression/room_pacing.json") {
     return join(schemasRoot, "room-pacing.v1.json");
+  }
+  if (name === "encounters/encounters.json") {
+    return join(schemasRoot, "encounters.v1.json");
   }
   if (name.startsWith("rooms/")) {
     return join(schemasRoot, "room-kit.v1.json");
@@ -235,9 +240,6 @@ function resolveSchemaForFile(filePath) {
   }
   if (name === "art/portals.json") {
     return join(schemasRoot, "portal.v1.json");
-  }
-  if (name.startsWith("art/structures/")) {
-    return join(schemasRoot, "structure.v1.json");
   }
   if (name === "talents/tree.json") {
     return join(schemasRoot, "talent-tree.v1.json");
@@ -662,6 +664,7 @@ function validateAuthoredContent(itemPath, item) {
 function validateContentRules() {
   let errors = 0;
   errors += validateXpCurveKeys();
+  errors += validateMerchantResale();
   errors += validateAffixRarityNaming();
   errors += validateLootTableCatalog();
   errors += validateBehaviorContracts();
@@ -740,11 +743,7 @@ const BEHAVIOR_CONTRACTS = [
     directories: ["traps"],
     values: (entry) => (typeof entry.trigger === "string" ? [entry.trigger] : []),
     supported: new Set(["proximity", "plate", "cycle", "lure"]),
-    consumers: [
-      "scripts/dungeon/traps/hazard_trap.gd",
-      "scripts/dungeon/traps/spike_trap.gd",
-      "scripts/dungeon/traps/falling_trap.gd",
-    ],
+    consumers: ["scripts/dungeon/traps/hazard_trap.gd"],
   },
   {
     label: "relic event",
@@ -774,7 +773,7 @@ const BEHAVIOR_CONTRACTS = [
     files: ["vfx/effects.json"],
     values: (entry) => Object.values(entry.effects ?? entry).flatMap((effect) =>
       (effect?.layers ?? []).map((layer) => layer?.kind).filter(Boolean)),
-    supported: new Set(["burst", "decal", "glyph", "impact", "ribbon", "sfx"]),
+    supported: new Set(["burst", "decal", "glyph", "ground_imprint", "impact", "impact_flash", "ribbon", "sfx"]),
     consumers: ["scripts/art/vfx/vfx_service.gd"],
   },
   {
@@ -838,7 +837,7 @@ const BEHAVIOR_CONTRACTS = [
     ],
     supported: new Set([
       "combat", "empty", "trap", "hazard", "reward", "lore", "rest", "puzzle",
-      "npc_quest", "merchant", "locked_vault", "boss", "stairs",
+      "npc_quest", "merchant", "shrine", "locked_vault", "boss", "stairs",
     ]),
     consumers: ["scripts/dungeon/procgen/room_content_types.gd", "scripts/dungeon/procgen/dungeon_procgen.gd"],
   },
@@ -953,6 +952,51 @@ function validateXpCurveKeys() {
   if (errors === 0) {
     console.log("OK: xp_curve runtime keys");
   }
+  return errors;
+}
+
+const RARITY_TIERS = ["common", "magic", "rare", "epic", "legendary", "aumbral"];
+
+function collectItemDefinitions() {
+  const defs = new Map();
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".json")) {
+        const parsed = JSON.parse(readFileSync(full, "utf8"));
+        if (parsed && typeof parsed.id === "string") defs.set(parsed.id, parsed);
+      }
+    }
+  };
+  walk(join(contentRoot, "items"));
+  return defs;
+}
+
+// A merchant that buys back for more than half of its own price lets a player loop
+// buy, sell, restock for gold; selling must stay under half of the cheapest place to buy.
+function validateMerchantResale() {
+  const items = collectItemDefinitions();
+  const lowestPrice = new Map();
+  for (const [, merchant] of readJsonDir("merchant")) {
+    for (const entry of merchant.items ?? []) {
+      const known = lowestPrice.get(entry.itemId);
+      if (known === undefined || entry.price < known) lowestPrice.set(entry.itemId, entry.price);
+    }
+  }
+  let errors = 0;
+  for (const [itemId, price] of lowestPrice) {
+    const def = items.get(itemId);
+    if (!def) continue;
+    const base = Number(def.lootValue ?? def.value ?? 1);
+    const tier = Math.max(0, RARITY_TIERS.indexOf(def.rarity ?? "common"));
+    const sells = base * (1 + tier * 0.25);
+    if (sells > price * 0.5) {
+      console.error(`FAIL: ${itemId} sells for ${sells} but the cheapest merchant asks ${price} (limit: half)`);
+      errors++;
+    }
+  }
+  if (errors === 0) console.log("OK: merchant resale stays under half the buy price");
   return errors;
 }
 

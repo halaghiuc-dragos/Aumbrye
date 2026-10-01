@@ -8,6 +8,9 @@ enum State {
 }
 
 signal enemy_died
+## Emitted with every batch `spawn_adds()` creates, so whoever owns the floor or the wave can scale,
+## track and clean them up. The nodes are not placements.
+signal adds_spawned(nodes: Array)
 signal attack_telegraph_started(attack_class: String)
 signal attack_active
 signal boss_phase_entered(index: int, phase: Dictionary)
@@ -32,7 +35,7 @@ const SIDESTEP_IFRAME_FRACTION := 0.6
 const SIDESTEP_SPEED := 6.0
 const GUARD_FALLBACK_DURATION := 0.6
 const PUNISH_WINDOW_DEFAULT := 0.0
-## `EN-12`: an elite is a visibly, mechanically harder fight, not `is_elite` metadata nobody reads.
+## An elite is a visibly, mechanically harder fight, not `is_elite` metadata nobody reads.
 const ELITE_POISE_MULT := 1.4
 const ELITE_SCALE_MULT := 1.15
 const ELITE_RIM_TINT := Color(0.95, 0.78, 0.25, 1.0)
@@ -70,7 +73,7 @@ var _poise: Poise
 var _knockback: Knockback
 var _hitbox: Hitbox
 var _hurtbox: Hurtbox
-## `BS-01` "vulnerability" phases: a procedurally-spawned weak-point Hurtbox, freed once the phase
+## "vulnerability" phases: a procedurally-spawned weak-point Hurtbox, freed once the phase
 ## that authored it ends.
 var _weak_point_hurtbox: Hurtbox
 ## The current phase owns the durable vulnerability. Boss-specific mechanics may temporarily
@@ -80,11 +83,26 @@ var _state_timer := 0.0
 var _cooldown := 0.0
 var _stagger_timer := 0.0
 var _spawn_origin := Vector3.ZERO
+## Set once a rest has brought the enemy back: its kill pays no gold or XP.
+var _respawned := false
+## A practice dummy in the combat arena: it teaches, so it pays nothing and can be reset at will.
+@export var practice := false
+var _practice_attack_class := ""
+var _reacted_attack_generation := -1
+var _hitstop_until_ms := 0
+var _status_controller: StatusController
+var _hitstop_generation := -1
+var _recent_attack_ids: Array[String] = []
+var _player_dodge_ended_msec := -100000
+## Max health and poise after floor scaling and elite/arena multipliers, so a rest restores the
+## scaled fight and not the raw catalogue numbers. -1 until the builder has scaled the enemy.
+var _scaled_max_health := -1.0
+var _scaled_max_poise := -1.0
 var _patrol_target := Vector3.ZERO
 var _patrol_wait := 0.0
 var _aggro_locked := false
 var _diorama_visual: Node3D
-## `BS-03`: the current phase's persistent scale multiplier. `_end_attack()` restores the diorama's
+## The current phase's persistent scale multiplier. `_end_attack()` restores the diorama's
 ## rest scale to this instead of `Vector3.ONE`, so a windup's transient grow-and-release doesn't
 ## erase a phase's lasting size change.
 var _phase_scale_mult := 1.0
@@ -99,13 +117,14 @@ var _combo_step := 0
 var _combat_registered := false
 var _deaggro_los_timer := 0.0
 var _weapon_charge: Node3D
+var _weapon_charge_tween: Tween
 var _windup_duration := 0.0
 var _in_windup_hold := false
 var _windup_hold_timer := 0.0
 var _windup_will_feint := false
 var _short_recovery_cooldown := false
 
-## RM-08: "idle" (default) is today's always-perceiving behaviour. "ambush" spawns hidden, frozen
+## "idle" (default) is today's always-perceiving behaviour. "ambush" spawns hidden, frozen
 ## and unhittable until `wake_ambush()` is called (by `DungeonBuilder.wake_ambushers()` when the
 ## player enters the room). "delayed" does the same but wakes itself on a timer instead of waiting
 ## for a call -- simpler than deferring instantiation entirely, and invisible-and-frozen already
@@ -116,13 +135,13 @@ var _ambush_hidden := false
 var _saved_collision_layer := 0
 var _saved_collision_mask := 0
 const FEINT_COOLDOWN := 0.3
-## `PH-02`: matches `PlayerCombatReactions.STAGGER_POISE_HIGH` so a poise break carries the same
+## Matches `PlayerCombatReactions.STAGGER_POISE_HIGH` so a poise break carries the same
 ## knockback weight on both sides of a fight, rather than each side inventing its own scale.
 const STAGGER_POISE_HIGH_REFERENCE := 45.0
 
-## `EN-07`: defensive verbs. `is_guarding` is public (no underscore) so `ShieldHurtbox` can read it
-## by name across the module boundary the same way it already reads `block_mitigation` -- mitigation
-## used to apply to every frontal hit unconditionally, which is passive, not a decision.
+## Defensive verbs. `is_guarding` is public (no underscore) so `ShieldHurtbox` can read it
+## by name across the module boundary the same way it reads `block_mitigation` -- mitigation
+## applies only while the enemy is deliberately guarding, which is a decision, not a passive.
 var is_guarding := false
 var _sidestep_timer := 0.0
 var _sidestep_iframe_timer := 0.0
@@ -137,8 +156,8 @@ var _catalog_id_override := ""
 var _damage_multiplier := 1.0
 var _base_damage_multiplier := 1.0
 var _phase_damage_multiplier := 1.0
-## Arena/boss-omen tuning persists through authored health-threshold phases.  These used to be
-## applied to the current numbers only, so a later phase silently erased a seed-selected variant.
+## Arena/boss-omen tuning persists through authored health-threshold phases, so a later phase does
+## not erase a seed-selected variant.
 var _arena_move_speed_mult := 1.0
 var _arena_attack_cooldown_mult := 1.0
 var _arena_poise_mult := 1.0
@@ -157,7 +176,7 @@ var _preferred_range := 10.0
 var _retreat_range := 6.0
 
 var _attacks: Array = []
-## `BS-01` "pattern" phases: walk `_attacks` in authored order instead of the weighted roll.
+## "pattern" phases: walk `_attacks` in authored order instead of the weighted roll.
 var _attacks_ordered := false
 var _ordered_attack_index := 0
 var _base_attacks: Array = []
@@ -208,7 +227,7 @@ const AI_LOD_MID_STRIDE := 4
 const AI_LOD_FAR_STRIDE := 16
 var _ai_tick_phase := 0
 
-## `EN-10`: the five optional, data-driven behaviour mixins. Each is guarded by `_data.has("<key>")`
+## The five optional, data-driven behaviour mixins. Each is guarded by `_data.has("<key>")`
 ## so an enemy that does not author the key pays nothing beyond a dictionary lookup per relevant
 ## tick. See `_try_leap_attack()`, `_process_burrow_mixin()`, `_apply_splits_on_death()`,
 ## `_process_summons_mixin()` and `_process_aura_mixin()`.
@@ -228,7 +247,7 @@ func set_damage_multiplier(mult: float) -> void:
 	_damage_multiplier = maxf(0.1, _base_damage_multiplier * _phase_damage_multiplier)
 
 
-## `BS-08`: the biome's final-floor arena modifier, applied once when the boss spawns -- see
+## The biome's final-floor arena modifier, applied once when the boss spawns -- see
 ## `dungeon_builder.gd:_apply_final_floor_arena_flavor()`. `damageMult` folds into
 ## `_base_damage_multiplier`, the same persistent hook `set_damage_multiplier()` uses, so it survives
 ## every later phase transition; `moveSpeedMult`/`attackCooldownMult` are a one-time nudge on top of
@@ -247,6 +266,22 @@ func apply_arena_modifier(mods: Dictionary) -> void:
 	if mods.has("poiseMult") and _poise:
 		_arena_poise_mult = maxf(0.1, float(mods["poiseMult"]))
 		_poise.configure(_poise.max_poise * _arena_poise_mult, _stagger_duration_data)
+
+
+## Puts the enemy back on its spawn point: used when it strays out of a sealed arena or out of the
+## world.
+func leash_to_spawn() -> void:
+	Teleport.to(self, _spawn_origin)
+	velocity = Vector3.ZERO
+
+
+## Called by the builder once floor scaling is applied and the enemy stands on its floor.
+func capture_spawn_state() -> void:
+	_spawn_origin = global_position
+	if _health:
+		_scaled_max_health = _health.max_health
+	if _poise:
+		_scaled_max_poise = _poise.max_poise
 
 
 func get_health_ratio() -> float:
@@ -285,7 +320,7 @@ func restore_phase_vulnerability() -> void:
 	_apply_vulnerability(_phase_vulnerability_spec)
 
 
-## `BS-01` "vulnerability" phases: while `spec` is non-empty, the boss's own body `Hurtbox` takes
+## "vulnerability" phases: while `spec` is non-empty, the boss's own body `Hurtbox` takes
 ## reduced damage and a procedurally-spawned weak-point `Hurtbox` (a second `Area3D` region, per
 ## `hurtbox.gd`'s existing `region`/`region_damage_mult` support) is the only thing that still takes
 ## full damage. Called on every phase entry -- including a phase with no `vulnerability` entry,
@@ -314,10 +349,7 @@ func _apply_vulnerability(spec: Dictionary) -> void:
 		_weak_point_hurtbox.add_child(shape)
 		var readability_marker := MeshInstance3D.new()
 		readability_marker.name = "ReadabilityMarker"
-		var marker_mesh := SphereMesh.new()
-		marker_mesh.radial_segments = 8
-		marker_mesh.rings = 4
-		readability_marker.mesh = marker_mesh
+		readability_marker.mesh = PropLibrary.bare_mesh("fx/marker_gem")
 		var marker_material := StandardMaterial3D.new()
 		marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		marker_material.albedo_color = Color(1.0, 0.72, 0.2, 0.9)
@@ -381,6 +413,24 @@ func _get_collision_radius() -> float:
 	return 0.45
 
 
+## The visual's resting scale. Phase scaling and respawn multiply and restore relative to it.
+var _visual_base_scale := Vector3.ONE
+
+
+## Grows or shrinks the collider, hurtbox and visual together by `factor`, leaving the body itself
+## at unit scale. Composes with earlier calls.
+func scale_physical_size(factor: Vector3) -> void:
+	var radius := 0.45
+	var height := 1.8
+	if _body_collision and _body_collision.shape is CapsuleShape3D:
+		var capsule := _body_collision.shape as CapsuleShape3D
+		radius = capsule.radius
+		height = capsule.height
+	configure_physical_size(
+		radius * maxf(factor.x, factor.z), height * factor.y, _visual_base_scale * factor
+	)
+
+
 ## Size belongs to explicit gameplay shapes; scaling the CharacterBody changes every child
 ## transform at once and makes collision, navigation, hit reach and visuals disagree. Variant
 ## wrappers call this after `super._ready()`, when the authored collider and diorama visual exist.
@@ -388,16 +438,20 @@ func configure_physical_size(radius: float, height: float, visual_scale: Vector3
 	var safe_radius := maxf(0.1, radius)
 	var safe_height := maxf(safe_radius * 2.0, height)
 	_navigation_radius = safe_radius
+	# Shapes are sub-resources shared by every instance of the scene, so each enemy takes its own.
 	if _body_collision and _body_collision.shape is CapsuleShape3D:
-		var body_shape := _body_collision.shape as CapsuleShape3D
+		var body_shape := (_body_collision.shape as CapsuleShape3D).duplicate() as CapsuleShape3D
+		_body_collision.shape = body_shape
 		body_shape.radius = safe_radius
 		body_shape.height = safe_height
 	var hurt_shape_node := get_node_or_null("Hurtbox/CollisionShape3D") as CollisionShape3D
 	if hurt_shape_node and hurt_shape_node.shape is BoxShape3D:
-		var hurt_shape := hurt_shape_node.shape as BoxShape3D
+		var hurt_shape := (hurt_shape_node.shape as BoxShape3D).duplicate() as BoxShape3D
+		hurt_shape_node.shape = hurt_shape
 		hurt_shape.size = Vector3(safe_radius * 2.0, safe_height, safe_radius * 2.0)
 	if _nav_agent:
 		_nav_agent.radius = _navigation_radius
+	_visual_base_scale = visual_scale
 	var visual := _diorama_visual if _diorama_visual != null else _mesh as Node3D
 	if visual:
 		visual.scale = visual_scale
@@ -409,13 +463,16 @@ func _is_boss_enemy() -> bool:
 	if not _data.is_empty():
 		return _is_boss
 	var catalog_id := get_enemy_id()
-	BestiaryService.record_sighting(catalog_id)
 	return catalog_id.contains("boss") or catalog_id.contains("miniboss")
 
 
 func _ready() -> void:
 	add_to_group("lockable")
 	add_to_group("enemy")
+	if practice:
+		add_to_group("training_dummy")
+	collision_layer = CombatLayers.ENEMY_BODY
+	collision_mask = CombatLayers.WORLD | CombatLayers.ENEMY_BODY | CombatLayers.PLAYER_BODY
 	_spawn_origin = global_position
 	_enemy_rng.seed = (
 		FloorSeedMix.mix(RunFlow.current_seed, RunFlow.current_floor) ^ hash(str(get_path()))
@@ -425,13 +482,15 @@ func _ready() -> void:
 		_data = ContentLoader.load_json(get_data_path())
 	else:
 		_data = EnemyCatalog.get_definition(catalog_id)
+	if bool(_data.get("isElite", false)):
+		set_meta("is_elite", true)
 	_health = get_node_or_null("Health") as Health
 	_poise = get_node_or_null("Poise") as Poise
 	_knockback = get_node_or_null("Knockback") as Knockback
 	_hitbox = get_node_or_null("AttackPivot/Hitbox") as Hitbox
 	_hurtbox = get_node_or_null("Hurtbox") as Hurtbox
 	if player_path and not player_path.is_empty():
-		_player = get_node_or_null(player_path) as Node3D
+		set_player(get_node_or_null(player_path) as Node3D)
 	if _health:
 		_health.configure(_data.get("health", 80.0))
 		_health.died.connect(_on_died)
@@ -460,10 +519,10 @@ func _ready() -> void:
 	_setup_phase_controller()
 	if not boss_phase_entered.is_connected(_relay_phase_changed):
 		boss_phase_entered.connect(_relay_phase_changed)
-	if _is_boss_enemy() and AudioDirector:
-		AudioDirector.play_boss_music()
 	_pick_patrol_target()
 	_join_room_board()
+	if _is_boss:
+		_role = EnemyBlackboard.Role.ENGAGER
 	match _spawn_trigger:
 		"ambush":
 			_enter_ambush_hidden()
@@ -518,7 +577,9 @@ func clamp_to_arena(center: Vector3) -> void:
 	var offset := global_position - center
 	offset.x = clampf(offset.x, -half, half)
 	offset.z = clampf(offset.z, -half, half)
-	global_position = center + offset
+	var clamped := center + offset
+	if not clamped.is_equal_approx(global_position):
+		Teleport.to(self, clamped)
 
 
 func _relay_phase_changed(index: int, _phase: Dictionary) -> void:
@@ -533,7 +594,12 @@ func _join_room_board() -> void:
 	_room_registered = true
 
 
+func _enter_tree() -> void:
+	LockOnRegistry.register(self)
+
+
 func _exit_tree() -> void:
+	LockOnRegistry.unregister(self)
 	_release_attack_token()
 	if not _room_registered:
 		return
@@ -649,6 +715,8 @@ func spawn_adds(spec: Dictionary) -> Array[Node]:
 				add_enemy.set_player(_player)
 		parent.add_child(add)
 		spawned.append(add)
+	if not spawned.is_empty():
+		adds_spawned.emit(spawned)
 	return spawned
 
 
@@ -694,7 +762,7 @@ func restart_phases() -> void:
 	_unpack_tuning()
 	_phase_scale_mult = 1.0
 	if _diorama_visual and is_instance_valid(_diorama_visual):
-		_diorama_visual.scale = Vector3.ONE
+		_diorama_visual.scale = _visual_base_scale
 		_apply_mesh_tint(Color.WHITE)
 		MaterialFlashScript.clear_persistent_glow(_diorama_visual)
 	_apply_vulnerability({})
@@ -737,7 +805,7 @@ func notify_phase_entered(index: int, phase: Dictionary) -> void:
 	boss_phase_entered.emit(index, phase)
 
 
-## `BS-02`: called by the boss-intro sequence while the camera holds. Phase 1 already entered (its
+## Called by the boss-intro sequence while the camera holds. Phase 1 already entered (its
 ## `spawnAdds`/`hazards` already ran) the instant `BossPhaseController` started ticking at spawn, so
 ## this only replays the telegraph flash/vfx in sync with the framing shot rather than redoing them.
 func play_intro_telegraph() -> void:
@@ -747,13 +815,20 @@ func play_intro_telegraph() -> void:
 
 func set_player(player: Node3D) -> void:
 	_player = player
+	var dodge := _player.get_node_or_null("Dodge") if _player != null else null
+	if dodge != null and not dodge.is_connected("dodge_ended", _on_player_dodge_ended):
+		dodge.connect("dodge_ended", _on_player_dodge_ended)
+
+
+func _on_player_dodge_ended() -> void:
+	_player_dodge_ended_msec = Time.get_ticks_msec()
 
 
 func get_player() -> Node3D:
 	return _player
 
 
-## `EN-08`: a flanker's target bearing (degrees, signed relative to the player's own facing), set
+## A flanker's target bearing (degrees, signed relative to the player's own facing), set
 ## by `EnemyBlackboard._assign_flank_bearings()`. `_process_circle()` steers toward it instead of
 ## just orbiting at a radius multiplier.
 func set_desired_flank_angle_deg(angle_deg: float) -> void:
@@ -782,7 +857,7 @@ func get_enemy_id() -> String:
 	return _resolve_enemy_id()
 
 
-## AD-06: the death recap wants to name the exact attack that landed the killing blow, not just
+## The death recap wants to name the exact attack that landed the killing blow, not just
 ## the attack class -- `_current_attack_data` already carries it, this just exposes it publicly.
 func get_current_attack_name() -> String:
 	return str(_current_attack_data.get("name", _current_attack_data.get("id", "")))
@@ -855,10 +930,14 @@ func _apply_role_silhouette() -> void:
 func _add_role_shard(parent: Node3D, pos: Vector3, size: Vector3, material: Material, node_name: String) -> void:
 	var shard := MeshInstance3D.new()
 	shard.name = node_name
-	shard.mesh = PixelStyleScript.bevel_box_mesh(size, 0.025)
 	shard.position = pos
-	shard.rotation.y = deg_to_rad(45.0)
 	shard.material_override = material
+	if node_name.begins_with("Wing"):
+		shard.mesh = PropLibrary.scaled_mesh("fx/wing", size)
+		shard.rotation.y = PI if node_name == "WingL" else 0.0
+	else:
+		shard.mesh = PropLibrary.scaled_mesh("fx/mote", Vector3(size.x / 0.12, size.y / 0.156, size.z / 0.12))
+		shard.rotation.y = deg_to_rad(45.0)
 	parent.add_child(shard)
 
 
@@ -957,24 +1036,19 @@ func _is_elite() -> bool:
 	return bool(get_meta("is_elite", false))
 
 
-## `EN-12`: the poise multiplier lands earlier, alongside `_poise.configure()` in `_ready()` --
+## The poise multiplier lands earlier, alongside `_poise.configure()` in `_ready()` --
 ## this covers the rest: +15% scale on the whole body (not `_mesh`, which the windup wind-up and
 ## other transient effects scale on top of, so the two must compose rather than fight), a
 ## persistent gold rim distinct from any class-tinted VFX, and the name plate on the health bar.
 func _apply_elite_status() -> void:
-	scale *= ELITE_SCALE_MULT
+	scale_physical_size(Vector3.ONE * ELITE_SCALE_MULT)
 	var rim_anchor := Vector3(0.0, get_hp_bar_height() * 0.5, 0.0)
 	var embers := LightEmbersScript.attach(self, rim_anchor, ELITE_RIM_TINT, 0.6, 0.9)
 	if embers:
 		embers.name = "EliteRim"
 	var crown := MeshInstance3D.new()
 	crown.name = "EliteCrown"
-	var crown_mesh := CylinderMesh.new()
-	crown_mesh.top_radius = 0.08
-	crown_mesh.bottom_radius = 0.27
-	crown_mesh.height = 0.18
-	crown_mesh.radial_segments = 4
-	crown.mesh = crown_mesh
+	crown.mesh = PropLibrary.bare_mesh("fx/elite_crown")
 	crown.position = Vector3(0.0, get_hp_bar_height() * 0.48, 0.0)
 	crown.rotation.y = deg_to_rad(45.0)
 	crown.material_override = PixelStyleScript.make_glow_material(
@@ -983,6 +1057,9 @@ func _apply_elite_status() -> void:
 	add_child(crown)
 	if _hp_bar:
 		var display_name := str(_data.get("title", _data.get("name", "")))
+		var affix := EliteAffixes.definition(str(get_meta("elite_affix", "")))
+		if not affix.is_empty():
+			display_name = "%s %s" % [ContentText.name(affix, ""), display_name]
 		_hp_bar.mark_elite(display_name)
 
 
@@ -1000,12 +1077,7 @@ func _apply_boss_silhouette() -> void:
 	for offset in [Vector3(-0.38, 0.0, 0.0), Vector3(0.0, 0.16, 0.0), Vector3(0.38, 0.0, 0.0)]:
 		var shard := MeshInstance3D.new()
 		shard.name = "BossCrestShard"
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = 0.01
-		mesh.bottom_radius = 0.13
-		mesh.height = 0.38
-		mesh.radial_segments = 4
-		shard.mesh = mesh
+		shard.mesh = PropLibrary.bare_mesh("fx/boss_shard")
 		shard.position = offset
 		shard.rotation.y = deg_to_rad(45.0)
 		shard.material_override = glow
@@ -1045,7 +1117,7 @@ func _apply_boss_variant_visual() -> void:
 	add_child(label)
 
 
-## `EN-09`: the HUD's off-screen danger chevron walks this group on its own slow tick rather than
+## The HUD's off-screen danger chevron walks this group on its own slow tick rather than
 ## being pushed to per-frame -- see `CombatHud._update_danger_chevrons()`. Membership, not a
 ## per-enemy screen check, is what keeps that cheap.
 const TELEGRAPHING_GROUP := "telegraphing"
@@ -1060,7 +1132,7 @@ func begin_attack_windup_bar(duration: float, attack_class: String = "blockable"
 	add_to_group(TELEGRAPHING_GROUP)
 	if _hp_bar:
 		_hp_bar.begin_attack_telegraph(_windup_duration, attack_class)
-	# AD-07: every enemy telegraph funnels through here, so this is the one place that can catch
+	# Every enemy telegraph funnels through here, so this is the one place that can catch
 	# "first amber/blue/red telegraph ever seen" without a bespoke hook per enemy.
 	var hint := HubTutorialService.notify_telegraph_seen(attack_class)
 	if hint != "" and RunFlow:
@@ -1095,7 +1167,7 @@ func _telegraph_radius_scale() -> float:
 const RANGED_TELEGRAPH_RADIUS := 1.4
 
 
-## `EN-03`: the invariant is that the telegraph must never be smaller than the attack. When
+## The invariant is that the telegraph must never be smaller than the attack. When
 ## `telegraph_radius` is not authored, derive it from the attack's own `max_range` -- the reach
 ## that will actually open the hitbox -- rather than trust a number authored independently of it.
 ## A cone's tip overshoots by 5% so the player can see the edge of the wedge before they are in it.
@@ -1137,37 +1209,36 @@ func _show_attack_telegraph(duration: float) -> void:
 		float(_current_attack_data.get("telegraph_width", _data.get("telegraph_width", -1.0))),
 		float(_current_attack_data.get("telegraph_inner_radius", _data.get("telegraph_inner_radius", 0.0)))
 	)
+	# The wind-up reads by class three ways at once: the ground pattern (solid, dashed or double
+	# ring), the colour, and a rim flash on the enemy itself in that colour.
+	if _diorama_visual != null:
+		MaterialFlashScript.flash(_diorama_visual, {"strength": 0.5, "tint": tint, "duration": 0.2})
 	_begin_weapon_charge(tint, duration)
 
 
+## The charge glow is built once per enemy and re-used: a wind-up only recolours it, rescales it and
+## restarts its embers, so a fight allocates no node, mesh or material per swing.
 func _begin_weapon_charge(class_tint: Color, duration: float) -> void:
-	_end_weapon_charge()
 	if _diorama_visual == null:
 		return
-	var mount := CharacterSkin.find_part(_diorama_visual, CharacterSkin.WEAPON_MOUNT)
-	if mount == null:
-		mount = CharacterSkin.find_part(_diorama_visual, "Torso")
-	if mount == null:
-		return
-	var charge := Node3D.new()
-	charge.name = "AttackCharge"
-	mount.add_child(charge)
-	_weapon_charge = charge
-	var core := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.26, 0.26, 0.26)
-	core.mesh = box
-	core.material_override = PixelStyleScript.make_glow_material(
-		Color(class_tint.r, class_tint.g, class_tint.b, 0.9),
-		Color(class_tint.r, class_tint.g, class_tint.b, 0.6),
-		2.4
-	)
-	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	charge.add_child(core)
+	var charge := _weapon_charge
+	if charge == null or not is_instance_valid(charge):
+		charge = _build_weapon_charge()
+		if charge == null:
+			return
+		_weapon_charge = charge
+	var core := charge.get_node_or_null("Core") as MeshInstance3D
+	var glow := core.material_override as ShaderMaterial if core else null
+	if glow != null:
+		glow.set_shader_parameter("color_core", Color(class_tint.r, class_tint.g, class_tint.b, 0.9))
+		glow.set_shader_parameter("color_edge", Color(class_tint.r, class_tint.g, class_tint.b, 0.6))
+	charge.visible = true
 	charge.scale = Vector3(0.05, 0.05, 0.05)
-	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(charge, "scale", Vector3.ONE, maxf(duration, 0.05))
+	if _weapon_charge_tween != null and _weapon_charge_tween.is_valid():
+		_weapon_charge_tween.kill()
+	_weapon_charge_tween = create_tween()
+	_weapon_charge_tween.set_trans(Tween.TRANS_QUAD)
+	_weapon_charge_tween.tween_property(charge, "scale", Vector3.ONE, maxf(duration, 0.05))
 	var embers := LightEmbersScript.attach(
 		charge, Vector3.ZERO, MaterialFlashScript.tint_for_damage_type(_current_damage_type()),
 		1.2, 0.9
@@ -1176,10 +1247,33 @@ func _begin_weapon_charge(class_tint: Color, duration: float) -> void:
 		embers.name = "ChargeEmbers"
 
 
+func _build_weapon_charge() -> Node3D:
+	var mount := CharacterSkin.find_part(_diorama_visual, CharacterSkin.WEAPON_MOUNT)
+	if mount == null:
+		mount = CharacterSkin.find_part(_diorama_visual, "Torso")
+	if mount == null:
+		return null
+	var charge := Node3D.new()
+	charge.name = "AttackCharge"
+	mount.add_child(charge)
+	var core := MeshInstance3D.new()
+	core.name = "Core"
+	core.mesh = PropLibrary.bare_mesh("fx/charge_core")
+	core.material_override = PixelStyleScript.make_glow_material(Color.WHITE, Color.WHITE, 2.4)
+	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	charge.add_child(core)
+	return charge
+
+
 func _end_weapon_charge() -> void:
+	if _weapon_charge_tween != null and _weapon_charge_tween.is_valid():
+		_weapon_charge_tween.kill()
+	_weapon_charge_tween = null
 	if _weapon_charge != null and is_instance_valid(_weapon_charge):
-		_weapon_charge.queue_free()
-	_weapon_charge = null
+		_weapon_charge.visible = false
+		var embers := _weapon_charge.get_node_or_null("ChargeEmbers") as GPUParticles3D
+		if embers != null:
+			embers.emitting = false
 
 
 func _apply_hurtbox_data() -> void:
@@ -1201,7 +1295,7 @@ func _apply_hurtbox_data() -> void:
 		_hurtbox.call("set_block_reduction", _data.get("block_reduction"))
 
 
-## `BS-03`: applies a phase's `onEnter` visual keys -- `bodyTint`, `emissive`, `scaleMult` --
+## Applies a phase's `onEnter` visual keys -- `bodyTint`, `emissive`, `scaleMult` --
 ## permanently to the diorama, so escalating phases stay visibly different after their transient
 ## telegraph/VFX/SFX have faded. Called by `BossPhaseController._play_entry()`.
 func apply_phase_visuals(on_enter: Dictionary) -> void:
@@ -1223,7 +1317,7 @@ func apply_phase_visuals(on_enter: Dictionary) -> void:
 	if on_enter.has("scaleMult"):
 		_phase_scale_mult = maxf(0.1, float(on_enter.get("scaleMult")))
 		if _diorama_visual:
-			_diorama_visual.scale = Vector3.ONE * _phase_scale_mult
+			_diorama_visual.scale = _visual_base_scale * _phase_scale_mult
 		elif _mesh:
 			_mesh.scale = Vector3.ONE * _phase_scale_mult
 
@@ -1259,9 +1353,12 @@ func _apply_mesh_tint(color: Color) -> void:
 
 
 func respawn_at_rest() -> void:
-	if not is_dead():
+	if not is_dead() and not practice:
 		return
 	_state = State.PATROL
+	_respawned = true
+	visible = true
+	set_physics_process(true)
 	_stagger_timer = 0.0
 	_cooldown = 0.0
 	_aggro_locked = false
@@ -1271,12 +1368,15 @@ func respawn_at_rest() -> void:
 	restart_phases()
 	_leave_room_engagement()
 	_unregister_combat_engagement()
-	global_position = _spawn_origin
+	Teleport.to(self, _spawn_origin)
 	velocity = Vector3.ZERO
 	if _health:
-		_health.configure(_data.get("health", 80.0))
+		_health.configure(_scaled_max_health if _scaled_max_health > 0.0 else _data.get("health", 80.0))
 	if _poise:
-		_poise.configure(_data.get("poise", 40.0), float(_data.get("stagger_duration", 1.0)))
+		_poise.configure(
+			_scaled_max_poise if _scaled_max_poise > 0.0 else _data.get("poise", 40.0),
+			float(_data.get("stagger_duration", 1.0))
+		)
 	if _hitbox:
 		_hitbox.disable()
 		_hitbox.reset_swing()
@@ -1287,7 +1387,7 @@ func respawn_at_rest() -> void:
 	if _body_collision:
 		_body_collision.disabled = false
 	if _hp_bar:
-		_hp_bar.visible = true
+		_hp_bar.reset_engagement()
 	if _animator and _animator.is_bound():
 		_animator.revive()
 	if _diorama_visual:
@@ -1295,12 +1395,22 @@ func respawn_at_rest() -> void:
 		MaterialFlashScript.restore_all(_diorama_visual)
 		_apply_mesh_tint(Color.WHITE)
 		_phase_scale_mult = 1.0
-		_diorama_visual.scale = Vector3.ONE
+		_diorama_visual.scale = _visual_base_scale
 	_pick_patrol_target()
 
 
 func is_dead() -> bool:
 	return _state == State.DEAD
+
+
+## Practice dummies go back to full health, full poise and their spot, dead or alive.
+func reset_enemy() -> void:
+	respawn_at_rest()
+
+
+## The exercise decides which telegraph class every attack of a practice dummy shows.
+func set_training_attack_class(attack_class: String) -> void:
+	_practice_attack_class = attack_class
 
 
 func is_staggered() -> bool:
@@ -1329,6 +1439,15 @@ func apply_state(state: Dictionary) -> void:
 		_health.restore_current(hp)
 
 
+## Elites pay for the risk they pose: one flask charge back.
+func _reward_elite_kill() -> void:
+	var healer := _player.get_node_or_null("PlayerHeal") as PlayerHeal if _player else null
+	if healer == null:
+		return
+	healer.grant_charge(1)
+	RunFlow.run_warning.emit(tr("ELITE_SLAIN_FLASK"))
+
+
 func _finalize_death(silent: bool) -> void:
 	if is_dead():
 		return
@@ -1351,12 +1470,14 @@ func _finalize_death(silent: bool) -> void:
 		AudioDirector.end_boss_music()
 	if _health:
 		_health.force_dead()
-	if not silent:
-		# Death is a high-importance punctuation mark, but uses the same bounded global budget as
-		# impacts so a group kill cannot turn into a chain of full-screen freezes.
-		VfxService.request_attack_hitstop("death:%s" % get_instance_id(), 90, 0.12)
-		RunFlow.register_kill(get_enemy_id(), _kill_credit())
-		_award_kill_coins()
+	if not silent and practice:
+		enemy_died.emit()
+	elif not silent:
+		if not _respawned:
+			RunFlow.register_kill(get_enemy_id(), _kill_credit())
+			_award_kill_coins()
+			if _is_elite():
+				_reward_elite_kill()
 		_try_roll_global_drop()
 		_apply_splits_on_death()
 		if CombatEvents:
@@ -1379,6 +1500,23 @@ func _finalize_death(silent: bool) -> void:
 	if _body_collision:
 		_body_collision.disabled = true
 	_play_death_visual()
+	set_physics_process(false)
+	_retire_after_death()
+
+
+## A corpse stops simulating at once. Dungeon placements stay in the tree, hidden, because a rest
+## respawns them and floor snapshots restore them by placement id; adds, splits and waves enemies
+## are not placements, so they are freed.
+func _retire_after_death() -> void:
+	await get_tree().create_timer(
+		MaterialDissolveScript.default_dissolve_duration() + DEATH_RETIRE_DELAY
+	).timeout
+	if not is_inside_tree() or not is_dead():
+		return
+	if has_meta("placement_id"):
+		visible = false
+	else:
+		queue_free()
 
 
 func _play_death_visual() -> void:
@@ -1398,6 +1536,13 @@ func _play_death_visual() -> void:
 	MaterialDissolveScript.play_death_visual(visual, opts)
 
 
+const HITSTOP_ANIM_FACTOR := 0.05
+const RECENT_ATTACK_MEMORY := 2
+const GAP_CLOSE_DISTANCE_MULT := 1.5
+const ANTI_ROLL_WINDOW_MSEC := 500
+const DEATH_RETIRE_DELAY := 0.6
+## An enemy this far below its spawn floor has left the world.
+const FALL_RECOVERY_DEPTH := 12.0
 const COIN_REWARD_PER_THREAT := 0.35
 const COIN_REWARD_MIN := 3
 
@@ -1451,7 +1596,7 @@ func apply_stagger(duration: float) -> void:
 	elif _mesh:
 		_mesh.scale = Vector3.ONE
 	if _knockback and _last_hit_direction.length_squared() > 0.0001:
-		# `PH-02`: same normalisation the player's stagger impulse uses, so a poise break reads
+		# Same normalisation the player's stagger impulse uses, so a poise break reads
 		# with the same weight on both sides of a fight.
 		_knockback.apply(_last_hit_direction, 0.8 * _last_hit_poise_damage / STAGGER_POISE_HIGH_REFERENCE)
 
@@ -1461,9 +1606,43 @@ func cancel_attack() -> void:
 		_end_attack()
 
 
+## Created lazily by the first status that lands on the enemy.
+func _get_status_controller() -> StatusController:
+	if _status_controller == null or not is_instance_valid(_status_controller):
+		_status_controller = get_node_or_null("StatusController") as StatusController
+	return _status_controller
+
+
+## Movement speed after slows and haste from statuses.
+func _effective_move_speed() -> float:
+	var status := _get_status_controller()
+	return _move_speed * (status.get_slow_multiplier() if status != null else 1.0)
+
+
+## A hit freezes this enemy's animation and movement, and nothing else in the game.
+func apply_hitstop(duration: float) -> void:
+	if duration <= 0.0 or is_dead():
+		return
+	var until_ms := Time.get_ticks_msec() + int(duration * 1000.0)
+	if until_ms <= _hitstop_until_ms:
+		return
+	_hitstop_until_ms = until_ms
+	if _animator and _animator.is_bound():
+		_hitstop_generation = _animator.begin_hitstop(HITSTOP_ANIM_FACTOR)
+
+
 func _physics_process(delta: float) -> void:
 	if _health and _health.is_dead() and not is_dead():
 		_finalize_death(true)
+	if _hitstop_until_ms > 0:
+		if Time.get_ticks_msec() < _hitstop_until_ms:
+			velocity = Vector3.ZERO
+			return
+		_hitstop_until_ms = 0
+		if _animator and _animator.is_bound():
+			_animator.end_hitstop(_hitstop_generation)
+	if not is_dead() and global_position.y < _spawn_origin.y - FALL_RECOVERY_DEPTH:
+		leash_to_spawn()
 	var staggered := false
 	if _cooldown > 0.0:
 		_cooldown -= delta
@@ -1485,8 +1664,12 @@ func _physics_process(delta: float) -> void:
 			if _health and _health.is_dead():
 				_finalize_death(true)
 			else:
-				_state = State.PATROL
-	var ai_enabled := not is_dead() and not staggered
+				_state = State.CHASE if _has_aggro() else State.PATROL
+				if _animator and _animator.is_bound():
+					_animator.end_stagger()
+	var status := _get_status_controller()
+	var stunned := status != null and status.is_stunned()
+	var ai_enabled := not is_dead() and not staggered and not stunned
 	if ai_enabled:
 		var stride := _ai_lod_stride()
 		if _should_run_ai_tick(stride):
@@ -1622,7 +1805,7 @@ func _process_patrol(delta: float) -> void:
 		_patrol_wait = _enemy_rng.randf_range(0.5, 1.2)
 		_pick_patrol_target()
 		return
-	velocity = dir * _move_speed * PATROL_SPEED_MULT
+	velocity = dir * _effective_move_speed() * PATROL_SPEED_MULT
 	_face_direction(dir, delta)
 
 
@@ -1653,7 +1836,7 @@ func _process_chase(delta: float) -> void:
 	_apply_chase_velocity(delta)
 
 
-## `EN-10` "the zoner": a `caster`-type enemy never closes to melee range on its own -- it holds at
+## "the zoner": a `caster`-type enemy never closes to melee range on its own -- it holds at
 ## `preferred_range`, backs off if the player crowds inside `retreat_range`, and only ever answers
 ## with its own (long-range, telegraphed) attacks. Mirrors `CastleArcher._process_chase()`'s kiting
 ## without a subclass, since every caster should get it for free.
@@ -1669,7 +1852,7 @@ func _process_caster_kite(delta: float) -> void:
 		move_dir = -to_player.normalized()
 	elif dist > _preferred_range:
 		move_dir = _direction_toward(_player.global_position, delta, true)
-	velocity = move_dir * _move_speed
+	velocity = move_dir * _effective_move_speed()
 	if to_player.length_squared() > 0.01:
 		_face_direction(to_player, delta)
 
@@ -1729,12 +1912,12 @@ func _process_circle(delta: float) -> void:
 	if move.length_squared() < 0.01:
 		velocity = Vector3.ZERO
 	else:
-		velocity = move.normalized() * _move_speed * 0.8
+		velocity = move.normalized() * _effective_move_speed() * 0.8
 	if _state_timer <= 0.0:
 		_state = State.CHASE
 
 
-## `EN-08`: how far (in degrees) this flanker still has to travel around the player to reach its
+## How far (in degrees) this flanker still has to travel around the player to reach its
 ## assigned bearing, signed so `_process_circle()` can pick a tangent direction from it directly.
 ## `NAN` means there is no player facing to steer against, so the caller should fall back to the
 ## plain orbit every other role already uses.
@@ -1763,7 +1946,7 @@ func _process_investigate(delta: float) -> void:
 	to_last.y = 0.0
 	if to_last.length() > 0.75:
 		var dir := _direction_toward(_last_known_player_pos, delta, false)
-		velocity = dir * _move_speed * 0.75
+		velocity = dir * _effective_move_speed() * 0.75
 		_face_direction(dir, delta)
 	else:
 		velocity = Vector3.ZERO
@@ -1781,7 +1964,7 @@ func _process_retreat(delta: float) -> void:
 	var away := global_position - _player.global_position
 	away.y = 0.0
 	if away.length_squared() > 0.01:
-		velocity = away.normalized() * _move_speed
+		velocity = away.normalized() * _effective_move_speed()
 		_face_direction(-away, delta)
 	if _state_timer <= 0.0:
 		_state = State.CHASE if _has_aggro() else State.PATROL
@@ -1806,13 +1989,13 @@ func _apply_chase_velocity(delta: float, speed_mult: float = 1.0) -> void:
 	var stop_range: float = _engage_range * 0.85
 	if dist > stop_range:
 		var dir := _direction_toward(_player.global_position, delta, true)
-		velocity = dir * _move_speed * speed_mult
+		velocity = dir * _effective_move_speed() * speed_mult
 	else:
 		velocity = Vector3.ZERO
 	velocity += _crowd_separation()
 
 
-## `PH-05`: `NavigationAgent3D` avoidance is enabled but its result is never read -- the state
+## `NavigationAgent3D` avoidance is enabled but its result is never read -- the state
 ## machine writes `velocity` directly in seven places and an avoidance callback would fight all of
 ## them. A separation term added at this one choke point is smaller, deterministic and easier to
 ## reason about than wiring the callback through every writer. Capped at 30% of `_move_speed` so it
@@ -1834,7 +2017,7 @@ func _crowd_separation() -> Vector3:
 		push += away / (dist * dist)
 	if push.length_squared() < 0.0001:
 		return Vector3.ZERO
-	var cap := _move_speed * CROWD_SEPARATION_CAP_FRACTION
+	var cap := _effective_move_speed() * CROWD_SEPARATION_CAP_FRACTION
 	if push.length() > cap:
 		push = push.normalized() * cap
 	return push
@@ -1951,10 +2134,13 @@ func _latch_aggro() -> void:
 		return
 	_awareness = 1.0
 	_aggro_locked = true
+	BestiaryService.record_sighting(get_enemy_id())
 	_deaggro_los_timer = 0.0
 	if _player:
 		_last_known_player_pos = _player.global_position
 	_register_combat_engagement()
+	if _hp_bar:
+		_hp_bar.set_aggro(true)
 	if _room_registered:
 		EnemyBlackboard.report_player_position(_room_id, _last_known_player_pos)
 		EnemyBlackboard.report_engaged(_room_id, self, true)
@@ -2001,6 +2187,8 @@ func notice_ally_alert(source_position: Vector3) -> void:
 
 
 func _drop_aggro() -> void:
+	if _hp_bar:
+		_hp_bar.set_aggro(false)
 	_aggro_locked = false
 	_deaggro_los_timer = 0.0
 	_awareness = AWARENESS_INVESTIGATE
@@ -2016,7 +2204,7 @@ func _leave_room_engagement() -> void:
 	_role = EnemyBlackboard.Role.WAITER
 
 
-## `EN-07`: the enemy reads the player's own public `WeaponController` state -- never the other way
+## The enemy reads the player's own public `WeaponController` state -- never the other way
 ## round, or the player side picks up AI coupling it should never need. Gated behind the attack
 ## token exactly like an attack: the *one* enemy holding a token is the one that reacts, so a room
 ## of six does not sidestep in unison.
@@ -2032,6 +2220,11 @@ func _try_defensive_reaction() -> bool:
 		return false
 	if weapon.current_phase != WeaponController.AttackPhase.STARTUP:
 		return false
+	# One roll per player attack: this runs every AI tick through the swing's wind-up.
+	var generation := weapon.get_attack_generation()
+	if generation == _reacted_attack_generation:
+		return false
+	_reacted_attack_generation = generation
 	var in_engage_range := _distance_to_player_sq() <= _engage_range * _engage_range
 	if in_engage_range and guard_chance > 0.0 and _enemy_rng.randf() < guard_chance:
 		if not _request_defensive_token():
@@ -2244,7 +2437,7 @@ func _should_run_ai_tick(stride: int) -> bool:
 func _start_windup() -> void:
 	if is_dead() or (_health and _health.is_dead()):
 		return
-	## `EN-10` "the many": a `swarm` enemy is meant to dogpile the player all at once rather than
+	## "the many": a `swarm` enemy is meant to dogpile the player all at once rather than
 	## politely queue for a shared attack token -- that is the whole point of the archetype, and
 	## `AttackTokenService` gating it would make a swarm behave like a single-file line of melee.
 	if str(_data.get("enemy_type", "")) == "swarm":
@@ -2255,7 +2448,7 @@ func _start_windup() -> void:
 		_enter_windup(_current_attack_data)
 		return
 	_attack_token_group = _encounter_token_group()
-	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self):
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self, "attack", GentleStart.max_attackers(_is_boss_enemy())):
 		_cooldown = _enemy_rng.randf_range(0.25, 0.6)
 		if _has_aggro():
 			_enter_circle()
@@ -2269,7 +2462,7 @@ func _start_windup() -> void:
 	_enter_windup(_current_attack_data)
 
 
-## `EN-05`: `hold_fraction` reserves the tail of the windup as a frozen hold rather than letting the
+## `hold_fraction` reserves the tail of the windup as a frozen hold rather than letting the
 ## telegraph fill creep at a constant rate -- a player who dodges on the ring instead of the enemy
 ## has nothing to read. The hold is timed separately from `_state_timer`/`_windup_duration` (see
 ## `_windup_hold_timer`) precisely so the commit-facing math in `_windup_commit_ratio()` still
@@ -2289,7 +2482,7 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	)
 	if windup_variance > 0.0:
 		windup += _enemy_rng.randf_range(-windup_variance, windup_variance)
-	windup = maxf(0.05, windup)
+	windup = maxf(0.05, windup) * GentleStart.windup_scale(_is_boss_enemy())
 	var hold_fraction := clampf(
 		float(attack_data.get("hold_fraction", _data.get("hold_fraction", 0.0))), 0.0, 0.6
 	)
@@ -2305,10 +2498,16 @@ func _enter_windup(attack_data: Dictionary) -> void:
 		_animator != null and _animator.is_bound() and _animator.drives_hitbox_events()
 	)
 	if _animator and _animator.is_bound():
+		var nominal_windup := (
+			float(attack_data.get("windup_duration", _data.get("windup_duration", 0.7)))
+			* (1.0 - hold_fraction)
+		)
 		_animator.play_attack(
-			_state_timer,
+			nominal_windup,
 			float(attack_data.get("active_duration", _data.get("active_duration", 0.15))),
-			float(attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9)))
+			float(attack_data.get("recovery_duration", _data.get("recovery_duration", 0.9))),
+			DioramaAnimLibrary.clip_for_attack(attack_data),
+			clampf(nominal_windup / _state_timer, 0.5, 2.0)
 		)
 	elif _mesh:
 		_mesh.scale = Vector3(1.08, 1.08, 1.08)
@@ -2318,7 +2517,7 @@ func _enter_windup(attack_data: Dictionary) -> void:
 	attack_telegraph_started.emit(_current_attack_class())
 
 
-## `AU-04`: audio carries the same read as the colour and the shape -- a rising tone for
+## Audio carries the same read as the colour and the shape -- a rising tone for
 ## `parryable`, a low growl for `unblockable`, a short grunt for `blockable`, a shout for `grab`.
 ## `"voice"` is an optional per-enemy prefix (e.g. a biome's own windup bank) that only wins if the
 ## bank actually defines it; an enemy with no authored voice cue falls back to the plain
@@ -2334,7 +2533,7 @@ func _windup_cue() -> String:
 	return class_cue
 
 
-## `EN-01`: every attack in `content/enemies/*.json` and `content/bosses/*.json` now authors
+## Every attack in `content/enemies/*.json` and `content/bosses/*.json` now authors
 ## `attackClass` directly, so this is a safety net for content that has not been re-authored (or a
 ## future addition that forgets it), not the primary path. The poise-derived guess it replaces only
 ## ever produced `blockable`/`unblockable`, so `parryable` and `grab` never appeared in the game.
@@ -2342,6 +2541,8 @@ static var _warned_missing_class: Dictionary = {}
 
 
 func _current_attack_class() -> String:
+	if practice and _practice_attack_class != "":
+		return _practice_attack_class
 	var authored := str(_current_attack_data.get("attackClass", ""))
 	if authored != "":
 		return authored
@@ -2410,7 +2611,7 @@ func _end_attack() -> void:
 		_hitbox.disable()
 		_hitbox.reset_swing()
 	if _diorama_visual:
-		_diorama_visual.scale = Vector3.ONE * _phase_scale_mult
+		_diorama_visual.scale = _visual_base_scale * _phase_scale_mult
 	elif _mesh:
 		_mesh.scale = Vector3.ONE * _phase_scale_mult
 	var player_alive := _player != null
@@ -2439,25 +2640,44 @@ func _select_attack_data() -> bool:
 	_combo_step = 0
 	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
 	var selection := AttackSchedulerScript.choose(
-		_attacks, _attacks_ordered, _ordered_attack_index, dist, _attack_range, _enemy_rng, _data
+		_attacks,
+		_attacks_ordered,
+		_ordered_attack_index,
+		dist,
+		_attack_range,
+		_enemy_rng,
+		_data,
+		_recent_attack_ids,
+		_boosted_attack_tags(dist)
 	)
 	_ordered_attack_index = int(selection.get("next_index", _ordered_attack_index))
 	_current_attack_data = selection.get("attack", {}) as Dictionary
+	_remember_attack(str(_current_attack_data.get("id", "")))
 	return bool(selection.get("found", false))
 
 
-## `BS-01` "pattern" phases: a fixed, learnable sequence instead of a weighted roll. Walks
-## `_attacks` starting where the last selection left off, skipping any entry out of range this
-## frame but still advancing past it, so the sequence keeps its order rather than stalling on a
-## move the player is currently too far (or too close) to be hit by.
-func _select_ordered_attack_data() -> bool:
-	var dist := sqrt(_distance_to_player_sq()) if _player != null else 0.0
-	var selection := AttackSchedulerScript.choose(
-		_attacks, true, _ordered_attack_index, dist, _attack_range, _enemy_rng, _data
-	)
-	_ordered_attack_index = int(selection.get("next_index", _ordered_attack_index))
-	_current_attack_data = selection.get("attack", {}) as Dictionary
-	return bool(selection.get("found", false))
+func _remember_attack(attack_id: String) -> void:
+	if attack_id.is_empty():
+		return
+	_recent_attack_ids.append(attack_id)
+	if _recent_attack_ids.size() > RECENT_ATTACK_MEMORY:
+		_recent_attack_ids.pop_front()
+
+
+## Attack tags the player's current state calls for: a swing at a drinking player, a gap-closer
+## against one backing off, a delayed swing against one who just rolled.
+func _boosted_attack_tags(distance: float) -> Array:
+	var tags: Array = []
+	if _player == null:
+		return tags
+	var heal := _player.get_node_or_null("PlayerHeal")
+	if heal != null and bool(heal.get("is_drinking")):
+		tags.append("punish_heal")
+	if distance > _engage_range * GAP_CLOSE_DISTANCE_MULT:
+		tags.append("gap_close")
+	if Time.get_ticks_msec() - _player_dodge_ended_msec < ANTI_ROLL_WINDOW_MSEC:
+		tags.append("anti_roll")
+	return tags
 
 
 func _first_attack_entry() -> Dictionary:
@@ -2479,6 +2699,8 @@ func _release_attack_token() -> void:
 
 
 func _encounter_token_group() -> String:
+	if _is_boss:
+		return "boss"
 	return "room_%d:pressure" % _room_id
 
 
@@ -2612,7 +2834,7 @@ func _apply_attack_lunge() -> void:
 	velocity.z = step.z
 
 
-## `EN-10` "the fast one": a committed gap-closer with its own telegraph. `leaps` data is
+## "the fast one": a committed gap-closer with its own telegraph. `leaps` data is
 ## `{range, windup, distance, cooldown}` -- reuses `_enter_windup()` (for the telegraph and the
 ## commit-to-heading read) and `_apply_attack_lunge()` (via the synthetic `lunge_distance` key) so
 ## a leap is dodgeable and readable exactly like every other windup, just faster and further.
@@ -2631,7 +2853,7 @@ func _try_leap_attack() -> bool:
 	if not _has_line_of_sight_to_player():
 		return false
 	_attack_token_group = _encounter_token_group()
-	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self):
+	if AttackTokenService and not AttackTokenService.request_token(_attack_token_group, self, "attack", GentleStart.max_attackers(_is_boss_enemy())):
 		return false
 	_attack_token_held = true
 	var windup := maxf(0.05, float(spec.get("windup", 0.5)))
@@ -2653,7 +2875,7 @@ func _try_leap_attack() -> bool:
 	return true
 
 
-## `EN-10` "the ambusher": vanish, reposition, re-emerge with a telegraph. `burrows` data is
+## "the ambusher": vanish, reposition, re-emerge with a telegraph. `burrows` data is
 ## `{cooldown, reappear_behind}`. Reuses `MaterialDissolveScript.dissolve()`/`.restore()` -- the
 ## same fade the death visual uses -- run in reverse instead of a bespoke shader hookup, and
 ## `_show_attack_telegraph()` for the re-emergence warning. Returns true while the sequence owns
@@ -2680,12 +2902,13 @@ func _process_burrow_mixin(delta: float) -> bool:
 				_hurtbox.monitoring = true
 			if _body_collision:
 				_body_collision.disabled = false
-			_current_attack_data = {}
+			_current_attack_data = _fastest_attack()
 			_show_attack_telegraph(_burrow_timer)
 		else:
 			_burrow_phase = ""
 			var spec: Dictionary = _data.get("burrows", {})
 			_burrow_cooldown = maxf(0.1, float(spec.get("cooldown", 8.0)))
+			_enter_windup(_current_attack_data)
 		return true
 	if _burrow_cooldown > 0.0 or not _has_aggro() or _player == null:
 		return false
@@ -2716,11 +2939,16 @@ func _teleport_behind_player() -> void:
 		forward = Vector3.FORWARD
 	else:
 		forward = forward.normalized()
-	global_position = _player.global_position - forward * behind_dist
-	global_position.y = _spawn_origin.y
+	var behind := _player.global_position - forward * behind_dist
+	if _nav_agent:
+		behind = NavigationServer3D.map_get_closest_point(_nav_agent.get_navigation_map(), behind)
+	else:
+		behind.y = _spawn_origin.y
+	Teleport.to(self, behind)
+	CharacterFloorSnapScript.snap_to_floor_below(self)
 
 
-## `EN-10` "the many": on death, spawn `count` smaller copies of `enemyId` each with
+## "the many": on death, spawn `count` smaller copies of `enemyId` each with
 ## `health_fraction` of this enemy's max health. `splits` data is
 ## `{enemyId, count, health_fraction}`. Reuses `spawn_adds()`, which already parents new enemies to
 ## `get_parent()` -- load-bearing for room culling and `EnemyBlackboard.room_key()`. `max_alive`
@@ -2759,7 +2987,7 @@ func _apply_splits_on_death() -> void:
 			health_node.configure(maxf(1.0, base_max * frac))
 
 
-## `EN-10` "the support": periodically calls `spawn_adds()`, capped at `max_alive` living summons
+## "the support": periodically calls `spawn_adds()`, capped at `max_alive` living summons
 ## from this summoner. `summons` data is `{enemyId, count, cooldown, max_alive}`.
 func _process_summons_mixin(delta: float) -> void:
 	if is_dead():
@@ -2793,7 +3021,7 @@ func _process_summons_mixin(delta: float) -> void:
 	_summon_cooldown = maxf(0.5, float(spec.get("cooldown", 8.0)))
 
 
-## `EN-10` "the big one": every `interval` seconds, apply `build_up` of `statusId` to the player if
+## "the big one": every `interval` seconds, apply `build_up` of `statusId` to the player if
 ## within `radius`. `aura` data is `{statusId, radius, interval, build_up}`. Reuses
 ## `StatusController.add_build_up()` -- the same meter a status-on-hit uses, so the aura and a
 ## weapon both feeding the same status stack toward the same threshold rather than fighting.
@@ -2819,13 +3047,14 @@ func _process_aura_mixin(delta: float) -> void:
 	status_ctrl.add_build_up(str(spec.get("statusId", "torpor")), float(spec.get("build_up", 10.0)))
 
 
-## `EN-10` "the flyer": a simple height-holding steering term instead of `NavigationAgent3D` -- a
+## "the flyer": a simple height-holding steering term instead of `NavigationAgent3D` -- a
 ## `flyer` ignores ground nav entirely and just servos `velocity.y` toward `hover_height` above its
 ## spawn point, letting the existing chase/circle/attack state machine handle the rest (strafing is
 ## already what `State.CIRCLE` does; diving is just closing distance from the air).
 func _apply_flyer_height_hold(delta: float) -> void:
 	var hover_height := float(_data.get("hover_height", 2.2))
-	var target_y := _spawn_origin.y + hover_height
+	var base_y := _player.global_position.y if _player != null and _has_aggro() else _spawn_origin.y
+	var target_y := base_y + hover_height
 	var diff := target_y - global_position.y
 	var desired_vy := clampf(diff * 4.0, -6.0, 6.0)
 	velocity.y = lerpf(velocity.y, desired_vy, clampf(delta * 6.0, 0.0, 1.0))

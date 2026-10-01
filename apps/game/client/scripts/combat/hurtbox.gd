@@ -22,7 +22,7 @@ const DEFENSE_CAP := 0.75
 const HYPERARMOR_POISE_MULT := 0.25
 const POISE_BROKEN_DAMAGE_MULT := 1.35
 const EXHAUSTED_POISE_MULT := 1.5
-## `PH-01`: a hit that breaks poise this frame shoves harder -- the number that finally makes a
+## A hit that breaks poise this frame shoves harder -- the number that finally makes a
 ## poise break *look* like the swing that caused it rather than a stat crossing a threshold.
 const POISE_BREAK_KNOCKBACK_MULT := 2.0
 const KNOCKBACK_MASS_MIN := 0.5
@@ -96,30 +96,16 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 				var iframe_feedback := iframe_body.get_node_or_null("HitFeedback")
 				if iframe_feedback and iframe_feedback.has_method("on_dodge_iframe"):
 					iframe_feedback.call("on_dodge_iframe")
-				if dodge and dodge.has_method("notify_perfect_dodge"):
-					dodge.call("notify_perfect_dodge", info.source)
-				# CB-06: "a dodge that actually avoided a hit" -- the timed i-frame dodge, not the
-				# passive evasion-stat roll below (that is a miss chance, not a player action).
-				if CombatEvents:
-					CombatEvents.dispatch(
-						CombatEvents.ON_PERFECT_DODGE, {"actor": iframe_body, "target": info.source}
-					)
+				# "a dodge that actually avoided a hit" -- the timed i-frame dodge, not the
+				if dodge.has_method("try_perfect_dodge") and dodge.call("try_perfect_dodge", info.source):
+					if CombatEvents:
+						CombatEvents.dispatch(
+							CombatEvents.ON_PERFECT_DODGE, {"actor": iframe_body, "target": info.source}
+						)
 			hit_resolved.emit(res)
 			return res
 
 	var owner_body := _cached_character_body
-	# Evasion is rolled before guard, arc and armour so a slipped hit is a clean miss rather than a
-	# hit that happens to arrive at zero: the difference is visible, since a miss plays no impact,
-	# costs no poise and cannot apply a status.
-	if not info.periodic and _roll_evasion(owner_body):
-		res.dodged = true
-		res.outgoing = 0.0
-		res.poise_outgoing = 0.0
-		var evade_feedback := owner_body.get_node_or_null("HitFeedback") if owner_body else null
-		if evade_feedback and evade_feedback.has_method("on_dodge_iframe"):
-			evade_feedback.call("on_dodge_iframe")
-		hit_resolved.emit(res)
-		return res
 	if owner_body and owner_body.has_method("is_immune") and owner_body.call("is_immune"):
 		res.outgoing = 0.0
 		res.poise_outgoing = 0.0
@@ -145,15 +131,6 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 			res.poise_outgoing = 0.0
 			hit_resolved.emit(res)
 			return res
-	# CB-03: attempted only once the parry itself was unavailable (unaffordable or on cooldown) --
-	# `try_just_guard()` checks its own tighter timing window independently.
-	if guard and guard.has_method("try_just_guard") and info.source:
-		if guard.call("try_just_guard", info.source, arc, info.attack_class, info.is_projectile, info.direction):
-			res.blocked = true
-			res.outgoing = 0.0
-			res.poise_outgoing = 0.0
-			hit_resolved.emit(res)
-			return res
 
 	var final_amount := info.amount
 	var final_poise := info.poise_damage
@@ -166,7 +143,7 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 			blocked = true
 			res.blocked = true
 			_emit_block_feedback(final_amount)
-			# `RG-03`: a blocked arrow sparks off the shield instead of just chipping stamina --
+			# A blocked arrow sparks off the shield instead of just chipping stamina --
 			# the same read a parried one gets, one rung down.
 			if info.is_projectile and VfxService and _cached_character_body:
 				VfxService.play_hit_spark(
@@ -224,7 +201,7 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 		_poise.take_poise_damage(poise_hit)
 		res.poise_outgoing = poise_hit
 		poise_broke_this_hit = not was_broken and _poise.is_broken()
-		# AD-07: the first time the player breaks an enemy's poise, one line names what just
+		# The first time the player breaks an enemy's poise, one line names what just
 		# became possible -- easy to miss otherwise, since the stagger animation alone doesn't
 		# say "you can execute now".
 		if (
@@ -262,7 +239,7 @@ func receive_hit(info: DamageInfo) -> RefCounted:
 	return res
 
 
-## `EN-02`: a grab bypasses poise, guard and parry entirely -- it is answered by not being caught.
+## A grab bypasses poise, guard and parry entirely -- it is answered by not being caught.
 ## Returns true only when a `PlayerCombatReactions` on the victim actually accepted the grab; a
 ## victim with none (an enemy, say) falls through to the normal damage pipeline instead.
 func _try_apply_grab(info: DamageInfo, owner_body: Node, res: RefCounted) -> bool:
@@ -280,7 +257,7 @@ func _try_apply_grab(info: DamageInfo, owner_body: Node, res: RefCounted) -> boo
 	return bool(reactions.call("apply_grab", info, duration))
 
 
-## `PH-01`: only a hit that actually landed pushes the victim -- a blocked, parried or dodged hit
+## Only a hit that actually landed pushes the victim -- a blocked, parried or dodged hit
 ## must not, or a raised shield would still get shoved around by the swing it just stopped.
 ## Horizontal-only and mass-scaled (Trap 1): `Knockback.apply()` already flattens the direction, so
 ## the only work here is picking the strength and finding the victim's `Knockback` node.
@@ -331,7 +308,7 @@ func _apply_arc_multipliers(
 	if amount <= 0.0 or info.source == null:
 		return amount
 	var dmg_mult := DamageInfo.arc_damage_multiplier(arc)
-	# CB-05: the dagger's backstab is the best in the game -- a per-weapon override on the arc
+	# The dagger's backstab is the best in the game -- a per-weapon override on the arc
 	# multiplier every other weapon still gets from the shared default.
 	if arc == DamageInfo.HitArc.BACK and info.backstab_multiplier_override > 0.0:
 		dmg_mult = info.backstab_multiplier_override
@@ -347,11 +324,6 @@ func _apply_arc_multipliers(
 	)
 	res.poise_outgoing = poise * poise_mult
 	return amount * dmg_mult
-
-
-func _roll_evasion(_body: Node) -> bool:
-	# Damage avoidance is action-driven (dodge/parry/guard) and therefore deterministic.
-	return false
 
 
 func _apply_defense(amount: float) -> float:
@@ -519,8 +491,11 @@ func _emit_victim_feedback(
 				var vm_params := params.duplicate()
 				vm_params["strength"] = strength * 0.35
 				director.call("flash_viewmodel", vm_params)
-	VfxService.play_blood_decal(
-		body.global_position + Vector3(0.0, 1.0, 0.0), direction, _surface_normal_from_direction(direction)
+	var hit_material := "flesh"
+	if body.has_method("get_enemy_id"):
+		hit_material = str(EnemyCatalog.get_definition(str(body.call("get_enemy_id"))).get("hit_material", "flesh"))
+	VfxService.play_hit_decal(
+		hit_material, body.global_position + Vector3(0.0, 1.0, 0.0), direction, _surface_normal_from_direction(direction)
 	)
 	VfxService.play_impact_decal(
 		body.global_position + Vector3(0.0, 1.0, 0.0), direction, _surface_normal_from_direction(direction)

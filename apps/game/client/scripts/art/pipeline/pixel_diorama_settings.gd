@@ -9,7 +9,10 @@ const SETTINGS_VERSION := 2
 const SAVE_DEBOUNCE_SEC := 0.35
 
 const SURFACE_SHADER_SUFFIX := "pixel_diorama_surface.gdshader"
+## The wall and floor variant of the surface shader takes the same settings.
+const WORLD_SHADER_SUFFIX := "pixel_diorama_world.gdshader"
 const EMISSIVE_SHADER_SUFFIX := "pixel_diorama_emissive.gdshader"
+const PARTICLE_SHADER_SUFFIX := "pixel_particle.gdshader"
 const PORTAL_SHADER_SUFFIX := "portal_ellipse.gdshader"
 const SCREEN_FINISH_SHADER_PATH := "res://assets/shared/pixel_screen_finish.gdshader"
 const VfxServiceScript := preload("res://scripts/art/vfx/vfx_service.gd")
@@ -55,7 +58,7 @@ const DEFAULT_SHADOW_QUALITY := 1
 const DEFAULT_PARTICLE_QUALITY := 1
 const DEFAULT_LIGHT_ANIMATION := true
 const DEFAULT_HITSTOP_ENABLED := true
-## `AN-01`: 0 means off/continuous. 12 divides evenly into 60 Hz and, at this rig's clip lengths
+## 0 means off/continuous. 12 divides evenly into 60 Hz and, at this rig's clip lengths
 ## (0.28-1.35 s), yields 4-16 poses per clip -- the range a pixel animator would actually draw.
 const DEFAULT_ANIMATION_STEPS_PER_SECOND := 12.0
 const DEFAULT_SCREEN_SHAKE_SCALE := 1.0
@@ -67,7 +70,6 @@ const DEFAULT_HIGHLIGHT_TINT_AMOUNT := 0.1
 const DEFAULT_VIGNETTE_SOFTNESS := 0.85
 const DEFAULT_PULSE_TINT := Color(0.62, 0.08, 0.08)
 
-const QUALITY_LABELS: Array[String] = ["Low", "Medium", "High"]
 
 ## The internal diorama render target defaults to Full HD. Lower-resolution pixel presets remain
 ## available as explicit performance or stylistic choices and never change the root UI viewport.
@@ -163,7 +165,7 @@ static var bounce_light_enabled: bool = DEFAULT_BOUNCE_LIGHT
 static var soft_shadows_enabled: bool = DEFAULT_SOFT_SHADOWS
 static var nearest_texture_filter: bool = DEFAULT_NEAREST_TEXTURE_FILTER
 static var anti_aliasing_off: bool = DEFAULT_ANTI_ALIASING_OFF
-## SY-05: an FPS readout as a normal setting rather than the debug-only overlay -- read by
+## An FPS readout as a normal setting rather than the debug-only overlay -- read by
 ## debug_overlay.gd, which already computes `Engine.get_frames_per_second()` every frame for the
 ## dev panel and now shows just that one line independently of `show_debug`.
 static var show_fps_overlay: bool = DEFAULT_SHOW_FPS_OVERLAY
@@ -197,22 +199,7 @@ static var highlight_tint_amount: float = DEFAULT_HIGHLIGHT_TINT_AMOUNT
 static var vignette_softness: float = DEFAULT_VIGNETTE_SOFTNESS
 static var pulse_tint: Color = DEFAULT_PULSE_TINT
 static var debug_flat_materials: bool = false
-static var readability_preset: bool = false
 
-
-static func set_readability_preset(enabled: bool) -> void:
-	readability_preset = enabled
-	if enabled:
-		cinematic_finish_amount = 0.0
-		vignette_strength = 0.0
-		screen_contrast = 1.0
-		screen_saturation = 1.0
-	else:
-		cinematic_finish_amount = DEFAULT_CINEMATIC_FINISH
-		vignette_strength = DEFAULT_VIGNETTE
-		screen_contrast = DEFAULT_CONTRAST
-		screen_saturation = DEFAULT_SATURATION
-	save_and_apply()
 
 static var _debug_flat_cached: bool = false
 
@@ -260,10 +247,9 @@ static func load_from_save() -> void:
 	outline_thickness = float(data.get("outline_thickness", DEFAULT_OUTLINE_THICKNESS))
 	outline_color = _color_from_save(data.get("outline_color", null), DEFAULT_OUTLINE_COLOR)
 	outline_interior = float(data.get("outline_interior", DEFAULT_OUTLINE_INTERIOR))
-	# HD-03: this used to hardcode both to the native-HD default on every load, discarding whatever
-	# `save()` had just written a few lines below (it does persist `viewport_width`/`viewport_height`
-	# correctly) -- so `is_native_hd_preset()` was always true and the pixel theme branch was
-	# unreachable for every player, including one who had explicitly picked a pixel preset.
+	# Load the saved viewport size rather than forcing the native-HD default, which would make
+	# `is_native_hd_preset()` always true and the pixel theme unreachable for a player who picked a
+	# pixel preset.
 	var default_preset := _default_preset()
 	viewport_width = int(
 		data.get("viewport_width", default_preset.get("width", DEFAULT_VIEWPORT_WIDTH))
@@ -410,9 +396,21 @@ static func _refresh_lighting_atmosphere() -> void:
 		lighting_script.call("refresh_atmosphere")
 
 
+## Materials are watched weakly so a settings change can re-stamp the live ones; the list is swept
+## of freed materials each time it doubles, so it does not grow for the life of the session.
+static var _tracked_sweep_at := 256
+
+
 static func track(mat: ShaderMaterial) -> ShaderMaterial:
 	if mat != null:
 		_tracked.append(weakref(mat))
+		if _tracked.size() >= _tracked_sweep_at:
+			var alive: Array[WeakRef] = []
+			for ref in _tracked:
+				if ref.get_ref() != null:
+					alive.append(ref)
+			_tracked = alive
+			_tracked_sweep_at = maxi(256, _tracked.size() * 2)
 	return mat
 
 
@@ -448,7 +446,7 @@ static func set_biome_screen_grade(biome_id: String) -> void:
 	_notify_viewport()
 
 
-## MD-03: past `EndlessDifficulty.WANE_FLOOR` the floor should visibly look like it is getting
+## Past `EndlessDifficulty.WANE_FLOOR` the floor should visibly look like it is getting
 ## harder -- desaturating and dimming progressively -- rather than the player only learning about
 ## it from `describe_pressure()` in a menu. Layered on top of whatever `set_biome_screen_grade()`
 ## already set for this biome, not a replacement, so each biome keeps its own identity as it fades.
@@ -468,7 +466,7 @@ static func apply_waning_grade(floor_index: int) -> void:
 	_notify_viewport()
 
 
-## CB-08: `_status_grade_override` sits above `_biome_grade_override` -- a debuff's screen
+## `_status_grade_override` sits above `_biome_grade_override` -- a debuff's screen
 ## treatment (burn/freeze/poison) should win over ambient biome mood, and layering it as a separate
 ## dict means clearing a debuff never has to remember or restore whatever the biome itself set.
 static var _status_grade_override: Dictionary = {}
@@ -490,7 +488,7 @@ static func _graded_color(key: String, fallback: Color) -> Color:
 	return fallback
 
 
-## CB-08: a distinct, persistent screen treatment per debuff while it is active on the player --
+## A distinct, persistent screen treatment per debuff while it is active on the player --
 ## burn warms the highlight tint, freeze desaturates, poison greens the shadow tint and thickens
 ## the vignette. Recomputed from scratch on every call (not incrementally toggled), so multiple
 ## simultaneous debuffs combine predictably and clearing one never leaves a stray override behind.
@@ -514,7 +512,7 @@ static func mark_tuning_user_edited() -> void:
 	tuning_is_preset_default = false
 
 
-## `SY-05`: one-click quality presets. `apply_beauty_defaults()` below already *is* the Beauty
+## One-click quality presets. `apply_beauty_defaults()` below already *is* the Beauty
 ## preset (every quality toggle on, at the resolution the "default": true entry in
 ## `RESOLUTION_PRESETS` names) -- these two give the other two words a player can pick without
 ## learning what `shade_bands` or `edge_strength` mean.
@@ -639,7 +637,7 @@ static func _default_preset() -> Dictionary:
 	return RESOLUTION_PRESETS[0]
 
 
-## HD-03: settings-UI plumbing for `RESOLUTION_PRESETS`, mirroring `settings_schema.gd`'s existing
+## Settings-UI plumbing for `RESOLUTION_PRESETS`, mirroring `settings_schema.gd`'s existing
 ## `_resolution_row()` pattern (option list + index getter/setter) so the pixel preset is
 ## comparable side by side with the other display settings.
 static func preset_labels() -> Array:
@@ -702,7 +700,7 @@ static func camera_snap_step(fov_degrees: float = 75.0, focus_distance: float = 
 	return maxf(0.001, 2.0 * maxf(0.5, focus_distance) * half_extent / height)
 
 
-## `VS-02`: a low-res viewport and antialiasing are mutually exclusive by definition -- AA exists
+## A low-res viewport and antialiasing are mutually exclusive by definition -- AA exists
 ## to hide the pixel grid a low-res render is built to show off. `low_res_viewport_enabled` forces
 ## this regardless of the stored `anti_aliasing_off` toggle, so a saved setting from before low-res
 ## was turned on can't quietly soften every edge the resolution drop was supposed to sharpen.
@@ -812,20 +810,12 @@ static func configure_directional_shadow(
 	light.shadow_opacity = 0.86
 
 
-static func texture_filter_mode() -> BaseMaterial3D.TextureFilter:
-	return (
-		BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		if nearest_texture_filter
-		else BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	)
-
-
 static func apply_to_shader_material(mat: ShaderMaterial) -> void:
 	if mat == null or mat.shader == null:
 		return
 	var shader_path := mat.shader.resource_path
 	var authored: Array = mat.get_meta("authored_params", [])
-	if shader_path.ends_with(SURFACE_SHADER_SUFFIX):
+	if shader_path.ends_with(SURFACE_SHADER_SUFFIX) or shader_path.ends_with(WORLD_SHADER_SUFFIX):
 		_set_shader_param_unless_authored(mat, authored, "pixel_scale", pixel_scale)
 		_set_shader_param_unless_authored(mat, authored, "color_levels", color_levels)
 		_set_shader_param_unless_authored(mat, authored, "edge_strength", edge_strength)
@@ -835,7 +825,7 @@ static func apply_to_shader_material(mat: ShaderMaterial) -> void:
 		_set_shader_param_unless_authored(mat, authored, "shade_dither", shade_dither)
 		_set_shader_param_unless_authored(mat, authored, "light_wrap", light_wrap)
 		_set_shader_param_unless_authored(mat, authored, "rim_strength", rim_strength)
-	elif shader_path.ends_with(EMISSIVE_SHADER_SUFFIX):
+	elif shader_path.ends_with(EMISSIVE_SHADER_SUFFIX) or shader_path.ends_with(PARTICLE_SHADER_SUFFIX):
 		_set_shader_param_unless_authored(mat, authored, "pixel_scale", pixel_scale)
 		_set_shader_param_unless_authored(mat, authored, "color_levels", color_levels)
 	elif shader_path.ends_with(PORTAL_SHADER_SUFFIX):

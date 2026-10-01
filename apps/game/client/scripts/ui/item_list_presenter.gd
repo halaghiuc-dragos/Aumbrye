@@ -7,7 +7,6 @@ const ItemIconAtlasScript := preload("res://scripts/ui/item_icon_atlas.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 
 const ICON_SIZE := 24
-const ROW_MIN_HEIGHT := 28
 
 
 static func configure(list: ItemList) -> void:
@@ -17,7 +16,6 @@ static func configure(list: ItemList) -> void:
 	list.icon_mode = ItemList.ICON_MODE_LEFT
 	list.same_column_width = false
 	list.auto_height = false
-	list.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	list.add_theme_constant_override("v_separation", 4)
 	list.add_theme_constant_override("h_separation", 8)
 
@@ -47,7 +45,7 @@ static func add_plain_row(list: ItemList, text: String, selectable: bool = true)
 
 ## The same comparison tooltip the inventory shows (stats, condition, rules) rather than the
 ## bare name/description pair _tooltip() below produces -- so an item reads the same wherever it
-## is looked at, per UX-03. ItemList tooltips are plain text, so the bbcode InventoryService
+## is looked at. ItemList tooltips are plain text, so the bbcode InventoryService
 ## produces is parsed through a throwaway RichTextLabel to strip formatting tags rather than
 ## showing them literally.
 static func slot_tooltip(slot: Dictionary) -> String:

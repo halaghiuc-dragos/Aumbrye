@@ -2,7 +2,6 @@ extends Node3D
 
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
-const PixelBoxBatchScript := preload("res://scripts/art/style/pixel_box_batch.gd")
 
 const PYRE_RADIUS := 41.0
 const PYRE_COUNT := 10
@@ -14,7 +13,6 @@ const FADE_OUT_SECONDS := 2.6
 const FLAME_UPDATE_INTERVAL := 1.0 / 30.0
 
 const DARK_LIGHT_FRACTION := 0.26
-const DARK_AMBIENT_FRACTION := 0.3
 const DARK_FOG_MULTIPLIER := 3.4
 
 var _pyre_lights: Array[OmniLight3D] = []
@@ -43,7 +41,7 @@ func set_lit(lit: bool, immediate: bool = false) -> void:
 		_apply_blend()
 
 
-## MD-01: a continuous driver for the fade, alongside the boolean `set_lit()` -- lets the cresset's
+## A continuous driver for the fade, alongside the boolean `set_lit()` -- lets the cresset's
 ## fuel level (drained by distance, replenished by standing near it) drive the same blend rather
 ## than snapping the light on or off.
 func set_fuel_level(level: float) -> void:
@@ -51,49 +49,23 @@ func set_fuel_level(level: float) -> void:
 
 
 func _build_pyres() -> void:
-	var iron := PixelStyle.make_metal_material(Color(0.21, 0.20, 0.24), 0.36)
-	var stone := PixelStyle.make_material(Color(0.34, 0.33, 0.36))
-	var flame_core := PixelStyle.make_custom_emissive(Color(1.0, 0.66, 0.24), 2.2)
-	var geometry_batch := PixelBoxBatchScript.new() as PixelBoxBatch
-	_add_pyre_ring(PYRE_RADIUS, PYRE_COUNT, 1.0, iron, stone, flame_core, geometry_batch, "Pyre")
+	var placements: Array[Transform3D] = []
+	_add_pyre_ring(PYRE_RADIUS, PYRE_COUNT, 1.0, placements, "Pyre")
 	_far_ring_start = _pyre_lights.size()
-	_add_pyre_ring(
-		FAR_PYRE_RADIUS, FAR_PYRE_COUNT, 1.6, iron, stone, flame_core, geometry_batch, "FarPyre"
-	)
-	geometry_batch.commit(
-		self,
-		"PyreGeometry",
-		AABB(Vector3(-125.0, -1.0, -125.0), Vector3(250.0, 10.0, 250.0))
+	_add_pyre_ring(FAR_PYRE_RADIUS, FAR_PYRE_COUNT, 1.6, placements, "FarPyre")
+	PropLibrary.scatter_themed(
+		self, "waves/pyre", PixelDioramaStyle.PaletteTheme.UMBRAL, placements, "PyreGeometry"
 	)
 
 
 func _add_pyre_ring(
-	radius: float,
-	count: int,
-	pyre_scale: float,
-	iron: Material,
-	stone: Material,
-	flame_core: Material,
-	geometry_batch: PixelBoxBatch,
-	prefix: String
+	radius: float, count: int, pyre_scale: float, placements: Array[Transform3D], prefix: String
 ) -> void:
 	for i in count:
 		var angle := TAU * (float(i) + (0.5 if prefix == "FarPyre" else 0.0)) / float(count)
 		var root_position := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
-		geometry_batch.add(
-			Vector3(1.4, 0.3, 1.4) * pyre_scale,
-			root_position + Vector3(0.0, 0.15, 0.0) * pyre_scale,
-			stone
-		)
-		geometry_batch.add(
-			Vector3(0.4, 2.0, 0.4) * pyre_scale,
-			root_position + Vector3(0.0, 1.2, 0.0) * pyre_scale,
-			iron
-		)
-		geometry_batch.add(
-			Vector3(1.1, 0.4, 1.1) * pyre_scale,
-			root_position + Vector3(0.0, 2.3, 0.0) * pyre_scale,
-			iron
+		placements.append(
+			Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * pyre_scale), root_position)
 		)
 		var flame := Node3D.new()
 		flame.name = "%sFlame%d" % [prefix, i]
@@ -101,8 +73,7 @@ func _add_pyre_ring(
 		flame.scale = Vector3.ONE * pyre_scale
 		flame.visible = false
 		add_child(flame)
-		PixelStyle.add_box(flame, Vector3(0.7, 0.55, 0.7), Vector3(0.0, 0.25, 0.0), flame_core, "Core")
-		PixelStyle.add_box(flame, Vector3(0.4, 0.4, 0.4), Vector3(0.0, 0.7, 0.0), flame_core, "Tip")
+		PropLibrary.attach_themed(flame, "waves/pyre_flame", PixelDioramaStyle.PaletteTheme.UMBRAL)
 		var light: OmniLight3D = null
 		# Distant pyres keep their emissive silhouette and embers but do not spend a dynamic light.
 		if prefix != "FarPyre":
@@ -130,14 +101,14 @@ func _process(delta: float) -> void:
 	_animate_flames(delta)
 
 
-## MD-01: kills the far ring only, leaving the near ring lit -- called by `WavesArenaMutator` for
+## Kills the far ring only, leaving the near ring lit -- called by `WavesArenaMutator` for
 ## the "dimmed" arena state.
 func set_far_ring_lit(lit: bool) -> void:
 	_far_ring_lit = lit
 	_apply_blend()
 
 
-## MD-01: `_apply_blend()` already writes `DayNightService.fog_boost` every frame the cresset's
+## `_apply_blend()` already writes `DayNightService.fog_boost` every frame the cresset's
 ## fuel is changing (near-constant during combat) -- a second writer racing it would just get
 ## stomped, so the "fog" arena state feeds a multiplier in here instead of writing the global
 ## directly.

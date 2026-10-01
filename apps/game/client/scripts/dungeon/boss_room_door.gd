@@ -2,6 +2,7 @@ extends Node3D
 
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const INTERACT_RANGE := 3.0
 
 enum State { LOCKED, CLOSED, OPEN, SEALED, RELEASED }
 
@@ -12,9 +13,8 @@ var _barrier: StaticBody3D
 var _barrier_shape: CollisionShape3D
 var _barrier_mesh: MeshInstance3D
 var _fog_gate: MeshInstance3D
-var _interact_area: Area3D
 var _label: Label3D
-var _near_player := false
+var _selected := false
 var _state: State = State.CLOSED
 var _requirement := "none"
 var _floor := 1
@@ -26,8 +26,15 @@ var _frame_torches: Array[OmniLight3D] = []
 func _ready() -> void:
 	_resolve_nodes()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_interact_area.body_entered.connect(_on_body_entered)
-	_interact_area.body_exited.connect(_on_body_exited)
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		4,
+		Callable(self, "_interact"),
+		Callable(self, "_can_interact"),
+		Callable(self, "_set_selected_prompt")
+	)
 	_apply_barrier_visual()
 	_update_label()
 
@@ -45,7 +52,6 @@ func _resolve_nodes() -> void:
 	# a whole doorway.
 	if _barrier_mesh and _barrier_mesh.material_override == null:
 		_barrier_mesh.material_override = BiomeRegistry.get_wall_material(_biome_id)
-	_interact_area = get_node_or_null("InteractArea") as Area3D
 	_label = get_node_or_null("Label3D") as Label3D
 
 
@@ -91,6 +97,19 @@ func configure(
 		_state = State.CLOSED
 	_apply_barrier_visual()
 	_update_label()
+
+
+## Shown when the player got into the arena without opening the door and was pushed back out.
+func show_entry_blocked() -> void:
+	if _label == null:
+		return
+	_label.text = (
+		_locked_prompt()
+		if _state == State.LOCKED
+		else InputGlyphService.format_interact_name(tr("BOSS_DOOR_ENTER_ARENA"))
+	)
+	_label.visible = true
+	get_tree().create_timer(2.5).timeout.connect(_update_label)
 
 
 func get_state_name() -> String:
@@ -147,7 +166,7 @@ func release_door() -> void:
 	AudioDirector.set_door_acoustic_state(false)
 
 
-## `BS-05`: the sealed corridor read as "the way back is sealed" in text alone -- the frame torches
+## The sealed corridor read as "the way back is sealed" in text alone -- the frame torches
 ## dimming to embers behind the player is the same beat with nothing to read. Set instantly, not
 ## tweened: `seal_door()` already has its own rune-flare VFX carrying the moment, and a light fading
 ## out over it would read as two separate things happening rather than one.
@@ -169,37 +188,27 @@ func reset_door() -> void:
 	_set_frame_torches_lit(true)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not PlayerInput.interact_just_pressed(event) or not _near_player:
-		return
-	if _state == State.SEALED:
-		get_viewport().set_input_as_handled()
-		return
-	if _state == State.LOCKED:
-		if _requirement == "sigil" and _has_sigil():
-			InventoryService.consume_boss_sigil()
-			_state = State.CLOSED
+func _can_interact() -> bool:
+	return _state in [State.LOCKED, State.CLOSED, State.SEALED]
+
+
+func _set_selected_prompt(active: bool) -> void:
+	_selected = active
+	_update_label()
+
+
+func _interact() -> void:
+	match _state:
+		State.LOCKED:
+			if _requirement == "sigil" and _has_sigil():
+				InventoryService.consume_boss_sigil()
+				_state = State.CLOSED
+				open_door()
+			elif _requirement == "all_keys" and _all_locks_open():
+				_state = State.CLOSED
+				open_door()
+		State.CLOSED:
 			open_door()
-		elif _requirement == "all_keys" and _all_locks_open():
-			_state = State.CLOSED
-			open_door()
-		get_viewport().set_input_as_handled()
-		return
-	if _state == State.CLOSED:
-		open_door()
-		get_viewport().set_input_as_handled()
-
-
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = true
-		_update_label()
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = false
-		_update_label()
 
 
 func _apply_barrier_visual() -> void:
@@ -207,7 +216,7 @@ func _apply_barrier_visual() -> void:
 		return
 	var solid := _state in [State.LOCKED, State.CLOSED, State.SEALED]
 	_barrier_shape.disabled = not solid
-	# RM-16 item 4: only the player-facing "door opens" beat (State.OPEN) animates -- sealing is
+	# Item 4: only the player-facing "door opens" beat (State.OPEN) animates -- sealing is
 	# already a sudden magical event with its own rune-flare VFX, and RELEASED/reset happen off
 	# camera on a run reset, so an instant cut there is the correct read, not a missed animation.
 	if _state == State.OPEN and _barrier_mesh and _barrier_mesh.visible:
@@ -240,7 +249,7 @@ func _animate_open() -> void:
 func _update_label() -> void:
 	if _label == null:
 		return
-	if not _near_player:
+	if not _selected:
 		_label.visible = false
 		return
 	match _state:

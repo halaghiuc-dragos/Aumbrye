@@ -1,6 +1,6 @@
 extends Node
 
-## AX-03: every action `InputMap` actually knows about, resolved to a glyph cell for every device
+## Every action `InputMap` actually knows about, resolved to a glyph cell for every device
 ## family, must land on a real atlas cell rather than the "unknown" ? fallback.
 ##
 ## `InputGlyphService._cell_key_for_action()` reads the action's live binding first (keyboard key

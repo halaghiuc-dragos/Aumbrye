@@ -25,9 +25,7 @@ func open() -> void:
 	_build_ui_if_needed()
 	_refresh()
 	_open = true
-	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.show_modal(self)
 	if _first_focus and is_instance_valid(_first_focus):
 		_first_focus.grab_focus()
 
@@ -36,9 +34,7 @@ func close() -> void:
 	if not _open:
 		return
 	_open = false
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.hide_modal(self)
 	closed.emit()
 
 
@@ -108,7 +104,7 @@ func _build_challenge_section() -> void:
 	_sections.add_child(frame)
 	var body: VBoxContainer = GameUISkinScript.pixel_frame_content(frame)
 	if challenge.is_empty():
-		_add_hint(body, "Nothing is posted this week.")
+		_add_hint(body, tr("BOARD_NOTHING_POSTED"))
 		return
 	_add_body(body, str(challenge.get("name", "")))
 	_add_hint(body, ContentText.description(challenge))
@@ -127,16 +123,16 @@ func _build_challenge_section() -> void:
 	)
 	var best := ChallengeService.get_local_best(int(challenge.get("weekIndex", 0)))
 	if best.is_empty():
-		_add_hint(body, "You have not set a mark on it yet.")
+		_add_hint(body, tr("BOARD_NO_MARK"))
 	else:
 		_add_hint(
 			body,
 			(
-				"Your best: %s"
+				tr("BOARD_YOUR_BEST")
 				% ChallengeService.format_score(challenge, int(best.get("score", 0)))
 			)
 		)
-	var button := GameUISkinScript.make_button("Take the challenge")
+	var button := GameUISkinScript.make_button(tr("BOARD_TAKE_CHALLENGE"))
 	button.disabled = not _can_start_run()
 	button.pressed.connect(_on_challenge_pressed)
 	body.add_child(button)
@@ -151,7 +147,7 @@ func _build_modes_section() -> void:
 	var body: VBoxContainer = GameUISkinScript.pixel_frame_content(frame)
 	var modes := RunModeCatalog.get_all()
 	if modes.is_empty():
-		_add_hint(body, "No alternate rule sets are written down.")
+		_add_hint(body, tr("BOARD_NO_MODES"))
 		return
 	var counters := ProgressCounters.snapshot()
 	for mode in modes:
@@ -167,7 +163,7 @@ func _build_modes_section() -> void:
 		var unlocked := RunModeCatalog.is_unlocked(mode_id, counters)
 		if not unlocked:
 			_add_hint(body, RunModeCatalog.unlock_hint(mode_id, counters))
-		var button := GameUISkinScript.make_button("Begin")
+		var button := GameUISkinScript.make_button(tr("BOARD_BEGIN"))
 		button.disabled = not unlocked or not _can_start_run()
 		button.pressed.connect(_on_mode_pressed.bind(mode_id))
 		body.add_child(button)
@@ -176,13 +172,13 @@ func _build_modes_section() -> void:
 
 
 func _build_standing_section() -> void:
-	var frame := GameUISkinScript.make_pixel_frame("Tower Standing")
+	var frame := GameUISkinScript.make_pixel_frame(tr("BOARD_STANDING"))
 	frame.name = "StandingFrame"
 	_sections.add_child(frame)
 	var body: VBoxContainer = GameUISkinScript.pixel_frame_content(frame)
 	var rows := HubGrowthService.get_standing()
 	if rows.is_empty():
-		_add_hint(body, "The tower has nothing to show yet.")
+		_add_hint(body, tr("BOARD_NOTHING_TO_SHOW"))
 		return
 	var next_goal := HubGrowthService.get_next_goal()
 	if not next_goal.is_empty():
@@ -221,9 +217,7 @@ func _on_mode_pressed(mode_id: String) -> void:
 	RunFlow.start_alternate_mode_run(mode_id)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not _open:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close()
+func _on_cancel_requested() -> void:
+	close()
+
+

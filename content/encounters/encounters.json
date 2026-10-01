@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "encounters": [
+    {
+      "id": "hold_the_line",
+      "minFloor": 1,
+      "minDepth": 1,
+      "weight": 4,
+      "slots": [
+        "melee",
+        "ranged"
+      ]
+    },
+    {
+      "id": "pincer",
+      "minFloor": 1,
+      "minDepth": 2,
+      "weight": 3,
+      "slots": [
+        "melee",
+        "melee"
+      ]
+    },
+    {
+      "id": "crossfire",
+      "minFloor": 2,
+      "minDepth": 2,
+      "weight": 3,
+      "slots": [
+        "ranged",
+        "ranged",
+        "melee"
+      ]
+    },
+    {
+      "id": "shield_wall",
+      "minFloor": 2,
+      "minDepth": 2,
+      "weight": 4,
+      "slots": [
+        "shield",
+        "ranged"
+      ]
+    },
+    {
+      "id": "guarded_battery",
+      "minFloor": 3,
+      "minDepth": 3,
+      "weight": 3,
+      "slots": [
+        "shield",
+        "melee",
+        "ranged"
+      ]
+    },
+    {
+      "id": "warband",
+      "minFloor": 4,
+      "minDepth": 4,
+      "weight": 2,
+      "slots": [
+        "shield",
+        "melee",
+        "ranged",
+        "melee"
+      ]
+    }
+  ]
+}

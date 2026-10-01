@@ -2,8 +2,6 @@
   "id": "frost_warlord_blade",
   "name": "Frost Warlord Blade",
   "itemType": "weapon",
-  "gridWidth": 2,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "Forged in glacial depths, it drinks warmth from every wound.",
@@ -25,8 +23,7 @@
     }
   ],
   "stats": {
-    "frostDamage": 18,
-    "physicalDamage": 41
+    "physicalDamage": 59
   },
   "equipmentSlot": "weapon",
   "theme": "frozen_fortress",

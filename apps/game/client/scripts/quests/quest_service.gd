@@ -2,9 +2,8 @@ extends Node
 
 
 signal quest_updated(quest_id: String, state: String)
-## SY-02: fired on every progress tick, not just on completion -- `quest_updated` only fires from
-## `complete_quest()`, so a kill/fetch quest going from 1/3 to 2/3 previously produced no signal at
-## all for anything to show a toast off of.
+## Fired on every progress tick, not just on completion -- `quest_updated` only fires from
+## `complete_quest()`, so this is what lets a kill/fetch quest going from 1/3 to 2/3 show a toast.
 signal quest_progress_advanced(quest_id: String, count: int, required: int)
 signal quest_progress_changed(
 	quest_id: String, objective_id: String, old_count: int, new_count: int, required: int
@@ -625,32 +624,9 @@ func _run_context_matches(def: Dictionary, mode_override: String = "") -> bool:
 	return true
 
 
-func _equipped_weapon_id() -> String:
-	if InventoryService == null:
-		return ""
-	return str(InventoryService.inventory.get_equipped_weapon_id())
-
-
 func get_claimable_rewards() -> Array:
 	var raw: Variant = CharacterService.get_flag(REWARD_RECEIPTS_FLAG, [])
 	return (raw as Array).duplicate(true) if raw is Array else []
-
-
-func claim_reward(receipt_id: String) -> bool:
-	var receipts := get_claimable_rewards()
-	for index in receipts.size():
-		var receipt: Dictionary = receipts[index]
-		if str(receipt.get("id", "")) != receipt_id:
-			continue
-		var item_id := str(receipt.get("itemId", ""))
-		var quantity := int(receipt.get("quantity", 1))
-		if not InventoryService.add_item(item_id, quantity):
-			return false
-		receipts.remove_at(index)
-		CharacterService.set_flag(REWARD_RECEIPTS_FLAG, receipts)
-		LocalSave.request_autosave(LocalSave.SavePriority.IMMEDIATE)
-		return true
-	return false
 
 
 func _grant_rewards(quest_id: String, def: Dictionary) -> void:
@@ -658,7 +634,7 @@ func _grant_rewards(quest_id: String, def: Dictionary) -> void:
 	if not rewards is Dictionary:
 		return
 	if rewards.has("gold"):
-		CharacterService.add_gold(int(rewards.get("gold", 0)))
+		CharacterService.add_gold(int(rewards.get("gold", 0)), false)
 	for item_entry in rewards.get("items", []):
 		if not item_entry is Dictionary:
 			continue

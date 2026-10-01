@@ -16,6 +16,7 @@ signal interacted
 @export var label_path: NodePath
 
 var _near_player := false
+var _selected := false
 var _label: Label3D
 var _highlight_mesh: MeshInstance3D
 var _highlight_material: Material
@@ -29,7 +30,24 @@ var _base_emission: float = FALLBACK_EMISSION
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	InputGlyphService.connect_device_family_changed(_on_glyph_family_changed)
 	call_deferred("_finalize_setup")
+
+
+func _exit_tree() -> void:
+	InputGlyphService.disconnect_device_family_changed(_on_glyph_family_changed)
+
+
+func _on_glyph_family_changed(_family: Variant = null) -> void:
+	_refresh_label()
+
+
+## Of everything in reach, only the interactable the next press goes to shows the full prompt.
+func set_selected(value: bool) -> void:
+	if _selected == value:
+		return
+	_selected = value
+	_refresh_label()
 
 
 func _finalize_setup() -> void:
@@ -73,7 +91,7 @@ func _resolve_label() -> void:
 			if child is Label3D:
 				_label = child as Label3D
 				return
-	# HD-08: no authored Label3D on this interactable -- build one via the shared prompt style
+	# No authored Label3D on this interactable -- build one via the shared prompt style
 	# rather than leaving the object silent. Keeps the emissive highlight as the primary tell and
 	# adds the label alongside it, per the interact-prompt unification.
 	_label = InteractPromptScript.build(self, Vector3(0.0, 2.2, 0.0))
@@ -85,7 +103,7 @@ func _resolve_label() -> void:
 func _refresh_label() -> void:
 	if _label == null or not is_instance_valid(_label):
 		return
-	_label.text = get_prompt() if is_player_near() else display_name
+	_label.text = get_prompt() if is_player_near() and _selected else display_name
 
 
 func get_interact_id() -> String:

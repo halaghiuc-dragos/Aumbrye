@@ -2,8 +2,6 @@
   "id": "arcane_catalyst",
   "name": "Arcane Catalyst",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 20,
   "description": "The jar is unmarked. The contents object to being described.",
   "value": 70,

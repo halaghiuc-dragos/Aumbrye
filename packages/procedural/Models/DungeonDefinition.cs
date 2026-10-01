@@ -38,7 +38,7 @@ public sealed record DungeonDefinition(
 /// and this C# one (backend/CLI, layout and placements only). Without a declared capability set a
 /// consumer cannot tell an intentionally empty <c>roomContent</c> from a floor that genuinely has
 /// none, and a server-issued definition silently describes a different dungeon than the client
-/// plays. See docs/ADR/0002-procgen-authority-split.md.
+/// plays.
 /// </remarks>
 public static class GeneratorCapability
 {

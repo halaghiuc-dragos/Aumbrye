@@ -2,7 +2,6 @@ extends RefCounted
 class_name ConsumableService
 
 
-const BUFF_META_PREFIX := "consumable_buff_"
 const ThrowableProjectileScene := preload("res://scenes/combat/throwable_projectile.tscn")
 const ProjectileContainerScript := preload("res://scripts/combat/projectile_container.gd")
 const THROWABLE_SPEED := 16.0
@@ -97,28 +96,6 @@ static func apply(def: Dictionary, player: Node) -> bool:
 	return false
 
 
-static func active_buff_stats(player: Node) -> Dictionary:
-	var totals: Dictionary = {}
-	if player == null or not is_instance_valid(player):
-		return totals
-	var now := Time.get_ticks_msec()
-	for meta_name in player.get_meta_list():
-		var key := str(meta_name)
-		if not key.begins_with(BUFF_META_PREFIX):
-			continue
-		var entry: Variant = player.get_meta(key, {})
-		if not entry is Dictionary:
-			continue
-		if int((entry as Dictionary).get("until", 0)) <= now:
-			player.remove_meta(key)
-			continue
-		var stat := str((entry as Dictionary).get("stat", ""))
-		if stat == "":
-			continue
-		totals[stat] = float(totals.get(stat, 0.0)) + float((entry as Dictionary).get("amount", 0.0))
-	return totals
-
-
 static func _apply_throwable(player: Node, effect: Dictionary) -> bool:
 	var origin_node := player as Node3D
 	if origin_node == null or player.get_tree() == null:
@@ -140,14 +117,14 @@ static func _apply_throwable(player: Node, effect: Dictionary) -> bool:
 		var controller := enemy.get_node_or_null("StatusController") as StatusController
 		if controller == null:
 			continue
-		controller.apply_status(status_id, 1, duration)
+		controller.apply_status(status_id, 1, duration, player, "direct")
 		affected += 1
 	if VfxService:
 		VfxService.play_rune_flare(origin)
 	return affected > 0
 
 
-## `RG-04`: unlike `_apply_throwable()` (an instant AoE centred on the player), this actually spawns
+## Unlike `_apply_throwable()` (an instant AoE centred on the player), this actually spawns
 ## a `Projectile` aimed downrange -- the melee build's answer to an archer on a ledge, not a status
 ## the player has to already be standing in melee range to apply.
 static func _apply_throwable_projectile(player: Node, effect: Dictionary) -> bool:

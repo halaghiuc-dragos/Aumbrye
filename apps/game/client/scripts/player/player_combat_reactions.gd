@@ -4,7 +4,6 @@ class_name PlayerCombatReactions
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const DioramaViewmodelScript := preload("res://scripts/art/characters/diorama_viewmodel.gd")
-const DodgeScript := preload("res://scripts/player/dodge.gd")
 
 const STAGGER_DURATION_MIN := 0.45
 const STAGGER_DURATION_MAX := 1.25
@@ -57,7 +56,7 @@ var _grab_tick_timer := 0.0
 var _grab_pending_info: DamageInfo = null
 var _knockback: Knockback
 
-## AD-06: what actually killed the player, captured at the moment of the hit (not at death, since
+## What actually killed the player, captured at the moment of the hit (not at death, since
 ## by the time `_on_died()` runs the guard/dodge/attack state that mattered has already reset).
 var death_recap: Dictionary = {}
 var _last_damage_info: DamageInfo = null
@@ -118,11 +117,15 @@ func _physics_process(delta: float) -> void:
 
 
 func can_act() -> bool:
-	return not is_dead and not is_staggered and not is_grabbed
+	return not is_dead and not is_staggered and not is_grabbed and not _is_stunned()
+
+
+func _is_stunned() -> bool:
+	return _status != null and _status.is_stunned()
 
 
 func is_movement_locked() -> bool:
-	if is_dead or is_staggered or is_grabbed:
+	if is_dead or is_staggered or is_grabbed or _is_stunned():
 		return true
 	if _dodge and _dodge.locks_movement():
 		return true
@@ -182,9 +185,9 @@ func reset_combat_state() -> void:
 		director.call("revive")
 
 
-## `PH-02`: a stagger used to be a timer and a clip -- the body never moved. The impulse is scaled
-## off the poise damage that caused it, so a poise break from a heavy attack visibly rocks the
-## victim and a bare-minimum break barely nudges them.
+## A stagger moves the body. The impulse is scaled off the poise damage that caused it, so a
+## poise break from a heavy attack visibly rocks the victim and a bare-minimum break barely nudges
+## them.
 func _apply_stagger(duration: float, direction: Vector3 = Vector3.ZERO) -> void:
 	is_staggered = true
 	_stagger_timer = duration
@@ -206,7 +209,7 @@ func _end_stagger() -> void:
 	_on_stagger_ended()
 
 
-## `EN-02`: a `grab` attack bypasses poise entirely -- it is answered by not being caught, not by
+## A `grab` attack bypasses poise entirely -- it is answered by not being caught, not by
 ## blocking or parrying, so nothing about it should read as a poise exchange. A fixed-duration lock
 ## with no i-frames, damage applied only once the lock ends, so a dodge or heal used *during* the
 ## grab cannot cheat the hit the way an i-framed stagger could.
@@ -350,7 +353,7 @@ func _on_damaged(info: DamageInfo) -> void:
 	capture_hit(info)
 
 
-## AD-06: one honest sentence naming what killed the player and what they were doing -- never a
+## One honest sentence naming what killed the player and what they were doing -- never a
 ## judgement ("you should have"), just the facts `Hurtbox.receive_hit()` already produced.
 func _build_death_recap() -> Dictionary:
 	var recap := {
@@ -423,7 +426,7 @@ func _on_parry_success(_target: Node) -> void:
 
 
 func _on_died() -> void:
-	VfxService.request_attack_hitstop("player_death:%s" % _body.get_instance_id(), 90, 0.12)
+	VfxService.request_hitstop(90, 0.12)
 	if _death_sequence_running:
 		return
 	_death_sequence_running = true

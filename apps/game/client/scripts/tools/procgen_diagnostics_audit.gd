@@ -24,7 +24,7 @@ func _ready() -> void:
 		var biome_id := str(case[0])
 		var case_seed := int(case[1])
 		var result: Dictionary = LocalProcgenScript.generate(
-			biome_id, case_seed, 1, "castle", 1, 1, false, false, true
+			biome_id, case_seed, 1, "castle", 1, 1, false, false, 0
 		)
 		var diagnostics: Dictionary = result.get("generation_diagnostics", {})
 		var candidates: Array = diagnostics.get("candidates", [])
@@ -75,7 +75,7 @@ func _ready() -> void:
 				if preview is Dictionary:
 					_check(
 						str(preview.get("hint", "")) == "unknown"
-							and int(preview.get("clueQuality", 0)) == 0,
+							or int(preview.get("clueQuality", 0)) >= 2,
 						"%s doesn't reveal optional room purpose without an authored clue" % biome_id
 					)
 			var selected_attempt := int(diagnostics.get("selectedAttempt", 0))

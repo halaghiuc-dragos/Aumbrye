@@ -19,6 +19,7 @@ var _floor_value: Label
 var _time_value: Label
 var _seed_value: LineEdit
 var _objective_value: Label
+var _modifiers_value: Label
 var _cloud_status_label: Label
 
 
@@ -54,9 +55,8 @@ func open_menu() -> void:
 		return
 	_rebuild_actions()
 	_refresh_run_info()
-	# HD-03: `build_modal()` only styles the panel shell -- action buttons are rebuilt fresh each
+	# `build_modal()` only styles the panel shell -- action buttons are rebuilt fresh each
 	# open, so the pixel-filter sweep needs to run here rather than once in `_ready()`.
-	GameUISkinScript.apply_pixel_theme(self)
 	_open = true
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -120,6 +120,7 @@ func _build_shell() -> void:
 	_time_value = _add_info_row(grid, "TimeKey", tr("PAUSE_INFO_TIME"))
 	_add_seed_row(grid)
 	_objective_value = _add_info_row(grid, "ObjKey", tr("PAUSE_INFO_OBJECTIVE"))
+	_modifiers_value = _add_info_row(grid, "ModKey", tr("PAUSE_INFO_MODIFIERS"))
 	_actions_vbox = VBoxContainer.new()
 	_actions_vbox.name = "Actions"
 	_actions_vbox.add_theme_constant_override("separation", MenuShellScript.DEFAULT_SEPARATION)
@@ -178,12 +179,18 @@ func _rebuild_actions() -> void:
 				)
 				restart.name = "RestartFloor"
 				buttons.append(restart)
+			var save_quit := MenuShellScript.make_menu_button(tr("PAUSE_SAVE_QUIT"), _on_save_and_quit)
+			save_quit.name = "SaveAndQuit"
+			buttons.append(save_quit)
 			var abandon := MenuShellScript.make_menu_button(tr("PAUSE_ABANDON"), _on_abandon)
 			abandon.name = "AbandonRun"
 			buttons.append(abandon)
+	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_INVENTORY"), _on_inventory))
+	if not RunFlow.is_run_active():
+		buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_LOADOUT"), _on_loadout))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_ACHIEVEMENTS"), _on_achievements))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_BESTIARY"), _on_bestiary))
-	buttons.append(MenuShellScript.make_menu_button("Lore Journal", _on_lore_journal))
+	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_LORE_JOURNAL"), _on_lore_journal))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_SETTINGS"), _on_settings))
 	buttons.append(MenuShellScript.make_menu_button(tr("PAUSE_QUIT"), _on_quit_to_menu))
 	for i in buttons.size():
@@ -240,6 +247,9 @@ func _refresh_run_info() -> void:
 			_seed_value.text = "—"
 	if _objective_value:
 		_objective_value.text = RunFlow.get_current_objective()
+	if _modifiers_value:
+		var modifiers := RunModifierService.active_modifiers() if RunFlow.is_run_active() else []
+		_modifiers_value.text = RunModifierService.describe_all(modifiers) if not modifiers.is_empty() else "—"
 
 
 func _on_resume() -> void:
@@ -249,6 +259,17 @@ func _on_resume() -> void:
 func _on_settings() -> void:
 	if PlayerControls:
 		PlayerControls.open_settings()
+
+
+func _on_inventory() -> void:
+	close_menu()
+	if PlayerControls:
+		PlayerControls.call_deferred("open_inventory")
+
+
+func _on_loadout() -> void:
+	if PlayerControls:
+		PlayerControls.open_loadout()
 
 
 func _on_achievements() -> void:
@@ -301,12 +322,15 @@ func _on_abandon() -> void:
 		MenuStack.confirm(spec)
 
 
-## Quitting is not a save point. `return_to_main_menu()` flushes the run to disk before leaving --
-## right for closing the app mid-hub, wrong here, where the same button sat next to "Abandon" in
-## castle mode and quietly did the opposite of it: abandon discarded the run, this saved it, so
-## which one lost your progress depended on which button you happened to press. Every mode now
-## leaves the same way abandoning already did -- through whichever discard path that mode owns --
-## so quitting never leaves a run to continue and never leaves this run's loot in the bag.
+## Saves the floor and leaves; the run stays continuable from the main menu. `Abandon` and `Quit
+## run` below are the two ways to end it.
+func _on_save_and_quit() -> void:
+	close_menu()
+	RunFlow.return_to_main_menu()
+
+
+## Quit run ends the run through whichever discard path its mode owns, so it never leaves a run to
+## continue and never leaves this run's loot in the bag.
 func _on_quit_to_menu() -> void:
 	var spec := ConfirmSpecScript.new()
 	spec.title_key = &"PAUSE_CONFIRM_QUIT_TITLE"

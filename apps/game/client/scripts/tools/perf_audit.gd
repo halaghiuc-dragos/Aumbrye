@@ -25,8 +25,14 @@ const TARGETS: Array[Dictionary] = [
 ## machine is not the slowest one anyone will play on.
 const BUDGET_MS := 16.7
 
+@export_enum("current", "performance") var benchmark_preset := "current"
+var _saved_settings_meta: Dictionary = {}
+
 
 func _ready() -> void:
+	if benchmark_preset == "performance":
+		_saved_settings_meta = LocalSave.get_meta_data().duplicate(true)
+		PixelDioramaSettings.apply_performance_preset()
 	get_tree().current_scene = null
 	if CharacterService != null and CharacterService.get_class_id() == "":
 		CharacterService.set_class_id("knight")
@@ -48,8 +54,11 @@ func _ready() -> void:
 	# measured an empty scene (0 draws, 0 objects) while still printing a frame time.
 	await get_tree().process_frame
 
-	print("PERF %-14s %8s %8s %7s %9s %8s %9s %8s" % [
-		"scene", "avg_ms", "p95_ms", "fps", "draws", "prims_k", "objects", "nodes"])
+	print("PERF_CONFIG preset=%s render=%dx%d adapter=%s" % [
+		benchmark_preset, PixelDioramaSettings.viewport_width,
+		PixelDioramaSettings.viewport_height, RenderingServer.get_video_adapter_name()])
+	print("PERF %-14s %8s %8s %8s %7s %7s %7s %8s %8s %8s" % [
+		"scene", "avg_ms", "p95_ms", "p99_ms", "fps", "gpu_ms", "draws", "ram_mb", "vram_mb", "nodes"])
 	var over_budget: Array[String] = []
 	for target in TARGETS:
 		var row := await _measure(str(target["id"]), str(target["path"]))
@@ -62,6 +71,11 @@ func _ready() -> void:
 		print("PERF all scenes inside the %.1fms budget" % BUDGET_MS)
 	else:
 		print("PERF over budget: %s" % ", ".join(over_budget))
+	if benchmark_preset == "performance":
+		LocalSave.set_meta_data(_saved_settings_meta)
+		LocalSave.autosave()
+		PixelDioramaSettings.load_from_save()
+		PixelDioramaSettings.apply_all()
 	get_tree().quit(0)
 
 
@@ -75,34 +89,45 @@ func _measure(id: String, path: String) -> Dictionary:
 		return {}
 	var instance := packed.instantiate()
 	get_tree().root.add_child(instance)
+	var render_viewport := get_tree().root.find_child("PixelSubViewport", true, false) as SubViewport
+	var viewport_rid := render_viewport.get_viewport_rid() if render_viewport != null else get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(viewport_rid, true)
 	for _i in SETTLE_FRAMES:
 		await get_tree().process_frame
 
 	# Wall-clock frame time, which is what the player feels. TIME_PROCESS is script time only and
 	# would report a scene as fast while the GPU was missing every frame.
 	var samples: PackedFloat32Array = []
+	var gpu_samples: PackedFloat32Array = []
+	var peak_ram_mb := 0.0
+	var peak_vram_mb := 0.0
 	var last := Time.get_ticks_usec()
 	for _i in SAMPLE_FRAMES:
 		await get_tree().process_frame
 		var now := Time.get_ticks_usec()
 		samples.append(float(now - last) / 1000.0)
+		gpu_samples.append(RenderingServer.viewport_get_measured_render_time_gpu(viewport_rid))
+		peak_ram_mb = maxf(peak_ram_mb, Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0)
+		peak_vram_mb = maxf(peak_vram_mb, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0)
 		last = now
 	var frame_ms := _mean(samples)
 	var p95 := _percentile(samples, 0.95)
+	var p99 := _percentile(samples, 0.99)
 
 	var row := {
 		"id": id,
 		"avg_ms": frame_ms,
 		"p95_ms": p95,
+		"p99_ms": p99,
 		"draws": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 		"prims": Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
 		"objects": Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 		"nodes": Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
-		"vram_mb": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+		"vram_mb": peak_vram_mb,
 	}
-	print("PERF %-14s %8.2f %8.2f %7.0f %9.0f %8.1f %9.0f %8.0f" % [
-		id, frame_ms, p95, 1000.0 / maxf(frame_ms, 0.001),
-		row["draws"], float(row["prims"]) / 1000.0, row["objects"], row["nodes"]])
+	print("PERF %-14s %8.2f %8.2f %8.2f %7.0f %7.2f %7.0f %8.0f %8.0f %8.0f" % [
+		id, frame_ms, p95, p99, 1000.0 / maxf(frame_ms, 0.001),
+		_mean(gpu_samples), row["draws"], peak_ram_mb, peak_vram_mb, row["nodes"]])
 
 	instance.queue_free()
 	for _i in 20:

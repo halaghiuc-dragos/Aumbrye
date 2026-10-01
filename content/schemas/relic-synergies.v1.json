@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/relic-synergies.v1.json",
+  "title": "RelicSynergies",
+  "description": "Set bonuses: carrying `count` relics that share a build tag switches on the listed combat rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "synergies"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "synergies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "tag", "count", "description", "rules"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "tag": { "type": "string", "minLength": 1 },
+          "count": { "type": "integer", "minimum": 2 },
+          "description": { "type": "string", "minLength": 1 },
+          "rules": { "type": "array", "minItems": 1, "items": { "type": "object" } }
+        }
+      }
+    }
+  }
+}

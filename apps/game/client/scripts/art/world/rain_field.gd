@@ -47,8 +47,7 @@ func _exit_tree() -> void:
 
 
 func _build() -> void:
-	var drop_mesh := BoxMesh.new()
-	drop_mesh.size = Vector3(0.018, 0.3, 0.018)
+	var drop_mesh := PropLibrary.bare_mesh("fx/rain_drop")
 	var drop_mat := PixelStyle.make_custom_emissive(Color(0.62, 0.74, 0.92), 0.5)
 
 	_fall = CPUParticles3D.new()
@@ -78,8 +77,7 @@ func _build() -> void:
 	)
 	add_child(_fall)
 
-	var splash_mesh := BoxMesh.new()
-	splash_mesh.size = Vector3(0.09, 0.03, 0.09)
+	var splash_mesh := PropLibrary.bare_mesh("fx/splash_chip")
 	_splash = CPUParticles3D.new()
 	_splash.name = "Splash"
 	_splash.mesh = splash_mesh

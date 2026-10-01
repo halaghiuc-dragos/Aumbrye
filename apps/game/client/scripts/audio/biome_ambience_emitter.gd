@@ -23,7 +23,7 @@ func _process(delta: float) -> void:
 	if _remaining > 0.0:
 		return
 	_remaining = _rng.randf_range(min_interval, max_interval)
-	var camera := get_viewport().get_camera_3d()
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	if camera == null or camera.global_position.distance_squared_to(global_position) > hearing_radius * hearing_radius:
 		return
 	if AudioDirector:

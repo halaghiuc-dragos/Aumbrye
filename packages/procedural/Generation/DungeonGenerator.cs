@@ -28,8 +28,7 @@ public sealed class GenerationOptions
 /// </para>
 /// <para>That split is now declared in the definition itself via
 /// <c>generatorCapabilities</c>, so a client consuming a server-issued definition knows to run its
-/// own content pass rather than assuming the floor has no content. See
-/// docs/ADR/0002-procgen-authority-split.md for the contract and the path to closing the gap.</para>
+/// own content pass rather than assuming the floor has no content.</para>
 /// </remarks>
 public static class DungeonGenerator
 {

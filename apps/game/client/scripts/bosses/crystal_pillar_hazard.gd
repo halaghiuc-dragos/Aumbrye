@@ -40,7 +40,7 @@ func _build_refraction_cover() -> void:
 	add_child(cover)
 
 
-## `BS-04`: colourblind mode now remaps this the same way it remaps every other hazard telegraph
+## Colourblind mode now remaps this the same way it remaps every other hazard telegraph
 ## (see `arena_hazard._telegraph_tint()`), rather than keeping a hardcoded blue that never changed.
 func _telegraph_tint() -> Color:
 	if AccessibilitySettings.colorblind_mode != "default":

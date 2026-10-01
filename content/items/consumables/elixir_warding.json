@@ -2,8 +2,6 @@
   "id": "elixir_warding",
   "name": "Elixir of Warding",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 5,
   "rarity": "epic",
   "description": "Poured over the tongue rather than drunk. The distinction was insisted upon.",

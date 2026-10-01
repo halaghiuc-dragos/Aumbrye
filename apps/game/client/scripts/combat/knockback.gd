@@ -1,11 +1,11 @@
 extends Node
 class_name Knockback
 
-## `PH-01`: the piece that was missing entirely -- a hit changed numbers, never positions. This is
+## The piece that was missing entirely -- a hit changed numbers, never positions. This is
 ## a small impulse accumulator, not a physics body: it owns a horizontal velocity that decays
 ## toward zero, and the owning `CharacterBody3D` reads it once a frame (`consume()`) and folds it
 ## into its own `velocity` before `move_and_slide()`. Nothing here calls `move_and_slide()` itself
-## -- this codebase's only mover is the character body's own physics step (see the trap in PH-01:
+## -- this codebase's only mover is the character body's own physics step (see the trap:
 ## no `RigidBody3D`, no `global_position +=`).
 
 ## Impulse bleeds off at this rate (m/s per second), so a typical strength is spent in ~0.15 s.

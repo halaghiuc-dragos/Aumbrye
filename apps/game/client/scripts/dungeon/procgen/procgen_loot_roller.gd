@@ -10,11 +10,16 @@ const ROLE_SHARES := {
 }
 
 
-## `bonus_share`: SY-08's day-time mechanical tie -- a flat value bonus (roughly one common item's
+## `bonus_share`: day-time mechanical tie -- a flat value bonus (roughly one common item's
 ## worth) added on top of the normal share, so a chest opened on a floor generated in daylight
 ## tends to hold one more item rather than a guaranteed-but-arbitrary extra slot.
 static func roll_chest(
-	biome: Dictionary, role: String, tier: int, rng: RandomNumberGenerator, bonus_share: float = 0.0
+	biome: Dictionary,
+	role: String,
+	tier: int,
+	rng: RandomNumberGenerator,
+	bonus_share: float = 0.0,
+	locked_items: Array = []
 ) -> Array:
 	var tables: Dictionary = biome.get("lootTables", {})
 	var table: Array = tables.get(role, [])
@@ -25,7 +30,7 @@ static func roll_chest(
 		budgets.get("lootPerTier", 14)
 	) * float(tier - 1)
 	var share := total_budget * float(ROLE_SHARES.get(role, 0.15)) + bonus_share
-	return _fill_share(table, tier, share, rng)
+	return _fill_share(table, tier, share, rng, locked_items)
 
 
 static func estimate_loot_value(loot: Array) -> float:
@@ -45,7 +50,9 @@ const MAX_CHEST_STACKS := 8
 const MAX_OVERSPEND_SKIPS := 4
 
 
-static func _fill_share(table: Array, tier: int, share: float, rng: RandomNumberGenerator) -> Array:
+static func _fill_share(
+	table: Array, tier: int, share: float, rng: RandomNumberGenerator, locked_items: Array
+) -> Array:
 	var items: Array = []
 	var remaining := maxf(share, 1.0)
 	var overspend_skips := 0
@@ -54,7 +61,9 @@ static func _fill_share(table: Array, tier: int, share: float, rng: RandomNumber
 			break
 		if items.size() >= MAX_CHEST_STACKS:
 			break
-		var entry := _pick_weighted(table, tier, rng, 0.0 if items.is_empty() else remaining)
+		var entry := _pick_weighted(
+			table, tier, rng, locked_items, 0.0 if items.is_empty() else remaining
+		)
 		if entry.is_empty():
 			break
 		var item_id: String = str(entry.get("itemId", ""))
@@ -72,7 +81,7 @@ static func _fill_share(table: Array, tier: int, share: float, rng: RandomNumber
 		items.append({"itemId": item_id, "quantity": quantity})
 		remaining -= value
 	if items.is_empty():
-		var fallback := _pick_weighted(table, tier, rng)
+		var fallback := _pick_weighted(table, tier, rng, locked_items)
 		if not fallback.is_empty():
 			var item_id: String = str(fallback.get("itemId", ""))
 			items.append({"itemId": item_id, "quantity": _quantity_range(fallback)[0]})
@@ -91,7 +100,11 @@ static func _quantity_range(entry: Dictionary) -> Array:
 
 
 static func _pick_weighted(
-	table: Array, tier: int, rng: RandomNumberGenerator, budget_ceiling: float = 0.0
+	table: Array,
+	tier: int,
+	rng: RandomNumberGenerator,
+	locked_items: Array,
+	budget_ceiling: float = 0.0
 ) -> Dictionary:
 	var eligible: Array = []
 	for entry in table:
@@ -99,9 +112,9 @@ static func _pick_weighted(
 		if min_tier > tier:
 			continue
 		var entry_item_id := str(entry.get("itemId", ""))
-		# Vault-gated items are not in the pool until the character has earned them; an unlisted
-		# item is always available, so this only ever removes the handful named in vault.json.
-		if entry_item_id != "" and VaultService and not VaultService.is_item_available(entry_item_id):
+		# Vault-gated items are not in the pool until the character has earned them. The locked list
+		# is the run's own snapshot, not the live save, so a seed rolls the same chests every time.
+		if entry_item_id != "" and locked_items.has(entry_item_id):
 			continue
 		if budget_ceiling > 0.0:
 			if (

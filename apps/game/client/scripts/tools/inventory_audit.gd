@@ -69,35 +69,19 @@ func _total_items(inv: GridInventory) -> int:
 	return total
 
 
-## Re-derive occupancy from the slot list and report any collision or stray cell.
+## Every slot holds a known item, and the list never outgrows the bag.
 func _check_grid(inv: GridInventory, context: String) -> void:
-	var seen: Dictionary = {}
+	if inv.slots.size() > inv.capacity():
+		_fail("%s: %d slots in a bag of %d" % [context, inv.slots.size(), inv.capacity()])
+		return
 	for i in inv.slots.size():
 		var slot: Dictionary = inv.slots[i]
-		var def := ItemCatalog.get_definition(slot.get("itemId", ""))
-		if def.is_empty():
+		if ItemCatalog.get_definition(slot.get("itemId", "")).is_empty():
 			_fail("%s: slot %d has unknown item '%s'" % [context, i, slot.get("itemId", "")])
-			continue
-		var x: int = int(slot.get("x", 0))
-		var y: int = int(slot.get("y", 0))
-		var w: int = int(def.get("gridWidth", 1))
-		var h: int = int(def.get("gridHeight", 1))
-		if x < 0 or y < 0 or x + w > inv.grid_width or y + h > inv.grid_height:
-			_fail(
-				"%s: %s at (%d,%d) size %dx%d is outside the %dx%d grid"
-				% [context, slot.get("itemId", ""), x, y, w, h, inv.grid_width, inv.grid_height]
-			)
-			continue
-		for yy in range(y, y + h):
-			for xx in range(x, x + w):
-				var key := yy * inv.grid_width + xx
-				if seen.has(key):
-					_fail(
-						"%s: %s at (%d,%d) overlaps %s at cell (%d,%d)"
-						% [context, slot.get("itemId", ""), x, y, seen[key], xx, yy]
-					)
-					return
-				seen[key] = slot.get("itemId", "")
+			return
+		if slot.has("x") or slot.has("y"):
+			_fail("%s: slot %d still carries a cell" % [context, i])
+			return
 
 
 # --- checks ----------------------------------------------------------------------

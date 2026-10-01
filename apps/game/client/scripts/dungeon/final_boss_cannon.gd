@@ -2,6 +2,7 @@ extends Node3D
 
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const INTERACT_RANGE := 2.6
 
 signal fired
 
@@ -11,17 +12,13 @@ var _boss: Node
 var _loaded := 0
 var _required := 3
 var _fired := false
-var _near_player := false
+var _selected := false
 var _label: Label3D
-var _interact_area: Area3D
 
 
 func _ready() -> void:
 	_boss = get_node_or_null(boss_path)
 	DioramaSkin.build_cannon(self, BiomeRegistry.BIOME_CASTLE)
-	if get_node_or_null("InteractArea") == null:
-		_build_interact_area()
-	_interact_area = get_node_or_null("InteractArea") as Area3D
 	_label = get_node_or_null("Label3D") as Label3D
 	if _label == null:
 		_label = Label3D.new()
@@ -32,24 +29,16 @@ func _ready() -> void:
 		_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 		_label.position = Vector3(0.0, 2.5, 0.0)
 		add_child(_label)
-	if _interact_area:
-		_interact_area.body_entered.connect(_on_body_entered)
-		_interact_area.body_exited.connect(_on_body_exited)
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		3,
+		Callable(self, "_interact"),
+		Callable(),
+		Callable(self, "_set_selected_prompt")
+	)
 	_update_label()
-
-
-func _build_interact_area() -> void:
-	var interact := Area3D.new()
-	interact.name = "InteractArea"
-	interact.collision_layer = 0
-	interact.collision_mask = 2
-	interact.monitoring = true
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(3.0, 3.0, 3.0)
-	shape.shape = box
-	interact.add_child(shape)
-	add_child(interact)
 
 
 func configure(boss: Node, required: int = 3) -> void:
@@ -69,13 +58,10 @@ func get_loaded_count() -> int:
 	return _loaded
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not PlayerInput.interact_just_pressed(event) or not _near_player or _fired:
-		return
-	if _loaded < _required:
+func _interact() -> void:
+	if _fired or _loaded < _required:
 		return
 	_fire()
-	get_viewport().set_input_as_handled()
 
 
 func _fire() -> void:
@@ -90,22 +76,15 @@ func _fire() -> void:
 	_update_label()
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = true
-		_update_label()
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = false
-		_update_label()
+func _set_selected_prompt(active: bool) -> void:
+	_selected = active
+	_update_label()
 
 
 func _update_label() -> void:
 	if _label == null:
 		return
-	if not _near_player:
+	if not _selected:
 		_label.visible = false
 		return
 	_label.visible = true

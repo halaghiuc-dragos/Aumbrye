@@ -3,14 +3,11 @@
   "name": "The Apostate",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 2,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "Consecrated, then used against the people who consecrated it. Nobody reconsecrated it.",
   "value": 880,
   "lootValue": 440,
-  "maxDurability": 130,
   "unique": true,
   "baseId": "greatsword",
   "biome": "dark_cathedral",
@@ -27,8 +24,7 @@
     }
   ],
   "stats": {
-    "physicalDamage": 32,
-    "arcaneDamage": 12
+    "physicalDamage": 44
   },
   "weaponId": "greatsword"
 }

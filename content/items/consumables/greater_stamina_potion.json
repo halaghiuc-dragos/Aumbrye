@@ -2,8 +2,6 @@
   "id": "greater_stamina_potion",
   "name": "Greater Stamina Potion",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 5,
   "rarity": "magic",
   "description": "Drunk between rooms, by people who have learned to count doors.",

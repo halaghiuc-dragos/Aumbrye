@@ -5,7 +5,7 @@
   "loreText": "No shift has ended here in a very long time.",
   "scene": "res://scenes/enemies/iron_foreman.tscn",
   "threat_cost": 68,
-  "isBoss": true,
+  "isElite": true,
   "health": 446,
   "poise": 223,
   "move_speed": 3.6,
@@ -32,6 +32,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_light_1",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.39,
@@ -43,10 +44,14 @@
       "max_range": 2.8,
       "telegraph_shape": "circle",
       "attackClass": "blockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.94,
@@ -57,11 +62,12 @@
       "attack_poise_damage": 38,
       "max_range": 3.08,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.0
     },
     {
       "id": "chain",
+      "anim": "attack_light_3",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.55,
@@ -89,11 +95,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "sig_press",
+      "anim": "attack_heavy",
       "name": "The Press",
       "weight": 1.3,
       "windup_duration": 1.0,
@@ -123,7 +130,11 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -228,7 +239,7 @@
           "attack_poise_damage": 38,
           "max_range": 3.08,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -243,7 +254,7 @@
           "attack_poise_damage": 37,
           "max_range": 3.5,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {

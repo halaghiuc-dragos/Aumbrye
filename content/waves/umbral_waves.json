@@ -113,7 +113,6 @@
       "label": "Armor",
       "rarity_weights": { "common": 25, "magic": 30, "rare": 25, "epic": 15, "legendary": 5 },
       "pool": [
-        "iron_boots",
         "iron_helm",
         "steel_plate",
         "steel_helm",
@@ -125,7 +124,7 @@
       "id": "rings",
       "label": "Rings",
       "rarity_weights": { "magic": 30, "rare": 35, "epic": 25, "legendary": 8, "aumbral": 2 },
-      "pool": ["gold_ring", "silver_ring", "castle_ring", "ruby_amulet", "mythic_ring"]
+      "pool": ["gold_ring", "silver_ring", "castle_ring", "mythic_ring"]
     },
     {
       "id": "weapons",

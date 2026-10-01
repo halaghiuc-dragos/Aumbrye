@@ -3,7 +3,7 @@ extends Control
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 
-## UX-10: toast lane -- top-right, stacked. Every live instance repositions itself whenever one
+## Toast lane -- top-right, stacked. Every live instance repositions itself whenever one
 ## joins or leaves so the stack never overlaps or leaves a gap.
 const TOAST_HEIGHT := 76.0
 const TOAST_SPACING := 8.0
@@ -31,9 +31,8 @@ func show_loot(display_name: String, color: Color) -> void:
 	_show(tr("LOOT_TOAST").format({"name": display_name}), color)
 
 
-## SY-02: a quest's progress counter moving mid-run used to have no signal to show anything off
-## of -- a toast rather than the banner lane, since a run can advance several quests in quick
-## succession and the banner is one-at-a-time by design.
+## A quest's progress counter moving mid-run shows a toast rather than the banner lane, since a
+## run can advance several quests in quick succession and the banner is one-at-a-time by design.
 func show_quest_progress(title: String, count: int, required: int) -> void:
 	_show(tr("QUEST_PROGRESS_TOAST").format({"title": title, "count": count, "required": required}), Color(0.75, 0.85, 1.0))
 

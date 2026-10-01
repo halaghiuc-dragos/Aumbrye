@@ -10,6 +10,7 @@ const FLOOR_HALF := 105.0
 const ARENA_HALF := 34.0
 const TILE_FIELD_HALF := 62.0
 const CASTLE_BACK_Z := -88.0
+const MODULE_SIZE := 10.0
 
 
 static func apply(root: Node3D) -> void:
@@ -99,39 +100,36 @@ static func _build_floor(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(floor_body)
 
 	var span := FLOOR_HALF * 2.0
-
-	var batch := PixelBoxBatch.new()
-	batch.add(
-		Vector3(TILE_FIELD_HALF * 2.0, TILE_BED_THICK, TILE_FIELD_HALF * 2.0),
-		Vector3(0.0, TILE_TOP - TILE_BED_DROP - TILE_BED_THICK * 0.5, 0.0),
-		mats.grass
-	)
-	var origin := -TILE_FIELD_HALF + TILE_SIZE * 0.5
-	var side := int(TILE_FIELD_HALF * 2.0 / TILE_SIZE)
-	for row in side:
-		for col in side:
-			var x := origin + col * TILE_SIZE
-			var z := origin + row * TILE_SIZE
-			var alt := (row + col) % 2 == 1
-			var mat: Material = mats.grass_alt if alt else mats.grass
-			if Vector2(x, z).length() < ARENA_HALF + 4.0:
-				mat = mats.floor
-			batch.add(Vector3(TILE_SIZE, 0.12, TILE_SIZE), Vector3(x, 0.06, z), mat)
-	batch.commit(
-		floor_body,
-		"Tiles",
-		AABB(
-			Vector3(-TILE_FIELD_HALF, -0.5, -TILE_FIELD_HALF),
-			Vector3(TILE_FIELD_HALF * 2.0, 1.5, TILE_FIELD_HALF * 2.0)
+	var options := {"materials": mats}
+	# The arena paving is one stone; the hub's checker alternates two, so both map to the same.
+	var paving_materials: Dictionary = mats.duplicate()
+	paving_materials["floor_alt"] = mats.floor
+	var paving_options := {"materials": paving_materials}
+	# Ten-metre modules of turf, with paving (the hub's stone modules) under the arena itself.
+	var grass: Array = [[] as Array[Transform3D], [] as Array[Transform3D]]
+	var stone: Array = [[] as Array[Transform3D], [] as Array[Transform3D]]
+	var modules := int(TILE_FIELD_HALF * 2.0 / MODULE_SIZE)
+	var origin := -float(modules) * MODULE_SIZE * 0.5 + MODULE_SIZE * 0.5
+	for column in modules:
+		for row in modules:
+			var centre := Vector3(origin + column * MODULE_SIZE, 0.0, origin + row * MODULE_SIZE)
+			var bucket: Array = stone if Vector2(centre.x, centre.z).length() < ARENA_HALF + 4.0 else grass
+			(bucket[(column + row) % 2] as Array[Transform3D]).append(Transform3D(Basis.IDENTITY, centre))
+	for parity in 2:
+		PropLibrary.scatter_themed(
+			floor_body, "nature/grass_module_%d" % parity, PixelDioramaStyle.PaletteTheme.CASTLE,
+			grass[parity] as Array[Transform3D], "Turf%d" % parity, options
 		)
-	)
-	PixelDioramaStyle.add_box(
-		floor_body,
-		Vector3(span, 0.1, span),
-		Vector3(0.0, 0.04, 0.0),
-		mats.grass_dark,
-		"FarField"
-	)
+		PropLibrary.scatter_themed(
+			floor_body, "hub/floor_module_%d" % parity, PixelDioramaStyle.PaletteTheme.CASTLE,
+			stone[parity] as Array[Transform3D], "Paving%d" % parity, paving_options
+		)
+	var plate := Node3D.new()
+	plate.name = "FarField"
+	plate.position = Vector3(0.0, -0.01, 0.0)
+	plate.scale = Vector3(span, 1.0, span)
+	floor_body.add_child(plate)
+	PropLibrary.attach_themed(plate, "nature/ground_plate", PixelDioramaStyle.PaletteTheme.CASTLE, options)
 
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -149,6 +147,7 @@ static func _spawn_grass_patches(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(patches)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90210
+	var by_variant: Array = [[] as Array[Transform3D], [] as Array[Transform3D], [] as Array[Transform3D]]
 	for i in 260:
 		var x := rng.randf_range(-FLOOR_HALF + 4.0, FLOOR_HALF - 4.0)
 		var z := rng.randf_range(-FLOOR_HALF + 4.0, FLOOR_HALF - 8.0)
@@ -156,36 +155,22 @@ static func _spawn_grass_patches(root: Node3D, mats: Dictionary) -> void:
 			continue
 		if absf(z - CASTLE_BACK_Z) < 12.0:
 			continue
-		_spawn_grass_tuft(patches, mats, rng, Vector3(x, 0.0, z), 1.0, "Tuft_%d" % i)
+		_add_tuft(by_variant, rng, Vector3(x, 0.0, z), 1.0)
 	for i in 90:
 		var angle := rng.randf_range(0.0, TAU)
 		var dist := rng.randf_range(11.0, ARENA_HALF - 2.5)
-		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		_spawn_grass_tuft(patches, mats, rng, pos, 0.62, "ArenaTuft_%d" % i)
-
-
-static func _spawn_grass_tuft(
-	parent: Node3D,
-	mats: Dictionary,
-	rng: RandomNumberGenerator,
-	base: Vector3,
-	scale: float,
-	node_name: String
-) -> void:
-	var blades := rng.randi_range(3, 5)
-	for i in blades:
-		var h := rng.randf_range(0.16, 0.5) * scale
-		var offset := Vector3(rng.randf_range(-0.18, 0.18), 0.0, rng.randf_range(-0.18, 0.18))
-		var mat: Material = mats.blade if rng.randf() > 0.45 else mats.blade_alt
-		var blade := PixelDioramaStyle.add_box(
-			parent,
-			Vector3(0.075, h, 0.075),
-			base + offset + Vector3(0.0, h * 0.5, 0.0),
-			mat,
-			"%s_%d" % [node_name, i]
+		_add_tuft(by_variant, rng, Vector3(cos(angle) * dist, 0.0, sin(angle) * dist), 0.62)
+	for variant in by_variant.size():
+		PropLibrary.scatter_themed(
+			patches, "nature/tuft_%d" % variant, PixelDioramaStyle.PaletteTheme.CASTLE,
+			by_variant[variant] as Array[Transform3D], "Tufts%d" % variant, {"materials": mats}
 		)
-		blade.rotation.z = rng.randf_range(-0.22, 0.22)
-		blade.rotation.x = rng.randf_range(-0.22, 0.22)
+
+
+static func _add_tuft(by_variant: Array, rng: RandomNumberGenerator, at: Vector3, tuft_scale: float) -> void:
+	var variant := rng.randi_range(0, by_variant.size() - 1)
+	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * tuft_scale)
+	(by_variant[variant] as Array[Transform3D]).append(Transform3D(basis, at))
 
 
 static func _spawn_flowers(root: Node3D, mats: Dictionary) -> void:
@@ -196,25 +181,22 @@ static func _spawn_flowers(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(flowers)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 33112
-	var palette: Array[Material] = [
-		mats.flower_red, mats.flower_yellow, mats.flower_purple, mats.flower_white
-	]
+	var colours: Array[String] = ["red", "yellow", "purple", "white"]
+	var by_colour: Dictionary = {}
+	for colour in colours:
+		by_colour[colour] = [] as Array[Transform3D]
 	for i in 110:
 		var x := rng.randf_range(-FLOOR_HALF + 8.0, FLOOR_HALF - 8.0)
 		var z := rng.randf_range(-FLOOR_HALF + 8.0, FLOOR_HALF - 12.0)
 		if Vector2(x, z).length() < ARENA_HALF + 1.0:
 			continue
-		var mat: Material = palette[rng.randi_range(0, palette.size() - 1)]
-		var stem_h := rng.randf_range(0.22, 0.42)
-		PixelDioramaStyle.add_box(
-			flowers,
-			Vector3(0.06, stem_h, 0.06),
-			Vector3(x, stem_h * 0.5, z),
-			mats.stem,
-			"Stem_%d" % i
-		)
-		PixelDioramaStyle.add_box(
-			flowers, Vector3(0.18, 0.14, 0.18), Vector3(x, stem_h + 0.08, z), mat, "Bloom_%d" % i
+		var colour: String = colours[rng.randi_range(0, colours.size() - 1)]
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(1.0, rng.randf_range(0.7, 1.3), 1.0))
+		(by_colour[colour] as Array[Transform3D]).append(Transform3D(basis, Vector3(x, 0.0, z)))
+	for colour in colours:
+		PropLibrary.scatter_themed(
+			flowers, "nature/flower_%s" % colour, PixelDioramaStyle.PaletteTheme.CASTLE,
+			by_colour[colour] as Array[Transform3D], "Flowers_%s" % colour, {"materials": mats}
 		)
 
 
@@ -225,26 +207,11 @@ static func _spawn_garden_beds(root: Node3D, mats: Dictionary) -> void:
 	beds.name = "GardenBeds"
 	root.add_child(beds)
 	for offset in [-18.0, 18.0]:
-		PixelDioramaStyle.add_box(
-			beds,
-			Vector3(8.0, 0.12, 3.2),
-			Vector3(offset, 0.06, ARENA_HALF - 6.0),
-			mats.grass_dark,
-			"BedSoil_%d" % int(offset)
-		)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = int(offset) * 17
-		for i in 12:
-			var lx: float = float(offset) + rng.randf_range(-3.5, 3.5)
-			var lz: float = ARENA_HALF - 6.0 + rng.randf_range(-1.2, 1.2)
-			var bloom_mat: Material = mats.flower_red if i % 3 == 0 else mats.flower_yellow
-			PixelDioramaStyle.add_box(
-				beds,
-				Vector3(0.16, 0.12, 0.16),
-				Vector3(lx, 0.22, lz),
-				bloom_mat,
-				"BedFlower_%d_%d" % [int(offset), i]
-			)
+		var bed := Node3D.new()
+		bed.name = "Bed_%d" % int(offset)
+		bed.position = Vector3(offset, 0.0, ARENA_HALF - 6.0)
+		beds.add_child(bed)
+		PropLibrary.attach_themed(bed, "nature/garden_bed", PixelDioramaStyle.PaletteTheme.CASTLE, {"materials": mats})
 
 
 static func _spawn_trees(root: Node3D, mats: Dictionary) -> void:
@@ -255,121 +222,24 @@ static func _spawn_trees(root: Node3D, mats: Dictionary) -> void:
 	root.add_child(trees)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 44021
+	var species_ids: Array[String] = ["oak", "pine", "birch", "bush", "flowering_tree"]
+	var by_species: Dictionary = {}
+	for id in species_ids:
+		by_species[id] = [] as Array[Transform3D]
 	for i in 64:
 		var x := rng.randf_range(-FLOOR_HALF + 8.0, FLOOR_HALF - 8.0)
 		var z := rng.randf_range(-FLOOR_HALF + 8.0, FLOOR_HALF - 16.0)
 		if Vector2(x, z).length() < ARENA_HALF + 3.0:
 			continue
-		var species := rng.randi_range(0, 4)
-		var scale := rng.randf_range(0.75, 1.45)
-		_spawn_tree_species(trees, Vector3(x, 0.0, z), mats, species, scale, i)
-
-
-static func _spawn_tree_species(
-	parent: Node3D, pos: Vector3, mats: Dictionary, species: int, scale: float, index: int
-) -> void:
-	var tree := Node3D.new()
-	tree.name = "Tree_%d" % index
-	tree.position = pos
-	parent.add_child(tree)
-	match species:
-		0:
-			_spawn_oak_tree(tree, mats, scale)
-		1:
-			_spawn_pine_tree(tree, mats, scale)
-		2:
-			_spawn_birch_tree(tree, mats, scale)
-		3:
-			_spawn_bush_cluster(tree, mats, scale)
-		_:
-			_spawn_flowering_tree(tree, mats, scale)
-
-
-static func _spawn_oak_tree(parent: Node3D, mats: Dictionary, scale: float) -> void:
-	var trunk_h := 2.4 * scale
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(0.45 * scale, trunk_h, 0.45 * scale),
-		Vector3(0.0, trunk_h * 0.5, 0.0),
-		mats.wood,
-		"Trunk"
-	)
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(2.4 * scale, 1.7 * scale, 2.4 * scale),
-		Vector3(0.0, trunk_h + 0.75 * scale, 0.0),
-		mats.grass,
-		"Canopy"
-	)
-
-
-static func _spawn_pine_tree(parent: Node3D, mats: Dictionary, scale: float) -> void:
-	var trunk_h := 3.2 * scale
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(0.28 * scale, trunk_h, 0.28 * scale),
-		Vector3(0.0, trunk_h * 0.5, 0.0),
-		mats.wood,
-		"Trunk"
-	)
-	for layer in 3:
-		var layer_scale := 1.0 - float(layer) * 0.22
-		PixelDioramaStyle.add_box(
-			parent,
-			Vector3(1.6 * scale * layer_scale, 0.9 * scale, 1.6 * scale * layer_scale),
-			Vector3(0.0, trunk_h + 0.35 * scale + float(layer) * 0.75 * scale, 0.0),
-			mats.grass_dark,
-			"PineLayer_%d" % layer
+		var species: String = species_ids[rng.randi_range(0, species_ids.size() - 1)]
+		var tree_scale := rng.randf_range(0.75, 1.45)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * tree_scale)
+		(by_species[species] as Array[Transform3D]).append(Transform3D(basis, Vector3(x, 0.0, z)))
+	for species in species_ids:
+		PropLibrary.scatter_themed(
+			trees, "nature/%s" % species, PixelDioramaStyle.PaletteTheme.CASTLE,
+			by_species[species] as Array[Transform3D], "Trees_%s" % species, {"materials": mats}
 		)
-
-
-static func _spawn_birch_tree(parent: Node3D, mats: Dictionary, scale: float) -> void:
-	var trunk_h := 2.8 * scale
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(0.22 * scale, trunk_h, 0.22 * scale),
-		Vector3(0.0, trunk_h * 0.5, 0.0),
-		mats.birch,
-		"Trunk"
-	)
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(1.5 * scale, 1.1 * scale, 1.5 * scale),
-		Vector3(0.0, trunk_h + 0.55 * scale, 0.0),
-		mats.grass_alt,
-		"Canopy"
-	)
-
-
-static func _spawn_bush_cluster(parent: Node3D, mats: Dictionary, scale: float) -> void:
-	for i in 3:
-		var angle := float(i) / 3.0 * TAU
-		var offset := Vector3(cos(angle), 0.0, sin(angle)) * 0.55 * scale
-		PixelDioramaStyle.add_box(
-			parent,
-			Vector3(1.1 * scale, 0.8 * scale, 1.1 * scale),
-			offset + Vector3(0.0, 0.45 * scale, 0.0),
-			mats.grass_dark if i % 2 == 0 else mats.grass,
-			"Bush_%d" % i
-		)
-
-
-static func _spawn_flowering_tree(parent: Node3D, mats: Dictionary, scale: float) -> void:
-	var trunk_h := 2.0 * scale
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(0.35 * scale, trunk_h, 0.35 * scale),
-		Vector3(0.0, trunk_h * 0.5, 0.0),
-		mats.wood,
-		"Trunk"
-	)
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(1.8 * scale, 1.3 * scale, 1.8 * scale),
-		Vector3(0.0, trunk_h + 0.6 * scale, 0.0),
-		mats.flower_purple,
-		"BloomCanopy"
-	)
 
 
 static func _spawn_hedges(root: Node3D, mats: Dictionary) -> void:
@@ -378,19 +248,15 @@ static func _spawn_hedges(root: Node3D, mats: Dictionary) -> void:
 	var hedges := Node3D.new()
 	hedges.name = "Hedges"
 	root.add_child(hedges)
-	var hedge_mat: Material = mats.grass_dark
+	var placements: Array[Transform3D] = []
 	for side in [-1.0, 1.0]:
 		for i in 14:
 			var t := float(i) / 13.0
 			var x := lerpf(-ARENA_HALF - 8.0, ARENA_HALF + 8.0, t)
-			var z: float = float(side) * (ARENA_HALF + 5.0)
-			PixelDioramaStyle.add_box(
-				hedges,
-				Vector3(2.2, 0.9, 1.2),
-				Vector3(x, 0.45, z),
-				hedge_mat,
-				"Hedge_%s_%d" % [str(side), i]
-			)
+			placements.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.0, float(side) * (ARENA_HALF + 5.0))))
+	PropLibrary.scatter_themed(
+		hedges, "nature/hedge", PixelDioramaStyle.PaletteTheme.CASTLE, placements, "HedgeRow", {"materials": mats}
+	)
 
 
 static func _spawn_birds(root: Node3D) -> void:
@@ -416,23 +282,7 @@ static func _spawn_birds(root: Node3D) -> void:
 		bird.set_meta("orbit_speed", rng.randf_range(0.25, 0.85))
 		bird.set_meta("orbit_phase", rng.randf() * TAU)
 		bird.set_meta("wing_phase", rng.randf() * TAU)
-		var body := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.32, 0.1, 0.5)
-		body.mesh = mesh
-		body.name = "Body"
-		bird.add_child(body)
-		var wing_l := MeshInstance3D.new()
-		var wing_mesh := BoxMesh.new()
-		wing_mesh.size = Vector3(0.5, 0.05, 0.16)
-		wing_l.mesh = wing_mesh
-		wing_l.name = "WingL"
-		wing_l.position = Vector3(-0.26, 0.0, 0.0)
-		bird.add_child(wing_l)
-		var wing_r := wing_l.duplicate() as MeshInstance3D
-		wing_r.name = "WingR"
-		wing_r.position = Vector3(0.26, 0.0, 0.0)
-		bird.add_child(wing_r)
+		PropLibrary.attach_themed(bird, "nature/bird", PixelDioramaStyle.PaletteTheme.CASTLE)
 		birds.add_child(bird)
 
 
@@ -443,37 +293,8 @@ static func _build_castle_backdrop(root: Node3D, mats: Dictionary) -> void:
 	castle.name = "CastleBackdrop"
 	castle.position = Vector3(0.0, 0.0, CASTLE_BACK_Z)
 	root.add_child(castle)
+	PropLibrary.attach_themed(
+		castle, "nature/castle_backdrop", PixelDioramaStyle.PaletteTheme.CASTLE, {"materials": mats}
+	)
 
-	var wall_h := 12.0
-	var span := 52.0
-	PixelDioramaStyle.add_box(
-		castle, Vector3(span, wall_h, 1.2), Vector3(0.0, wall_h * 0.5, 0.0), mats.wall, "MainWall"
-	)
-	for tower_x in [-span * 0.42, span * 0.42]:
-		PixelDioramaStyle.add_box(
-			castle,
-			Vector3(3.6, wall_h + 3.5, 3.6),
-			Vector3(tower_x, (wall_h + 3.5) * 0.5, 0.4),
-			mats.wall,
-			"Tower"
-		)
-		PixelDioramaStyle.add_box(
-			castle,
-			Vector3(4.0, 0.55, 4.0),
-			Vector3(tower_x, wall_h + 3.75, 0.4),
-			mats.accent,
-			"TowerCap"
-		)
-	for i in 11:
-		var t := float(i) / 10.0
-		var x := lerpf(-span * 0.5 + 1.0, span * 0.5 - 1.0, t)
-		PixelDioramaStyle.add_box(
-			castle,
-			Vector3(1.5, 1.3, 1.0),
-			Vector3(x, wall_h + 0.65, 0.2),
-			mats.accent,
-			"Merlon_%d" % i
-		)
-	PixelDioramaStyle.add_box(
-		castle, Vector3(5.0, 6.5, 2.2), Vector3(0.0, 3.25, 1.2), mats.accent, "Gatehouse"
-	)
+

@@ -38,6 +38,11 @@
       "minItems": 3,
       "maxItems": 3
     },
-    "color": { "type": "string" }
+    "color": { "type": "string" },
+    "visual": {
+      "type": "string",
+      "enum": ["spikes", "falling"],
+      "description": "A bespoke body for the trap; without it the trap is built from its size and colour."
+    }
   }
 }

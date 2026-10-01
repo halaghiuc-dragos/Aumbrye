@@ -12,5 +12,14 @@
   "hitInterval": 0.5,
   "statusId": "bleed",
   "statusBuildUp": 30,
-  "enemyDamageMultiplier": 0.8
+  "enemyDamageMultiplier": 0.8,
+  "damage": 18,
+  "poiseDamage": 10,
+  "size": [
+    3,
+    1,
+    3
+  ],
+  "color": "#bf1f1a",
+  "visual": "spikes"
 }

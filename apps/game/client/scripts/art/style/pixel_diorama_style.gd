@@ -44,7 +44,6 @@ enum PaletteTheme {
 enum SurfaceKind { FLOOR, WALL, PROP, ACCENT }
 
 const PALETTE_JSON_PATH := "content/art/palettes.json"
-const STRUCTURE_DIR := "content/art/structures"
 
 const THEME_IDS: Array[String] = [
 	"castle",
@@ -75,6 +74,8 @@ const THEME_IDS: Array[String] = [
 ]
 
 const SHADER_PATH := "res://assets/shared/pixel_diorama_surface.gdshader"
+## Walls and floors: the same surface without the dissolve `discard`, which costs early depth testing.
+const WORLD_SHADER_PATH := "res://assets/shared/pixel_diorama_world.gdshader"
 const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
 const PORTAL_SHADER_PATH := "res://assets/shared/portal_ellipse.gdshader"
 
@@ -92,7 +93,6 @@ static var _palette_rows: Array = []
 static var _biome_theme_map: Dictionary = {}
 static var _palette_tuning: Dictionary = {}
 static var _atlas_exists_cache: Dictionary = {}
-static var _warned_unknown_mats: Dictionary = {}
 static var _portal_material_cache: Dictionary = {}
 
 
@@ -187,27 +187,6 @@ static func _apply_palette_tuning(mat: ShaderMaterial, theme: PaletteTheme) -> v
 		return
 	for key in (tuning as Dictionary).keys():
 		set_authored_param(mat, str(key), (tuning as Dictionary)[key])
-
-
-static func _resolve_structure_material(mats: Dictionary, mat_key: String) -> Material:
-	if mats.has(mat_key):
-		return mats[mat_key]
-	if not _warned_unknown_mats.has(mat_key):
-		_warned_unknown_mats[mat_key] = true
-		push_warning("PixelDioramaStyle.build_structure: unknown mat '%s', using wall" % mat_key)
-	return mats.get("wall", mats.values()[0])
-
-
-static func _vec3_from_array(raw: Variant, fallback := Vector3.ZERO) -> Vector3:
-	if raw is Array and (raw as Array).size() >= 3:
-		var arr: Array = raw
-		return Vector3(float(arr[0]), float(arr[1]), float(arr[2]))
-	return fallback
-
-
-static func _deg_to_rad_array(raw: Variant) -> Vector3:
-	var deg := _vec3_from_array(raw)
-	return Vector3(deg_to_rad(deg.x), deg_to_rad(deg.y), deg_to_rad(deg.z))
 
 
 const PALETTES: Array = [
@@ -534,7 +513,9 @@ static func make_surface_material(
 	if _surface_material_cache.has(key):
 		return _surface_material_cache[key] as Material
 
-	var shader := load(SHADER_PATH) as Shader
+	var shader := (
+		load(WORLD_SHADER_PATH) if surface in [SurfaceKind.FLOOR, SurfaceKind.WALL] else load(SHADER_PATH)
+	) as Shader
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
 	_configure_shader_material(mat)
@@ -806,118 +787,14 @@ static func snap_size2_to_pixel_grid(size: Vector2) -> Vector2:
 	)
 
 
-const MESH_SNAP := 0.1
-const MIN_BEVEL_SIZE := 0.34
-
-static var _bevel_mesh_cache: Dictionary = {}
-static var _bevel_mesh_cache_order: Array[String] = []
-static var _bevel_mesh_cache_hits := 0
-static var _bevel_mesh_cache_misses := 0
-static var _bevel_mesh_cache_evictions := 0
-static var _bevel_mesh_cache_peak := 0
-const BEVEL_MESH_CACHE_LIMIT := 256
-
-
-static func bevel_box_mesh(size: Vector3, bevel: float) -> Mesh:
-	var snapped_value := Vector3(
-		snappedf(size.x, MESH_SNAP), snappedf(size.y, MESH_SNAP), snappedf(size.z, MESH_SNAP)
-	)
-	var shortest: float = minf(snapped_value.x, minf(snapped_value.y, snapped_value.z))
-	if shortest < MIN_BEVEL_SIZE or bevel <= 0.001:
-		var plain := BoxMesh.new()
-		plain.size = size
-		return plain
-	var b: float = minf(bevel, shortest * 0.3)
-	var snapped_bevel := snappedf(b, MESH_SNAP)
-	var key := "%.2f_%.2f_%.2f_%.2f" % [snapped_value.x, snapped_value.y, snapped_value.z, snapped_bevel]
-	if _bevel_mesh_cache.has(key):
-		_bevel_mesh_cache_hits += 1
-		return _bevel_mesh_cache[key]
-	_bevel_mesh_cache_misses += 1
-	var half := snapped_value * 0.5
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var ix := half.x - b
-	var iz := half.z - b
-	var top := half.y
-	var bot := -half.y
-	var ring := [
-		Vector2(ix, half.z), Vector2(-ix, half.z),
-		Vector2(-half.x, iz), Vector2(-half.x, -iz),
-		Vector2(-ix, -half.z), Vector2(ix, -half.z),
-		Vector2(half.x, -iz), Vector2(half.x, iz),
-	]
-	for i in ring.size():
-		var a: Vector2 = ring[i]
-		var c: Vector2 = ring[(i + 1) % ring.size()]
-		var outward := Vector3(a.x + c.x, 0.0, a.y + c.y).normalized()
-		_emit_quad(
-			st,
-			[
-				Vector3(a.x, bot, a.y), Vector3(c.x, bot, c.y),
-				Vector3(c.x, top, c.y), Vector3(a.x, top, a.y),
-			],
-			outward
-		)
-	for i in range(1, ring.size() - 1):
-		_emit_tri(
-			st,
-			[
-				Vector3(ring[0].x, top, ring[0].y),
-				Vector3(ring[i].x, top, ring[i].y),
-				Vector3(ring[i + 1].x, top, ring[i + 1].y),
-			],
-			Vector3.UP
-		)
-		_emit_tri(
-			st,
-			[
-				Vector3(ring[0].x, bot, ring[0].y),
-				Vector3(ring[i].x, bot, ring[i].y),
-				Vector3(ring[i + 1].x, bot, ring[i + 1].y),
-			],
-			Vector3.DOWN
-		)
-	st.index()
-	var mesh := st.commit()
-	if _bevel_mesh_cache_order.size() >= BEVEL_MESH_CACHE_LIMIT:
-		var evicted_key: String = _bevel_mesh_cache_order.pop_front()
-		_bevel_mesh_cache.erase(evicted_key)
-		_bevel_mesh_cache_evictions += 1
-	_bevel_mesh_cache_order.append(key)
-	_bevel_mesh_cache[key] = mesh
-	_bevel_mesh_cache_peak = maxi(_bevel_mesh_cache_peak, _bevel_mesh_cache.size())
-	return mesh
-
-
 static func get_art_cache_stats() -> Dictionary:
 	return {
-		"bevel_meshes": {
-			"retained": _bevel_mesh_cache.size(), "limit": BEVEL_MESH_CACHE_LIMIT,
-			"peak": _bevel_mesh_cache_peak, "hits": _bevel_mesh_cache_hits,
-			"misses": _bevel_mesh_cache_misses, "evictions": _bevel_mesh_cache_evictions,
-		},
 		"materials": {
 			"surface": _surface_material_cache.size(), "prop": _prop_material_cache.size(),
 			"accent": _accent_material_cache.size(), "emissive": _emissive_material_cache.size(),
 			"portal": _portal_material_cache.size(),
 		},
 	}
-
-
-static func _emit_tri(st: SurfaceTool, pts: Array[Vector3], outward: Vector3) -> void:
-	var ordered := pts.duplicate()
-	var n: Vector3 = (ordered[1] as Vector3 - ordered[0]).cross(ordered[2] as Vector3 - ordered[0])
-	if n.dot(outward) > 0.0:
-		ordered.reverse()
-	for pt in ordered:
-		st.set_normal(outward)
-		st.add_vertex(pt)
-
-
-static func _emit_quad(st: SurfaceTool, pts: Array[Vector3], outward: Vector3) -> void:
-	_emit_tri(st, [pts[0], pts[1], pts[2]], outward)
-	_emit_tri(st, [pts[0], pts[2], pts[3]], outward)
 
 
 static func add_box(
@@ -940,34 +817,9 @@ static func add_box(
 	return mesh_inst
 
 
-## How far a stacked box sinks into the one beneath it.
-##
-## Boxes that butt at an exact shared plane leave two coincident faces, and the depth buffer has no
-## way to order them: the seam flickers between the two materials as the camera moves, which reads
-## as pixels tearing along the join. Large near/far ratios make it worse, and the hub runs its
-## ground out to 3800m for the skyline, so the ratio here is not something we can tighten.
-##
-## Seating the upper box a hair into the lower one removes the coincidence outright. The sliver is
-## buried inside solid geometry, so nothing about the silhouette changes.
-const SEAM_BITE := 0.012
-
-
 ## `add_box`, but the box grows downward by `bite` so its underside sits inside whatever it stands
 ## on. Use for anything stacked face-to-face; plain `add_box` is still right for free-floating
 ## detail that shares no plane with a neighbour.
-static func add_seated_box(
-	parent: Node3D,
-	size: Vector3,
-	position: Vector3,
-	material: Material,
-	node_name: String = "",
-	bite: float = SEAM_BITE
-) -> MeshInstance3D:
-	var seated_size := Vector3(size.x, size.y + bite, size.z)
-	var seated_pos := Vector3(position.x, position.y - bite * 0.5, position.z)
-	return add_box(parent, seated_size, seated_pos, material, node_name)
-
-
 static func make_portal_material(portal_id: String) -> ShaderMaterial:
 	if _portal_material_cache.has(portal_id):
 		return _portal_material_cache[portal_id] as ShaderMaterial
@@ -1084,7 +936,10 @@ static func build_portal(
 	var depth := float(interior.get("depth", 0.35))
 	var o := Vector3.ZERO
 
-	_build_portal_arch(visuals, o, frame_mat, accent_mat, floor_mat)
+	PropLibrary.attach_themed(
+		visuals, "portal_arch", PaletteTheme.CASTLE,
+		{"materials": {"wall": frame_mat, "accent": accent_mat, "floor": floor_mat}}
+	)
 	_build_portal_collision(visuals, o)
 	add_portal_interior(visuals, Vector2(2.6, 2.6), o + Vector3(0.0, 1.85, 0.04), portal_id, depth)
 
@@ -1113,104 +968,9 @@ static func build_portal(
 	return visuals
 
 
-const RING_SEGMENTS := 24
 const RING_CENTER_Y := 1.85
 const RING_RADIUS := 1.62
 const RING_DEPTH := 0.62
-
-
-static func _build_portal_arch(
-	visuals: Node3D, o: Vector3, frame_mat: Material, accent_mat: Material, floor_mat: Material
-) -> void:
-	add_box(visuals, Vector3(4.2, 0.24, 2.4), o + Vector3(0.0, 0.12, 0.0), frame_mat, "Plinth")
-	add_seated_box(
-		visuals, Vector3(3.7, 0.2, 2.1), o + Vector3(0.0, 0.34, 0.0), frame_mat, "PlinthUpper"
-	)
-	add_seated_box(
-		visuals, Vector3(3.3, 0.12, 1.8), o + Vector3(0.0, 0.5, 0.0), accent_mat, "PlinthCap"
-	)
-	add_box(visuals, Vector3(2.8, 0.14, 1.5), o + Vector3(0.0, 0.55, 0.35), floor_mat, "Pad")
-
-	var centre := o + Vector3(0.0, RING_CENTER_Y, 0.0)
-	var chord := TAU * RING_RADIUS / float(RING_SEGMENTS) * 1.12
-	for i in RING_SEGMENTS:
-		var angle := TAU * float(i) / float(RING_SEGMENTS)
-		var dir := Vector3(cos(angle), sin(angle), 0.0)
-		var proud := 0.0 if i % 2 == 0 else 0.08
-		var voussoir := add_box(
-			visuals,
-			Vector3(0.46 + proud, chord, RING_DEPTH + proud),
-			centre + dir * RING_RADIUS,
-			frame_mat,
-			"Voussoir%d" % i
-		)
-		voussoir.rotation.z = angle
-		var band := add_box(
-			visuals,
-			Vector3(0.16, chord, 0.16),
-			centre + dir * (RING_RADIUS - 0.28) + Vector3(0.0, 0.0, RING_DEPTH * 0.5 + 0.08),
-			accent_mat,
-			"RingBand%d" % i
-		)
-		band.rotation.z = angle
-
-	add_box(
-		visuals,
-		Vector3(0.74, 0.62, RING_DEPTH + 0.16),
-		centre + Vector3(0.0, RING_RADIUS + 0.08, 0.0),
-		accent_mat,
-		"Keystone"
-	)
-	add_box(
-		visuals,
-		Vector3(0.9, 0.34, RING_DEPTH + 0.12),
-		centre + Vector3(0.0, -RING_RADIUS - 0.05, 0.0),
-		accent_mat,
-		"RingFoot"
-	)
-
-	for side in [-1.0, 1.0]:
-		var tag := "R" if side > 0.0 else "L"
-		var pier_top := RING_CENTER_Y - 0.4
-		var pier_h := pier_top - 0.56
-		add_seated_box(
-			visuals,
-			Vector3(0.62, pier_h, 0.86),
-			o + Vector3(side * 1.42, 0.56 + pier_h * 0.5, 0.0),
-			frame_mat,
-			"Pier%s" % tag
-		)
-		add_seated_box(
-			visuals,
-			Vector3(0.8, 0.22, 1.0),
-			o + Vector3(side * 1.42, 0.67, 0.0),
-			accent_mat,
-			"PierBase%s" % tag,
-			SEAM_BITE * 2.0
-		)
-		add_box(
-			visuals,
-			Vector3(0.16, 0.16, 0.5),
-			o + Vector3(side * 1.84, 1.5, 0.3),
-			frame_mat,
-			"SconceArm%s" % tag
-		)
-		add_box(
-			visuals,
-			Vector3(0.42, 0.26, 0.42),
-			o + Vector3(side * 1.84, 1.68, 0.5),
-			accent_mat,
-			"SconceBowl%s" % tag
-		)
-
-	add_seated_box(
-		visuals,
-		Vector3(2.6, 0.12, 0.24),
-		o + Vector3(0.0, 0.62, 0.42),
-		accent_mat,
-		"Threshold",
-		SEAM_BITE * 3.0
-	)
 
 
 static func _build_portal_collision(visuals: Node3D, o: Vector3) -> void:
@@ -1242,13 +1002,16 @@ static func _add_box_shape(body: StaticBody3D, at: Vector3, size: Vector3) -> vo
 	body.add_child(shape_node)
 
 
+const PARAPET_MODULE := 2.68
+
+
 static func add_castle_parapet_run(
 	parent: Node3D,
 	mats: Dictionary,
 	center: Vector3,
 	length: float,
-	thickness: float,
-	height: float,
+	_thickness: float,
+	_height: float,
 	yaw: float,
 	node_name: String
 ) -> void:
@@ -1257,31 +1020,16 @@ static func add_castle_parapet_run(
 	run.position = center
 	run.rotation.y = yaw
 	parent.add_child(run)
-
-	add_box(
-		run, Vector3(length, height, thickness), Vector3.ZERO, mats.wall, "Walkway"
-	)
-	add_box(
-		run,
-		Vector3(length + 0.18, 0.14, thickness + 0.14),
-		Vector3(0.0, height * 0.5 + 0.07, 0.0),
-		mats.accent,
-		"Coping"
-	)
-
-	var merlon_w := 0.82
-	var merlon_gap := 0.52
-	var merlon_h := 0.48
-	var count := maxi(2, int(length / (merlon_w + merlon_gap)))
+	# 2.68 m modules (two merlon cycles), stretched a little so a run ends exactly where it should.
+	var count := maxi(1, roundi(length / PARAPET_MODULE))
+	var stretch := length / (float(count) * PARAPET_MODULE)
 	for i in count:
-		var t := (float(i) + 0.5) / float(count) - 0.5
-		add_box(
-			run,
-			Vector3(merlon_w, merlon_h, thickness + 0.1),
-			Vector3(t * length, height * 0.5 + merlon_h * 0.5 + 0.08, 0.0),
-			mats.wall,
-			"Merlon%d" % i
-		)
+		var holder := Node3D.new()
+		holder.name = "Segment%d" % i
+		holder.position = Vector3((float(i) + 0.5) * PARAPET_MODULE * stretch - length * 0.5, 0.0, 0.0)
+		holder.scale = Vector3(stretch, 1.0, 1.0)
+		run.add_child(holder)
+		PropLibrary.attach_themed(holder, "hub/parapet_segment", PaletteTheme.HUB, {"materials": mats})
 
 
 static func add_castle_parapet_collision(
@@ -1308,33 +1056,14 @@ static func add_castle_parapet_collision(
 
 
 static func add_castle_corner_turret(
-	parent: Node3D, mats: Dictionary, corner_pos: Vector3, parapet_h: float
+	parent: Node3D, mats: Dictionary, corner_pos: Vector3, _parapet_h: float
 ) -> void:
-	var turret_h := parapet_h + 2.45
-	add_box(
-		parent,
-		Vector3(1.35, turret_h, 1.35),
-		corner_pos + Vector3(0.0, turret_h * 0.5, 0.0),
-		mats.wall,
-		"Turret%s" % str(corner_pos)
-	)
-	add_box(
-		parent,
-		Vector3(1.55, 0.16, 1.55),
-		corner_pos + Vector3(0.0, turret_h + 0.08, 0.0),
-		mats.accent,
-		"TurretCap%s" % str(corner_pos)
-	)
-	for i in 4:
-		var angle := float(i) * TAU / 4.0
-		var offset := Vector3(cos(angle), 0.0, sin(angle)) * 0.62
-		add_box(
-			parent,
-			Vector3(0.42, 0.38, 0.42),
-			corner_pos + offset + Vector3(0.0, turret_h + 0.34, 0.0),
-			mats.wall,
-			"TurretMerlon%d_%s" % [i, str(corner_pos)]
-		)
+	var holder := Node3D.new()
+	holder.name = "Turret%s" % str(corner_pos)
+	holder.position = corner_pos
+	parent.add_child(holder)
+	PropLibrary.attach_themed(holder, "hub/parapet_turret", PaletteTheme.HUB, {"materials": mats})
+
 
 static func build_merchant_stall(parent: Node3D, biome_id: String) -> Node3D:
 	var existing := parent.get_node_or_null("DioramaVisuals")
@@ -1343,23 +1072,14 @@ static func build_merchant_stall(parent: Node3D, biome_id: String) -> Node3D:
 	var legacy := parent.get_node_or_null("DioramaVisual")
 	if legacy:
 		legacy.queue_free()
-
-	var theme := theme_from_biome(biome_id)
-	var wall := make_wall_material(theme)
-	var wood := make_prop_material(theme, false)
-	var accent := make_accent_material(theme)
-	var roof := make_prop_material(theme, true)
-
 	var visuals := Node3D.new()
 	visuals.name = "DioramaVisuals"
 	parent.add_child(visuals)
-
-	add_box(visuals, Vector3(2.8, 0.9, 1.2), Vector3(0.0, 0.45, 0.0), wall, "Counter")
-	add_box(visuals, Vector3(3.2, 0.12, 1.6), Vector3(0.0, 0.06, 0.0), wood, "FloorPad")
-	add_box(visuals, Vector3(3.4, 0.08, 0.35), Vector3(0.0, 1.15, -0.35), roof, "Awning")
-	add_box(visuals, Vector3(0.45, 0.45, 0.45), Vector3(-0.95, 0.22, 0.55), wood, "CrateL")
-	add_box(visuals, Vector3(0.45, 0.45, 0.45), Vector3(0.95, 0.22, 0.55), wood, "CrateR")
-	add_box(visuals, Vector3(0.35, 0.55, 0.08), Vector3(0.0, 1.35, -0.35), accent, "AwningTrim")
+	var theme := theme_from_biome(biome_id)
+	PropLibrary.attach_themed(
+		visuals, "merchant_stall", theme,
+		{"materials": {"wood": make_prop_material(theme, false), "roof": make_prop_material(theme, true)}}
+	)
 	return visuals
 
 
@@ -1427,122 +1147,27 @@ static func add_collision_box(
 	return shape_node
 
 
-static func add_portal_column(
-	parent: Node3D,
-	center: Vector3,
-	frame_mat: Material,
-	accent_mat: Material,
-	height: float,
-	column_w: float = 0.62,
-	node_name: String = "Column"
-) -> void:
-	add_box(parent, Vector3(column_w, height, column_w), center, frame_mat, "%sPillar" % node_name)
-	var cap_w := column_w * 1.48
-	var cap_h := column_w * 0.62
-	add_box(
-		parent,
-		Vector3(cap_w, cap_h, cap_w),
-		center + Vector3(0.0, height * 0.5 + cap_h * 0.5, 0.0),
-		accent_mat,
-		"%sCapital" % node_name
-	)
-
-
-static func build_structure(
-	parent: Node3D, def_name: String, mats: Dictionary, overrides: Dictionary = {}
-) -> Node3D:
-	var def := ContentLoader.load_json("%s/%s.json" % [STRUCTURE_DIR, def_name])
-	var params: Dictionary = def.get("params", {}).duplicate()
-	for key in overrides.keys():
-		if key != "facing_yaw":
-			params[key] = overrides[key]
-	var facing_yaw := float(overrides.get("facing_yaw", 0.0))
-	var generator := str(def.get("generator", ""))
-	if generator == "hub_tent":
-		return PixelDioramaHubStructures.build_tent(parent, mats, params, facing_yaw, def)
-	return _build_structure_parts(parent, mats, def.get("parts", []), facing_yaw)
-
-
-static func _build_structure_parts(
-	parent: Node3D, mats: Dictionary, parts: Array, facing_yaw: float
-) -> Node3D:
-	var visuals := Node3D.new()
-	visuals.name = "DioramaVisuals"
-	parent.add_child(visuals)
-	visuals.rotation.y = facing_yaw
-	for raw in parts:
-		if not raw is Dictionary:
-			continue
-		var part: Dictionary = raw
-		var mat := _resolve_structure_material(mats, str(part.get("mat", "wall")))
-		var size := _vec3_from_array(part.get("size"), Vector3.ONE)
-		var pos := _vec3_from_array(part.get("pos"))
-		var rot := _deg_to_rad_array(part.get("rot_deg", null))
-		var node_name := str(part.get("name", ""))
-		var kind := str(part.get("kind", "box"))
-		if kind == "column":
-			add_portal_column(visuals, pos, mat, mats.get("accent", mat), size.y, size.x, node_name)
-		else:
-			var mesh := add_box(visuals, size, pos, mat, node_name)
-			mesh.rotation = rot
-	return visuals
-
-
 static func add_hub_tent(
 	landmark: Node3D,
 	mats: Dictionary,
 	width: float,
 	depth: float,
 	wall_height: float,
-	entrance_width: float,
+	_entrance_width: float,
 	roof_peak: float = 1.2,
 	facing_yaw: float = 0.0
 ) -> Node3D:
-	return build_structure(
+	return PixelDioramaHubStructures.build_tent(
 		landmark,
-		"hub_tent",
 		mats,
-		{
-			"width": width,
-			"depth": depth,
-			"wall_height": wall_height,
-			"entrance_width": entrance_width,
-			"roof_peak": roof_peak,
-			"facing_yaw": facing_yaw,
-		}
+		{"width": width, "depth": depth, "wall_height": wall_height, "roof_peak": roof_peak},
+		facing_yaw,
+		{}
 	)
 
 
 static func add_hub_fountain(parent: Node3D, mats: Dictionary, position: Vector3) -> Node3D:
 	return PixelDioramaHubStructures.build_fountain(parent, mats, position)
-
-
-static func add_cylinder(
-	parent: Node3D,
-	top_radius: float,
-	bottom_radius: float,
-	height: float,
-	position: Vector3,
-	material: Material,
-	node_name: String = ""
-) -> MeshInstance3D:
-	var mesh_inst := MeshInstance3D.new()
-	if node_name != "":
-		mesh_inst.name = node_name
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = top_radius
-	cylinder.bottom_radius = bottom_radius
-	cylinder.height = height
-	mesh_inst.mesh = cylinder
-	mesh_inst.position = position
-	if material:
-		mesh_inst.material_override = material
-	if PixelDioramaSettings._debug_flat_cached:
-		var std := StandardMaterial3D.new()
-		std.albedo_color = Color(0.62, 0.56, 0.5)
-		mesh_inst.material_override = std
-	parent.add_child(mesh_inst)
-	return mesh_inst
 
 
 static func hide_legacy_meshes(root: Node) -> void:

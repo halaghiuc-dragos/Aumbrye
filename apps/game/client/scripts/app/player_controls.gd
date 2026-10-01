@@ -46,12 +46,7 @@ func allows_player_ui() -> bool:
 
 
 func gameplay_input_blocked() -> bool:
-	return (
-		is_player_meta_ui_open()
-		or scene_ui_open()
-		or modal_stack_open()
-		or get_tree().paused
-	)
+	return modal_stack_open() or scene_ui_open() or get_tree().paused
 
 
 func modal_stack_open() -> bool:
@@ -115,21 +110,10 @@ func _on_scene_changed() -> void:
 
 
 func _after_scene_changed() -> void:
-	_remove_duplicate_scene_uis()
 	await get_tree().process_frame
 	if _inventory_ui and _inventory_ui.has_method("_bind_inventory_context"):
 		_inventory_ui.call("_bind_inventory_context")
 	sync_player_loadout()
-
-
-func _remove_duplicate_scene_uis() -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	for ui_name in ["InventoryUI", "SettingsUI", "AchievementsUI", "TalentsUI", "LoadoutUI", "PauseMenu"]:
-		var node := scene.get_node_or_null(ui_name)
-		if node:
-			node.queue_free()
 
 
 func sync_player_loadout() -> void:
@@ -175,6 +159,11 @@ func open_lore_journal() -> void:
 		_lore_journal_ui.call("open")
 
 
+func open_inventory() -> void:
+	if _inventory_ui and _inventory_ui.has_method("toggle") and not is_inventory_open():
+		_inventory_ui.call("toggle")
+
+
 func open_loadout() -> void:
 	_raise(_loadout_ui)
 	if _loadout_ui and _loadout_ui.has_method("open"):
@@ -211,14 +200,6 @@ func is_bestiary_open() -> bool:
 	)
 
 
-func is_lore_journal_open() -> bool:
-	return (
-		_lore_journal_ui != null
-		and _lore_journal_ui.has_method("is_open")
-		and _lore_journal_ui.call("is_open")
-	)
-
-
 func is_talents_open() -> bool:
 	return _talents_ui != null and _talents_ui.has_method("is_open") and _talents_ui.call("is_open")
 
@@ -227,21 +208,9 @@ func is_loadout_open() -> bool:
 	return _loadout_ui != null and _loadout_ui.has_method("is_open") and _loadout_ui.call("is_open")
 
 
-func is_pause_open() -> bool:
-	return _pause_menu != null and _pause_menu.has_method("is_open") and _pause_menu.call("is_open")
-
-
+## Every modal screen sits on `MenuStack`, so one question answers "is a menu open".
 func is_player_meta_ui_open() -> bool:
-	return (
-		is_inventory_open()
-		or is_settings_open()
-		or is_achievements_open()
-		or is_bestiary_open()
-		or is_lore_journal_open()
-		or is_talents_open()
-		or is_loadout_open()
-		or is_pause_open()
-	)
+	return MenuStack.depth() > 0
 
 
 func _unhandled_input(event: InputEvent) -> void:

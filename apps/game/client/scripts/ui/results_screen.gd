@@ -32,6 +32,7 @@ var _next_label: Label
 
 
 func _ready() -> void:
+	add_to_group("front_end")
 	_ensure_ui_nodes()
 	GameUISkinScript.apply_modal_menu(self, "Panel")
 	_display_from_run_flow()
@@ -51,24 +52,9 @@ func _ready() -> void:
 
 func _ensure_ui_nodes() -> void:
 	var vbox: VBoxContainer = $Panel/Margin/VBox
-	if not has_node("Panel/Margin/VBox/XpLabel"):
-		_xp_label = Label.new()
-		_xp_label.name = "XpLabel"
-		vbox.add_child(_xp_label)
-		vbox.move_child(_xp_label, vbox.get_child_count() - 1)
-	if not has_node("Panel/Margin/VBox/RulesLabel"):
-		_rules_label = Label.new()
-		_rules_label.name = "RulesLabel"
-		_rules_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		vbox.add_child(_rules_label)
-		vbox.move_child(_rules_label, vbox.get_child_count() - 1)
-	if not has_node("Panel/Margin/VBox/SecretsLabel"):
-		_secrets_label = Label.new()
-		_secrets_label.name = "SecretsLabel"
-		vbox.add_child(_secrets_label)
-		vbox.move_child(_secrets_label, vbox.get_child_count() - 1)
-	else:
-		_secrets_label = $Panel/Margin/VBox/SecretsLabel
+	_secrets_label = Label.new()
+	_secrets_label.name = "SecretsLabel"
+	vbox.add_child(_secrets_label)
 	if _cloud_indicator == null:
 		_cloud_indicator = Label.new()
 		_cloud_indicator.name = "CloudIndicator"
@@ -99,7 +85,7 @@ func _ensure_ui_nodes() -> void:
 		_vault_label.visible = false
 		GameUISkinScript.style_body_label(_vault_label)
 		vbox.add_child(_vault_label)
-	# AD-05: "what you are close to" is the single most valuable line on a roguelite end screen and
+	# "what you are close to" is the single most valuable line on a roguelite end screen and
 	# it was missing entirely -- shown right above the buttons so it is the last thing read before
 	# the player decides whether to go again.
 	if _next_frame == null:
@@ -153,12 +139,22 @@ func _display_from_run_flow() -> void:
 			_secrets_label.visible = secrets_found > 0
 			if secrets_found > 0:
 				_secrets_label.text = tr("RESULTS_SECRETS").format({"count": secrets_found})
-		var loot: Array = results.get("loot", [])
+		var loot: Array = (
+			results.get("loot_lost", [])
+			if outcome == RunLifecycleScript.OUTCOME_DIED
+			else results.get("loot", [])
+		)
+		var loot_names := (
+			ItemCatalog.display_names(loot, 3 if outcome == RunLifecycleScript.OUTCOME_DIED else 0)
+			if not loot.is_empty()
+			else tr("RESULTS_LOOT_NONE")
+		)
 		if results.get("loot_kept", true):
-			_loot_label.text = tr("RESULTS_LOOT_KEPT").format({"items": ", ".join(loot) if loot.size() > 0 else tr("RESULTS_LOOT_NONE")})
+			_loot_label.text = tr("RESULTS_LOOT_KEPT").format({"items": loot_names})
 		else:
-			_loot_label.text = tr("RESULTS_LOOT_LOST").format({"items": ", ".join(loot) if loot.size() > 0 else tr("RESULTS_LOOT_NONE")})
-		_build_loot_row(loot)
+			_loot_label.text = tr("RESULTS_LOOT_LOST").format({"items": loot_names})
+		if outcome != RunLifecycleScript.OUTCOME_DIED:
+			_build_loot_row(loot)
 		var xp_gained: int = int(results.get("xp_gained", 0))
 		if outcome == RunLifecycleScript.OUTCOME_DIED:
 			var full_xp: int = int(results.get("xp_full_would_be", xp_gained * 2))
@@ -167,13 +163,22 @@ func _display_from_run_flow() -> void:
 			_xp_label.text = tr("RESULTS_XP_GAINED_RUN").format({"xp": xp_gained})
 		if int(results.get("levels_gained", 0)) > 0:
 			_xp_label.text += tr("RESULTS_LEVEL_UP")
-		_rules_label.text = results.get("rules_summary", "")
-		# AD-06: one honest sentence naming what killed the player, ahead of the generic rules
+		_rules_label.text = "" if outcome == RunLifecycleScript.OUTCOME_DIED else results.get("rules_summary", "")
+		# One honest sentence naming what killed the player, ahead of the generic rules
 		# text -- "what happened" before "what it costs you".
 		var death_recap: Dictionary = results.get("death_recap", {})
 		var death_sentence := str(death_recap.get("sentence", ""))
 		if death_sentence != "":
-			_rules_label.text = "%s\n\n%s" % [death_sentence, _rules_label.text]
+			_rules_label.text = death_sentence if outcome == RunLifecycleScript.OUTCOME_DIED else "%s\n\n%s" % [death_sentence, _rules_label.text]
+		var failure_point: Variant = results.get("failure_point", {})
+		if (
+			outcome == RunLifecycleScript.OUTCOME_DIED
+			and failure_point is Dictionary
+			and bool((failure_point as Dictionary).get("bossFight", false))
+			and not AccessibilitySettings.assists_active()
+			and ProgressionService.boss_deaths_in(str((failure_point as Dictionary).get("biomeId", ""))) >= 3
+		):
+			_rules_label.text += "\n\n" + tr("RESULTS_ASSIST_OFFER")
 		_ensure_run_report_label()
 		_run_report_label.text = _build_run_report(results)
 		if _run_report_frame:
@@ -182,10 +187,25 @@ func _display_from_run_flow() -> void:
 		_refresh_seed_button(results)
 		_refresh_tier_ladder(results)
 		_refresh_next_block(results)
+		if outcome == RunLifecycleScript.OUTCOME_DIED:
+			# The death screen needs a cause and the immediate loss/reward. The detailed run
+			# report, progression prompts and seed can wait until the player is back in the hub.
+			if _run_report_frame:
+				_run_report_frame.visible = false
+			if _tier_ladder_frame:
+				_tier_ladder_frame.visible = false
+			if _next_frame:
+				_next_frame.visible = false
+			if _seed_button:
+				_seed_button.visible = false
+			if _leaderboard_label:
+				_leaderboard_label.visible = false
+			if _secrets_label:
+				_secrets_label.visible = false
 	_hint_label.text = tr("RESULTS_RETURN_HINT")
 
 
-## AD-05: up to three near-misses, ranked by smallest shortfall -- a goal the player can close in
+## Up to three near-misses, ranked by smallest shortfall -- a goal the player can close in
 ## the next fifteen minutes is the hook, a distant one is noise.
 func _refresh_next_block(_results: Dictionary) -> void:
 	if _next_frame == null:
@@ -256,7 +276,7 @@ func _ensure_run_report_label() -> void:
 	_run_report_frame = report_frame
 
 
-## MD-04: once the run starts, the tier ladder is gone -- shown again here with the rung this run
+## Once the run starts, the tier ladder is gone -- shown again here with the rung this run
 ## actually reached marked, so a mid-run climb resolves into something the player can see.
 func _ensure_tier_ladder_row() -> void:
 	if _tier_ladder_frame != null and is_instance_valid(_tier_ladder_frame):
@@ -337,7 +357,7 @@ func _run_context_lines(results: Dictionary) -> Array[String]:
 	return lines
 
 
-## `AU-03`: the personal-best stinger fires once, here, rather than inside `_personal_best_lines()`
+## The personal-best stinger fires once, here, rather than inside `_personal_best_lines()`
 ## -- that function runs again on every UI refresh, but the results screen itself is only ever
 ## displayed once per run. Gated on a genuine *previous* record so a first clear (which trivially
 ## "beats" a record of zero) stays quiet; that beat belongs to `RESULTS_TIME_FIRST_CLEAR` alone.
@@ -460,13 +480,13 @@ func _highlight_lines(results: Dictionary) -> Array[String]:
 		var parries := int(moments.get("parries", 0))
 		var executions := int(moments.get("executions", 0))
 		if perfect_dodges > 0:
-			skill_lines.append("%d perfect dodge%s" % [perfect_dodges, "s" if perfect_dodges != 1 else ""])
+			skill_lines.append(tr("RESULTS_MASTERY_DODGES") % perfect_dodges)
 		if parries > 0:
-			skill_lines.append("%d parr%s" % [parries, "ies" if parries != 1 else "y"])
+			skill_lines.append(tr("RESULTS_MASTERY_PARRIES") % parries)
 		if executions > 0:
-			skill_lines.append("%d execution%s" % [executions, "s" if executions != 1 else ""])
+			skill_lines.append(tr("RESULTS_MASTERY_EXECUTIONS") % executions)
 		if not skill_lines.is_empty():
-			lines.append("Combat mastery: %s." % ", ".join(skill_lines))
+			lines.append(tr("RESULTS_MASTERY") % ", ".join(skill_lines))
 	return lines
 
 
@@ -477,14 +497,16 @@ func _relic_contribution_text(metrics: Dictionary) -> String:
 	var barrier := int(round(float(metrics.get("barrierGranted", 0.0))))
 	var stacks := int(round(float(metrics.get("statusStacks", 0.0))))
 	if health > 0:
-		parts.append("%d health restored" % health)
+		parts.append(tr("RESULTS_RELIC_HEALTH") % health)
 	if stamina > 0:
-		parts.append("%d stamina restored" % stamina)
+		parts.append(tr("RESULTS_RELIC_STAMINA") % stamina)
 	if barrier > 0:
-		parts.append("%d barrier granted" % barrier)
+		parts.append(tr("RESULTS_RELIC_BARRIER") % barrier)
 	if stacks > 0:
-		parts.append("%d status stacks applied" % stacks)
-	return "Relic contribution: %s" % ", ".join(parts)
+		parts.append(tr("RESULTS_RELIC_STACKS") % stacks)
+	if parts.is_empty():
+		return ""
+	return tr("RESULTS_RELIC_CONTRIBUTION") % ", ".join(parts)
 
 
 func _build_run_report(results: Dictionary) -> String:
@@ -526,6 +548,11 @@ func _build_run_report(results: Dictionary) -> String:
 
 func _load_leaderboard_panel() -> void:
 	if _leaderboard_label == null:
+		return
+	var results: Dictionary = RunFlow.last_run_results
+	if results.is_empty():
+		results = get_tree().root.get_meta("run_results", {})
+	if str(results.get("outcome", "")) == RunLifecycleScript.OUTCOME_DIED:
 		return
 	if ApiConfig.access_token == "" and ApiConfig.refresh_token == "":
 		_leaderboard_label.text = tr("RESULTS_LEADERBOARD_SIGN_IN")
@@ -617,15 +644,15 @@ func _title_for_outcome(outcome: String, hero_name: String) -> String:
 func _hub_message_for_outcome(outcome: String) -> String:
 	match outcome:
 		RunLifecycleScript.OUTCOME_DIED:
-			return "Returned to Aumbrye Tower. Permanent XP saved."
+			return tr("RESULTS_HUB_DIED")
 		RunLifecycleScript.OUTCOME_WAVES_FAILED:
-			return "Waves failed. Run loot was lost."
+			return tr("RESULTS_HUB_WAVES_FAILED")
 		RunLifecycleScript.OUTCOME_WAVES_COMPLETE:
-			return "Waves cleared! Rewards saved to your stash."
+			return tr("RESULTS_HUB_WAVES_CLEARED")
 		RunLifecycleScript.OUTCOME_ESCAPED:
-			return "Run complete! Your progress was saved."
+			return tr("RESULTS_HUB_ESCAPED")
 		_:
-			return "Returned to Aumbrye Tower."
+			return tr("RESULTS_HUB_DEFAULT")
 
 
 ## The haul, as objects rather than a comma-separated string. A row of rarity-framed icons with

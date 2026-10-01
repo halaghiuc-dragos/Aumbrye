@@ -48,8 +48,6 @@ const ENDLESS_MODIFIER_POOL: Array[String] = [
 	MODIFIER_RELENTLESS_FOES,
 	MODIFIER_NO_REST,
 	MODIFIER_STARVED_HEARTH,
-	MODIFIER_SEALED_DOORS,
-	MODIFIER_BARRED_WAYS,
 	MODIFIER_FOG_OF_WAR,
 	MODIFIER_HOSTILE_HALLS,
 	MODIFIER_THICK_TRAPS,
@@ -68,26 +66,8 @@ const MODIFIER_EXCLUSIONS := {
 	MODIFIER_BARRED_WAYS: [MODIFIER_SEALED_DOORS],
 }
 
-const MODIFIER_COSTS := {
-	MODIFIER_ELITE_PACKS: 2,
-	MODIFIER_ELITE_VIGIL: 3,
-	MODIFIER_ARMOURED_FOES: 2,
-	MODIFIER_FRENZIED_FOES: 2,
-	MODIFIER_VOLATILE_FOES: 2,
-	MODIFIER_RELENTLESS_FOES: 2,
-	MODIFIER_NO_REST: 2,
-	MODIFIER_STARVED_HEARTH: 1,
-	MODIFIER_SEALED_DOORS: 3,
-	MODIFIER_BARRED_WAYS: 2,
-	MODIFIER_FOG_OF_WAR: 1,
-	MODIFIER_HOSTILE_HALLS: 2,
-	MODIFIER_THICK_TRAPS: 2,
-	MODIFIER_NO_MERCHANT: 1,
-	MODIFIER_RICH_VEINS: -1,
-	MODIFIER_BOSS_HOARD: -1,
-}
 
-## MD-01: from wave 10, the Vigil rolls one modifier per wave from this small pool -- kept narrow
+## From wave 10, the Vigil rolls one modifier per wave from this small pool -- kept narrow
 ## (combat-only effects, no lock/merchant/trap modifiers, which mean nothing in a single arena).
 const WAVES_MODIFIER_POOL: Array[String] = [
 	MODIFIER_FRENZIED_FOES,
@@ -163,25 +143,6 @@ static func is_compatible(modifier_id: String, active: Array) -> bool:
 	return true
 
 
-static func effective_difficulty(modifiers: Array) -> int:
-	var total := 0
-	for modifier_id in normalize_compatible(modifiers):
-		total += int(MODIFIER_COSTS.get(modifier_id, 0))
-	return total
-
-
-static func validate_floor_modifiers(modifiers: Array, available_keys: int, has_rest: bool) -> Array[String]:
-	var resolved := normalize_compatible(modifiers)
-	var errors: Array[String] = []
-	if MODIFIER_SEALED_DOORS in resolved and available_keys < 2:
-		errors.append("sealed_doors_requires_two_keys")
-	if MODIFIER_BARRED_WAYS in resolved and available_keys < 1:
-		errors.append("barred_ways_requires_key_supply")
-	if (MODIFIER_NO_REST in resolved or MODIFIER_STARVED_HEARTH in resolved) and not has_rest:
-		errors.append("rest_modifier_requires_rest_site")
-	return errors
-
-
 static func normalize_compatible(modifiers: Array) -> Array[String]:
 	var resolved: Array[String] = []
 	for raw_id in modifiers:
@@ -195,7 +156,7 @@ static func apply_endless_floor_modifiers(floor_index: int, run_seed: int = 0) -
 	set_modifiers(endless_modifiers_for_floor(floor_index, run_seed))
 
 
-## MD-01: one modifier, not a growing stack -- the Vigil is a single arena for fifty waves, so a
+## One modifier, not a growing stack -- the Vigil is a single arena for fifty waves, so a
 ## stacking pool would compound into an unreadable pile by wave 40. Empty before wave 10.
 static func waves_modifier_for_wave(wave: int, run_seed: int = 0) -> String:
 	if wave < WAVES_MODIFIER_START_WAVE or WAVES_MODIFIER_POOL.is_empty():

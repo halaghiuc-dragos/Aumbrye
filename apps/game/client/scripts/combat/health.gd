@@ -3,7 +3,7 @@ class_name Health
 
 signal health_changed(current: float, max_value: float)
 signal died
-## CB-06: `grant_barrier` rules effect -- a temporary absorb shield tracked here rather than as a
+## `grant_barrier` rules effect -- a temporary absorb shield tracked here rather than as a
 ## status, since it needs to intercept `take_damage` before health itself is touched.
 signal barrier_changed(current: float)
 
@@ -58,7 +58,7 @@ func take_damage(amount: float) -> Dictionary:
 	return result
 
 
-## CB-06: `grant_barrier` rules effect. Barriers stack rather than refresh -- two "on kill, grant a
+## `grant_barrier` rules effect. Barriers stack rather than refresh -- two "on kill, grant a
 ## barrier" relics should be better together, not redundant.
 func grant_barrier(amount: float) -> void:
 	if _dead or not is_finite(amount) or amount <= 0.0:

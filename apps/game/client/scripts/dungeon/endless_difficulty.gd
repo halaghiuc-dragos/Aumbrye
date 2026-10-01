@@ -13,8 +13,6 @@ const DAMAGE_TAIL_RATE := 0.35
 const TAIL_FLOOR_SPAN := 10.0
 
 const BEHAVIOUR_FULL_FLOOR := 200.0
-const COOLDOWN_FLOOR_MULT := 0.75
-const MOVE_SPEED_FLOOR_MULT := 1.16
 
 ## The Waning.
 ##

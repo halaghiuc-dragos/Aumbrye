@@ -157,7 +157,6 @@
           "type": "array",
           "items": { "$ref": "#/$defs/rolledAffix" }
         },
-        "durability": { "type": "number", "minimum": 0, "maximum": 100 },
         "bound": { "type": "boolean" },
         "rollSeed": { "type": "integer" }
       }

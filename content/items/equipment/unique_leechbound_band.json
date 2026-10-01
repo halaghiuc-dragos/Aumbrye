@@ -3,14 +3,11 @@
   "name": "Leechbound Band",
   "itemType": "accessory",
   "equipmentSlot": "ring",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 1,
   "rarity": "epic",
   "description": "Worn until the finger beneath went grey, and then worn a while longer.",
   "value": 460,
   "lootValue": 230,
-  "maxDurability": 60,
   "unique": true,
   "baseId": "band",
   "biome": "poison_swamp",
@@ -26,6 +23,6 @@
   ],
   "stats": {
     "maxHealth": 33,
-    "poisonDamage": 6
+    "physicalDamage": 6
   }
 }

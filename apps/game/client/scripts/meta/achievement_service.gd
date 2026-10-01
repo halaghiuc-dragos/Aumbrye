@@ -138,20 +138,6 @@ func get_all_definitions() -> Array:
 	return _definitions.duplicate()
 
 
-func is_manual_unlock(achievement_id: String) -> bool:
-	return achievement_id in _manual_unlocks
-
-
-func get_hooked_achievement_ids() -> Array[String]:
-	var ids: Array[String] = []
-	for hook in _hooks:
-		if hook is Dictionary:
-			var hook_id: String = str(hook.get("achievementId", ""))
-			if hook_id != "":
-				ids.append(hook_id)
-	return ids
-
-
 func _check_all_biomes() -> void:
 	var required := [
 		"castle_clear",
@@ -179,8 +165,8 @@ func _get_display_name(achievement_id: String) -> String:
 func _persist() -> void:
 	var save_data := LocalSave.get_meta_data()
 	save_data["achievements"] = _unlocked.duplicate()
-	LocalSave.set_meta_data(save_data)
-	LocalSave.autosave()
+	LocalSave.patch_meta(save_data)
+	LocalSave.request_autosave()
 
 
 func _show_toast(display_name: String) -> void:

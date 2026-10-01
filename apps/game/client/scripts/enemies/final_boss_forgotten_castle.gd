@@ -95,20 +95,20 @@ func _process_spike_phase(delta: float) -> void:
 func _spawn_spike_burst() -> void:
 	for _i in range(6):
 		var trap: Node3D = SPIKE_SCENE.instantiate() as Node3D
+		get_parent().add_child(trap)
 		trap.global_position = to_global(Vector3(
 			_enemy_rng.randf_range(-8.0, 8.0), 0.0, _enemy_rng.randf_range(-8.0, 8.0)
 		))
-		get_parent().add_child(trap)
 		_encounter_nodes.append(trap)
 
 
 func _spawn_puzzle_crystals() -> void:
 	for i in range(_crystals_required):
 		var crystal: Node3D = CRYSTAL_SCENE.instantiate() as Node3D
-		crystal.global_position = to_global(Vector3(-6.0 + i * 6.0, 0.5, 6.0))
 		if crystal.has_signal("collected"):
 			crystal.collected.connect(_on_crystal_collected)
 		get_parent().add_child(crystal)
+		crystal.global_position = to_global(Vector3(-6.0 + i * 6.0, 0.5, 6.0))
 		_encounter_nodes.append(crystal)
 
 
@@ -116,8 +116,8 @@ func _spawn_cannon() -> void:
 	if _cannon and is_instance_valid(_cannon):
 		return
 	_cannon = CANNON_SCENE.instantiate() as Node3D
-	_cannon.global_position = to_global(Vector3(0.0, 0.0, -8.0))
 	get_parent().add_child(_cannon)
+	_cannon.global_position = to_global(Vector3(0.0, 0.0, -8.0))
 	_encounter_nodes.append(_cannon)
 	if _cannon.has_method("configure"):
 		_cannon.call("configure", self, _crystals_required)

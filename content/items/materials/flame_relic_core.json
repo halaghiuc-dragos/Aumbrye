@@ -2,8 +2,6 @@
   "id": "flame_relic_core",
   "name": "Flame Relic Core",
   "itemType": "material",
-  "gridWidth": 2,
-  "gridHeight": 2,
   "stackSize": 1,
   "description": "Warm embers that awaken a run relic.",
   "value": 70,

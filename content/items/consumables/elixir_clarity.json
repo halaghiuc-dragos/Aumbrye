@@ -2,8 +2,6 @@
   "id": "elixir_clarity",
   "name": "Elixir of Clarity",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 5,
   "rarity": "rare",
   "description": "Distilled in the cathedral cellars, for readers who worked past the last candle.",

@@ -3,7 +3,7 @@ extends Node
 
 signal progression_changed
 signal xp_granted(amount: int, reason: String)
-## UX-02: fired when the queued-but-not-yet-spent talent plan changes (plan/unplan/clear/commit),
+## Fired when the queued-but-not-yet-spent talent plan changes (plan/unplan/clear/commit),
 ## separate from `progression_changed` so the talents screen can redraw the plan overlay without
 ## the rest of the game reacting as if talents actually changed.
 signal talent_plan_changed
@@ -26,10 +26,10 @@ var descent_tokens := 0
 var endless_milestones: Dictionary = {}
 var failure_points: Array = []
 
-## UX-02: nodes queued for the plan-ahead workflow, in the order they'll be spent on commit.
+## Nodes queued for the plan-ahead workflow, in the order they'll be spent on commit.
 ## Never persisted -- a plan is a scratchpad for the current session, not a save-file commitment.
 var _planned_talents: Array[String] = []
-## UX-02: the level at which the most recent talent was actually unlocked (committed, not just
+## The level at which the most recent talent was actually unlocked (committed, not just
 ## planned). Drives the free-respec grace window.
 var _last_talent_unlock_level := 0
 const TALENT_RESPEC_GRACE_LEVELS := 3
@@ -63,7 +63,7 @@ func xp_progress_ratio() -> float:
 func grant_xp(amount: int, reason: String = "") -> Dictionary:
 	if amount <= 0:
 		return {"gained": 0, "levels_gained": 0}
-	var xp_gain_bonus: float = float(get_talent_stat_totals().get("xpGain", 0.0))
+	var xp_gain_bonus: float = InventoryService.total_stat("xpGain") if InventoryService else float(get_talent_stat_totals().get("xpGain", 0.0))
 	var adjusted := int(float(amount) * (1.0 + xp_gain_bonus))
 	if adjusted <= 0:
 		return {"gained": 0, "levels_gained": 0}
@@ -82,11 +82,13 @@ func grant_xp(amount: int, reason: String = "") -> Dictionary:
 	return result
 
 
-func calculate_run_xp(kills: int, boss_defeated: bool, escaped: bool) -> int:
+## `kill_units` is the threat-weighted kill count (a brute is worth more than a bat); when absent each
+## kill counts once.
+func calculate_run_xp(kills: int, bosses_defeated: int, escaped: bool, kill_units: float = -1.0) -> int:
 	var base_per_kill: int = int(_curve.get("baseXpPerKill", 25))
-	var total := kills * base_per_kill
-	if boss_defeated:
-		total += int(_curve.get("bossBonusXp", 150))
+	var units := kill_units if kill_units >= 0.0 else float(kills)
+	var total := int(round(units * float(base_per_kill)))
+	total += maxi(0, bosses_defeated) * int(_curve.get("bossBonusXp", 150))
 	if escaped:
 		total += int(_curve.get("escapeBonusXp", 50))
 	return total
@@ -159,6 +161,7 @@ func unlock_talent(node_id: String) -> bool:
 	var node := _find_talent_node(node_id)
 	var cost: int = int(node.get("costPerRank", 1))
 	talents[node_id] = get_talent_rank(node_id) + 1
+	_talent_totals_dirty = true
 	talent_points_spent += cost
 	_last_talent_unlock_level = level
 	_sync_keystone_rules()
@@ -169,7 +172,7 @@ func unlock_talent(node_id: String) -> bool:
 	return true
 
 
-## UX-02: the marginal stat change from taking the *next* rank of this node, diffed against the
+## The marginal stat change from taking the *next* rank of this node, diffed against the
 ## currently-active build. Talent totals are a straight sum of `effects.valuePerRank * rank`
 ## (see `get_talent_stat_totals`), so the delta a node would add is exactly its own per-rank
 ## effect values -- no need to recompute the whole build twice. Returns {} once the node is
@@ -192,7 +195,7 @@ func preview_talent_delta(node_id: String) -> Dictionary:
 	return deltas
 
 
-## UX-02 plan-ahead: nodes queued but not yet spent, in commit order. Multiple entries of the
+## Plan-ahead: nodes queued but not yet spent, in commit order. Multiple entries of the
 ## same id represent multiple queued ranks.
 func get_planned_talents() -> Array[String]:
 	return _planned_talents.duplicate()
@@ -294,7 +297,7 @@ func commit_planned_talents() -> Dictionary:
 	return {"committed": committed, "attempted": order.size(), "failed": failures}
 
 
-## UX-02: a respec taken within a few levels of the talent that prompted it is free -- the point
+## A respec taken within a few levels of the talent that prompted it is free -- the point
 ## of the grace window is that trying a node right after a level-up shouldn't be a 250-gold bet.
 func is_talent_respec_free() -> bool:
 	if _last_talent_unlock_level <= 0:
@@ -312,7 +315,22 @@ func free_respec_talents() -> bool:
 	return true
 
 
+## Summed from the whole tree, so it is computed once and kept until a talent changes.
+var _talent_totals_cache: Dictionary = {}
+var _talent_totals_dirty := true
+var _talent_totals_class := ""
+
+
 func get_talent_stat_totals() -> Dictionary:
+	var class_id := CharacterService.class_id if is_instance_valid(CharacterService) else ""
+	if _talent_totals_dirty or class_id != _talent_totals_class:
+		_talent_totals_cache = _compute_talent_stat_totals()
+		_talent_totals_dirty = false
+		_talent_totals_class = class_id
+	return _talent_totals_cache.duplicate()
+
+
+func _compute_talent_stat_totals() -> Dictionary:
 	var totals: Dictionary = {}
 	for branch in _talent_tree.get("branches", []):
 		if not branch is Dictionary:
@@ -337,7 +355,7 @@ func get_talent_stat_totals() -> Dictionary:
 	return totals
 
 
-## Drops any saved talent whose node no longer exists in the tree and recomputes the spend from
+## Drops any saved talent whose node is gone from the tree and recomputes the spend from
 ## what survived, so retuning the tree refunds the difference instead of stranding points.
 func _prune_unknown_talents() -> void:
 	_load_talent_tree()
@@ -351,6 +369,7 @@ func _prune_unknown_talents() -> void:
 			continue
 		kept[node_id] = rank
 	talents = kept
+	_talent_totals_dirty = true
 	var changed := true
 	while changed:
 		changed = false
@@ -368,6 +387,7 @@ func _prune_unknown_talents() -> void:
 						break
 			if not valid:
 				talents.erase(node_id)
+				_talent_totals_dirty = true
 				changed = true
 	var spent := 0
 	for node_id in talents.keys():
@@ -376,6 +396,7 @@ func _prune_unknown_talents() -> void:
 		var cost := rank * int(node.get("costPerRank", 1))
 		if spent + cost > _talent_points_from_level():
 			talents.erase(node_id)
+			_talent_totals_dirty = true
 			continue
 		spent += cost
 	talent_points_spent = spent
@@ -383,6 +404,7 @@ func _prune_unknown_talents() -> void:
 
 func respec_talents() -> void:
 	talents.clear()
+	_talent_totals_dirty = true
 	talent_points_spent = 0
 	_planned_talents.clear()
 	# Nothing is "just unlocked" any more once the whole build is cleared, so the grace window
@@ -446,9 +468,11 @@ func from_save_dict(data: Dictionary) -> void:
 	_recalc_level()
 	talent_points_spent = 0
 	talents = {}
+	_talent_totals_dirty = true
 	var saved_talents: Variant = data.get("talents", {})
 	if saved_talents is Dictionary:
 		talents = saved_talents.duplicate()
+		_talent_totals_dirty = true
 	_prune_unknown_talents()
 	_planned_talents.clear()
 	_last_talent_unlock_level = maxi(0, int(data.get("lastTalentUnlockLevel", 0)))
@@ -522,6 +546,16 @@ func record_failure_point(entry: Dictionary) -> void:
 	progression_changed.emit()
 
 
+## How many times the player has died to a boss fight in `biome_id`.
+func boss_deaths_in(biome_id: String) -> int:
+	var count := 0
+	for entry in failure_points:
+		if entry is Dictionary and bool((entry as Dictionary).get("bossFight", false)) \
+				and str((entry as Dictionary).get("biomeId", "")) == biome_id:
+			count += 1
+	return count
+
+
 func get_failure_hotspots(limit: int = 3) -> Array[Dictionary]:
 	var counts := {}
 	for entry in failure_points:
@@ -574,6 +608,15 @@ func _xp_required_for_level(target_level: int) -> int:
 		if int(entry.get("level", 0)) == target_level:
 			return int(entry.get("xpRequired", 0))
 	return -1
+
+
+## The level `total_xp` would reach, without granting anything.
+func level_for_xp(total_xp: int) -> int:
+	var reached := 1
+	for entry in _levels:
+		if total_xp >= int(entry.get("xpRequired", 0)) and int(entry.get("level", 1)) > reached:
+			reached = int(entry.get("level", 1))
+	return reached
 
 
 func _recalc_level() -> void:

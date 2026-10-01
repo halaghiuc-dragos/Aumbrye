@@ -13,9 +13,6 @@ static func capture(player: Node) -> Dictionary:
 	if heal:
 		# A interrupted/reloaded drink still spends its charge, even before the gulp.
 		state["flaskCharges"] = maxi(0, heal.current_charges - (1 if heal.is_drinking else 0))
-	var arrows := player.get_node_or_null("PlayerArrows") as PlayerArrows
-	if arrows:
-		state["arrows"] = arrows.current_arrows
 	return state
 
 
@@ -44,10 +41,6 @@ static func restore(player: Node, state: Dictionary) -> void:
 	if heal and state.has("flaskCharges"):
 		heal.current_charges = clampi(int(_finite_value(state["flaskCharges"], heal.current_charges)), 0, heal.max_charges)
 		heal.charges_changed.emit(heal.current_charges, heal.max_charges)
-	var arrows := player.get_node_or_null("PlayerArrows") as PlayerArrows
-	if arrows and state.has("arrows"):
-		arrows.current_arrows = clampi(int(_finite_value(state["arrows"], arrows.current_arrows)), 0, arrows.max_arrows)
-		arrows.arrows_changed.emit(arrows.current_arrows, arrows.max_arrows)
 
 
 static func _finite_value(value: Variant, fallback: float) -> float:

@@ -3,7 +3,7 @@ extends CanvasLayer
 @export var player_path: NodePath
 @export var enemy_path: NodePath
 
-var show_debug := OS.is_debug_build()
+var show_debug := false
 var show_hitboxes := false
 
 var _player: CharacterBody3D
@@ -30,7 +30,7 @@ func _ready() -> void:
 		_enemy = get_node(enemy_path) as CharacterBody3D
 
 
-## SY-05: an FPS readout as a normal setting, not the debug-only panel this node otherwise gates
+## An FPS readout as a normal setting, not the debug-only panel this node otherwise gates
 ## behind `show_debug`/F1 -- built here in code rather than added to the three scenes that embed
 ## this node (castle_run, combat_arena, hub) as a new authored child.
 var _fps_label: Label
@@ -76,14 +76,20 @@ func _apply_overlay_layout() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("debug_toggle"):
-		show_debug = not show_debug
-		_label.visible = show_debug
-	if event.is_action_pressed("debug_hitboxes"):
-		show_hitboxes = not show_hitboxes
-		_toggle_hitbox_debug(show_hitboxes)
 	if event.is_action_pressed("toggle_damage_numbers") and _hit_feedback:
 		_hit_feedback.show_damage_numbers = not _hit_feedback.show_damage_numbers
+	if not OS.is_debug_build() or not event is InputEventKey:
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode == KEY_F1:
+		show_debug = not show_debug
+		_label.visible = show_debug
+		_refresh_fps_label_visibility()
+	elif key_event.keycode == KEY_F2:
+		show_hitboxes = not show_hitboxes
+		_toggle_hitbox_debug(show_hitboxes)
 
 
 func _process(_delta: float) -> void:
@@ -319,14 +325,12 @@ func reset_duel() -> void:
 	var dummies := get_tree().get_nodes_in_group("training_dummy")
 	if not dummies.is_empty():
 		for enemy in dummies:
-			var grunt := enemy as TrainingGruntScript
-			if grunt != null:
-				grunt.reset_enemy()
+			if enemy.has_method("reset_enemy"):
+				enemy.call("reset_enemy")
 			enemy.velocity = Vector3.ZERO
 	elif _enemy:
-		var enemy_grunt := _enemy as TrainingGruntScript
-		if enemy_grunt != null:
-			enemy_grunt.reset_enemy()
+		if _enemy.has_method("reset_enemy"):
+			_enemy.call("reset_enemy")
 		_enemy.global_position = Vector3(6, 0, 0)
 		_enemy.velocity = Vector3.ZERO
 	if _player:
@@ -335,8 +339,7 @@ func reset_duel() -> void:
 			reactions.reset_combat_state()
 
 
-const CombatArenaScript := preload("res://scripts/debug/combat_arena.gd")
-const TrainingGruntScript := preload("res://scripts/enemies/training_grunt.gd")
+const CombatArenaScript := preload("res://scripts/practice/combat_arena.gd")
 
 
 func _has_combat_arena_constants() -> bool:

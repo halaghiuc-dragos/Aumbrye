@@ -47,6 +47,11 @@ static func spawn_all(builder: DungeonBuilder, definition: Dictionary) -> Dictio
 				return {"roomId": room_id, "placementId": placement_id, "reason": placement.get("reason", "placement_failed")}
 		if node.has_method("configure"):
 			node.call("configure", entry, definition)
+		if node.has_method("get_chests"):
+			var chest_index := 0
+			for chest in node.call("get_chests"):
+				builder.register_chest("%s#%d" % [placement_id, chest_index], chest)
+				chest_index += 1
 	return {}
 
 
@@ -87,8 +92,7 @@ static func _gate_failure(
 
 ## The doorway a barrier belongs in, resolved by the builder from the definition edge.
 ##
-## `RoomTemplate.socket_toward` is not usable here: it names the wall from the line between the two
-## room centres, and a doorway that has slid along its wall leaves that line pointing at a corner.
+## A doorway that has slid along its wall is found from its edge, never from the room centres.
 static func door_socket(node: Node) -> DoorwaySocket:
 	return node.get_meta("door_socket", null) as DoorwaySocket
 
@@ -159,7 +163,7 @@ static func spawn_shortcut_gates(builder: DungeonBuilder, definition: Dictionary
 			node.call("configure", gate, room_a, room_b)
 
 
-## RM-07: exactly one room per floor -- see `RoomContentAssigner._mark_pre_boss_lock_in()` -- has
+## Exactly one room per floor -- see `RoomContentAssigner._mark_pre_boss_lock_in()` -- has
 ## `"lockIn": true` on its `roomContent` entry. One node owns every doorway of that room rather than
 ## spawning per-doorway like the other gate kinds, since they all have to close and open together.
 static func spawn_arena_gates(builder: DungeonBuilder, definition: Dictionary) -> void:

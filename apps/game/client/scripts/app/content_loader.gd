@@ -45,6 +45,21 @@ static func load_json(relative: String) -> Dictionary:
 	return data as Dictionary if data is Dictionary else {}
 
 
+## The cached document itself, read-only, for callers that only read it and sit on a hot path
+## (every tooltip, every spawn). `load_json` deep-copies so that a caller may edit its copy; this
+## one does not copy, and writing to it fails.
+static func load_json_shared(relative: String) -> Dictionary:
+	if not _json_cache.has(relative):
+		load_json_result(relative)
+	var cached: Variant = _json_cache.get(relative)
+	if not cached is Dictionary:
+		return {}
+	var document: Dictionary = cached
+	if not document.is_read_only():
+		document.make_read_only()
+	return document
+
+
 static func load_json_result(relative: String, retry: bool = false) -> Dictionary:
 	if retry:
 		_json_cache.erase(relative)
@@ -75,17 +90,6 @@ static func load_json_result(relative: String, retry: bool = false) -> Dictionar
 	return {"ok": true, "data": result.duplicate(true)}
 
 
-static func load_required_json(relative: String, retry: bool = false) -> Dictionary:
-	var result := load_json_result(relative, retry)
-	if bool(result.get("ok", false)):
-		return result.get("data", {})
-	var error := "Required content unavailable: %s" % relative
-	if CrashLogger:
-		CrashLogger.log_error("content_loader.required_failed", {"path": relative, "error": result.get("error", "unknown")})
-	push_error(error)
-	return {}
-
-
 static func prime(paths: Array) -> int:
 	var loaded := 0
 	for path in paths:
@@ -97,15 +101,3 @@ static func prime(paths: Array) -> int:
 	return loaded
 
 
-static func clear_all_caches() -> void:
-	_json_cache.clear()
-	ItemCatalog.clear_cache()
-	ItemSetCatalog.clear_cache()
-	EnemyCatalog.clear_cache()
-	ClassCatalog.clear_cache()
-	RelicCatalog.clear_cache()
-	QuestCatalog.clear_cache()
-	DialogueCatalog.clear_cache()
-	var portal_script: Script = load("res://scripts/content/portal_catalog.gd")
-	if portal_script:
-		portal_script.call("clear_cache")

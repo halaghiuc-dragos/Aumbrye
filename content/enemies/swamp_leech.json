@@ -33,6 +33,7 @@
   "attacks": [
     {
       "id": "snap",
+      "anim": "attack_light_1",
       "name": "Snap",
       "weight": 3,
       "windup_duration": 0.32,
@@ -47,10 +48,14 @@
       "status_on_hit": "poison",
       "status_stacks_on_hit": 1,
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "lunge",
+      "anim": "attack_thrust",
       "name": "Lunge",
       "weight": 2,
       "windup_duration": 0.74,
@@ -64,11 +69,15 @@
       "damage_type": "poison",
       "status_on_hit": "poison",
       "status_stacks_on_hit": 1,
-      "attackClass": "parryable",
-      "knockback": 2.0
+      "attackClass": "unblockable",
+      "knockback": 2.0,
+      "tags": [
+        "gap_close"
+      ]
     },
     {
       "id": "siphon_grab",
+      "anim": "attack_grab",
       "name": "Siphon Grab",
       "weight": 1,
       "windup_duration": 0.9,
@@ -81,10 +90,14 @@
       "telegraph_shape": "line",
       "attackClass": "grab",
       "grab_duration": 2.0,
-      "grab_drain_per_second": 6.0
+      "grab_drain_per_second": 6.0,
+      "tags": [
+        "anti_roll"
+      ]
     },
     {
       "id": "worry",
+      "anim": "attack_light_2",
       "name": "Worry",
       "weight": 2,
       "windup_duration": 0.4,
@@ -136,8 +149,10 @@
           "knockback": 2.0
         }
       ],
-      "attackClass": "blockable",
-      "knockback": 2.0
+      "attackClass": "parryable",
+      "knockback": 2.0,
+      "hold_fraction": 0.3,
+      "feint_chance": 0.2
     }
   ]
 }

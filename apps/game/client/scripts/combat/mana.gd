@@ -5,7 +5,7 @@ signal mana_changed(current: float, max_value: float)
 signal depleted
 signal insufficient
 
-## CB-07: mirrors `Stamina.RegenState` exactly so callers look the same -- `BLOCKING` slows regen
+## Mirrors `Stamina.RegenState` exactly so callers look the same -- `BLOCKING` slows regen
 ## rather than stopping it, the way holding a shield slows stamina recovery without halting it.
 enum RegenState { NORMAL, BLOCKING, SUPPRESSED }
 

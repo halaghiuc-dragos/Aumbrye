@@ -6,7 +6,6 @@ extends Node
 ##
 ## Run: godot --path apps/game/client --headless res://scenes/debug/inventory_ux_audit.tscn
 
-const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
 const InventoryUIScript := preload("res://scripts/ui/inventory_ui.gd")
 
@@ -15,7 +14,6 @@ var _failures: int = 0
 
 func _ready() -> void:
 	await get_tree().process_frame
-	_audit_condition_line()
 	_audit_effective_damage_preview()
 	_audit_empty_filter_results()
 	print("INVENTORY UX RESULT %d failures" % _failures)
@@ -30,32 +28,6 @@ func _fail(message: String) -> void:
 func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_fail(message)
-
-
-## Every condition an item can roll has to name itself in the description, including the neutral
-## one -- that is the tier that tells the player the axis exists.
-func _audit_condition_line() -> void:
-	for item_type in ["weapon", "armor", "accessory"]:
-		var ladder := ItemQualityScript.ladder_for(item_type)
-		for quality_id in ladder:
-			var slot := {"itemId": _sample_item(item_type), "quality": str(quality_id)}
-			var text := InventoryService.format_slot_tooltip_bbcode(slot)
-			var name_text := ItemQualityScript.display_name(str(quality_id))
-			if not text.contains(name_text):
-				_fail("'%s' does not name itself in the description" % quality_id)
-			if not text.contains("base stats"):
-				_fail("'%s' does not say what it does to the item" % quality_id)
-		print("CONDITION %-10s all %d tiers named in the description" % [item_type, ladder.size()])
-
-	# An item with no condition rolled must not grow an empty line.
-	var bare := InventoryService.format_slot_tooltip_bbcode({"itemId": _sample_item("weapon")})
-	if bare.contains(tr("INV_CONDITION")):
-		_fail("an item with no condition still shows a condition line")
-
-
-func _sample_item(item_type: String) -> String:
-	var ids := ItemCatalog.get_items_by_type(item_type)
-	return str(ids[0]) if not ids.is_empty() else "castle_sword"
 
 
 func _audit_empty_filter_results() -> void:

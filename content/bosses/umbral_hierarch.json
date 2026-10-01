@@ -32,6 +32,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_heavy",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.35,
@@ -43,11 +44,15 @@
       "max_range": 3,
       "telegraph_shape": "circle",
       "damage_type": "arcane",
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "blockable",
+      "knockback": 3.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.85,
@@ -64,6 +69,7 @@
     },
     {
       "id": "chain",
+      "anim": "attack_heavy",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.5,
@@ -93,11 +99,12 @@
           "knockback": 3.5
         }
       ],
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "sweepback",
+      "anim": "attack_sweep",
       "name": "Turning Sweep",
       "weight": 2,
       "windup_duration": 0.63,
@@ -109,11 +116,15 @@
       "max_range": 4.8,
       "telegraph_shape": "cone",
       "damage_type": "arcane",
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "parryable",
+      "knockback": 3.5,
+      "tags": [
+        "gap_close"
+      ]
     },
     {
       "id": "sig_recitation",
+      "anim": "attack_heavy",
       "name": "Recitation",
       "weight": 1.1,
       "windup_duration": 1.45,
@@ -143,7 +154,10 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -165,7 +179,7 @@
           "max_range": 3,
           "telegraph_shape": "circle",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -215,7 +229,7 @@
               "knockback": 3.5
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.5
         },
         {
@@ -231,7 +245,7 @@
           "max_range": 4.8,
           "telegraph_shape": "cone",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         }
       ]
@@ -254,7 +268,7 @@
           "max_range": 3,
           "telegraph_shape": "circle",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -270,7 +284,7 @@
           "max_range": 3.3,
           "telegraph_shape": "cone",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -286,7 +300,7 @@
           "max_range": 7.8,
           "telegraph_shape": "line",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -390,7 +404,7 @@
           "max_range": 3,
           "telegraph_shape": "circle",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -406,7 +420,7 @@
           "max_range": 7.8,
           "telegraph_shape": "line",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -474,7 +488,7 @@
               "knockback": 3.5
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {

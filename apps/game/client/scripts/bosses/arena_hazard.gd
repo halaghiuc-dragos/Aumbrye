@@ -7,7 +7,7 @@ enum State { TELEGRAPH, ACTIVE, FADE }
 
 const FADE_TIME := 0.5
 
-## `BS-04`: every arena hazard reads as an unblockable attack -- there is nowhere to sidestep a
+## Every arena hazard reads as an unblockable attack -- there is nowhere to sidestep a
 ## quadrant flood or a raised floor, only somewhere to not be standing.
 const HAZARD_ATTACK_CLASS := "unblockable"
 

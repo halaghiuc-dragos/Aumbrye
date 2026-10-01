@@ -59,11 +59,6 @@
     },
     "rollSeed": {
       "type": "integer"
-    },
-    "quality": {
-      "description": "Condition tier id from content/affixes/quality_tiers.json. Absent on item types that carry no base stats, and on rolls made before the system existed.",
-      "type": "string",
-      "minLength": 1
     }
   }
 }

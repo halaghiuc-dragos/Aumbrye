@@ -9,27 +9,41 @@ const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.g
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
 
+const INTERACT_RANGE := 2.4
+
 var _mesh: Node3D
-@onready var _interact_area: Area3D = $InteractArea
 @onready var _label: Label3D = $Label3D
 
 var _items: Array = []
 var _opened := false
-var _player: Node3D
+var _sealed := false
+## A key vault's chest also holds the floor key fragment: opening it takes the key and the items
+## together, so there is one thing to interact with.
+var _key_fragment_id := ""
+var _key_label := ""
+var _key_taken := false
 
 
 func _ready() -> void:
 	_mesh = DioramaSkin.build_chest(self, DioramaSkin.resolve_biome(self))
 	if _opened:
 		apply_opened_state(true)
-	_interact_area.body_entered.connect(_on_body_entered)
-	_interact_area.body_exited.connect(_on_body_exited)
 	_label.visible = false
-	set_process_unhandled_input(false)
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		2,
+		Callable(self, "_open"),
+		Callable(self, "_can_open"),
+		Callable(self, "_set_selected_prompt")
+	)
 
 
 func configure(placement: Dictionary) -> void:
 	_items = placement.get("items", []).duplicate(true)
+	_key_fragment_id = str(placement.get("keyFragmentId", ""))
+	_key_label = str(placement.get("keyLabel", ""))
 
 
 func is_opened() -> bool:
@@ -37,7 +51,7 @@ func is_opened() -> bool:
 
 
 func capture_state() -> Dictionary:
-	return {"opened": _opened, "remaining": _items.duplicate(true)}
+	return {"opened": _opened, "remaining": _items.duplicate(true), "keyTaken": _key_taken}
 
 
 func apply_opened_state(was_opened: bool) -> void:
@@ -51,30 +65,28 @@ func apply_opened_state(was_opened: bool) -> void:
 
 func apply_state(state: Dictionary) -> void:
 	_items = state.get("remaining", _items).duplicate(true)
+	_key_taken = bool(state.get("keyTaken", _key_taken))
 	apply_opened_state(bool(state.get("opened", false)))
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _opened or _player == null:
-		return
-	if PlayerInput.interact_just_pressed(event):
-		_open()
+## A sealed chest can no longer be opened: its timed window ran out.
+func seal() -> void:
+	_sealed = true
+	_label.visible = false
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_player = body
-		if not _opened:
-			_label.visible = true
-			_label.text = InputGlyphServiceScript.get_action_prompt(&"interact")
-			set_process_unhandled_input(true)
+func _can_open() -> bool:
+	return not _opened and not _sealed
 
 
-func _on_body_exited(body: Node3D) -> void:
-	if body == _player:
-		_player = null
-		_label.visible = false
-		set_process_unhandled_input(false)
+func _set_selected_prompt(active: bool) -> void:
+	_label.visible = active and not _opened
+	if _label.visible:
+		_label.text = (
+			InputGlyphServiceScript.format_interact_name(_key_label)
+			if _key_label != ""
+			else InputGlyphServiceScript.get_action_prompt(&"interact")
+		)
 
 
 func _present_rarity_juice(item_id: String, instance: Dictionary = {}) -> void:
@@ -93,7 +105,7 @@ func _present_rarity_juice(item_id: String, instance: Dictionary = {}) -> void:
 			toast.show_loot(str(def.get("name", item_id)), RarityRegistryScript.display_color(rarity))
 	if RarityRegistryScript.wants_camera_nudge(rarity) and VfxService:
 		VfxService.request_shake(0.12, 320)
-		# AU-03: the same top-tier gate that earns a camera nudge earns the "you should look at
+		# The same top-tier gate that earns a camera nudge earns the "you should look at
 		# this" stinger -- a legendary should be impossible to miss even with your eyes elsewhere.
 		AudioDirector.play_stinger("rare_drop")
 
@@ -101,6 +113,14 @@ func _present_rarity_juice(item_id: String, instance: Dictionary = {}) -> void:
 func _open() -> void:
 	if _opened:
 		return
+	# The key goes into the floor keyring, not the bag: a full bag must never be the reason a floor
+	# cannot be finished.
+	if _key_fragment_id != "" and not _key_taken:
+		_key_taken = true
+		FloorKeyring.take(_key_fragment_id)
+		# A keycard punctuates the same way a secret or a lock does -- it is the beat that
+		# tells the player their next dead end just opened.
+		AudioDirector.play_stinger("key_taken")
 	var remaining: Array = []
 	for entry in _items:
 		var item_id: String = entry.get("itemId", "")

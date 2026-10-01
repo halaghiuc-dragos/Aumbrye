@@ -133,23 +133,41 @@ func _physics_process(delta: float) -> void:
 		_finish_drink()
 
 
+const REGEN_SCAN_INTERVAL := 0.25
+var _regen_scan_timer := 0.0
+var _enemy_in_combat_range := false
+
+
 func _process_regen(delta: float) -> void:
 	if _regen_suppressed > 0.0:
 		_regen_suppressed -= delta
 		return
 	if _health == null or _health.is_dead() or _health.current >= _health.max_health:
 		return
-	if _body and _body.get_tree():
-		for node in _body.get_tree().get_nodes_in_group("enemy"):
-			var enemy := node as Node3D
-			if enemy and is_instance_valid(enemy) and enemy.global_position.distance_to(_body.global_position) <= REGEN_COMBAT_RADIUS:
-				return
+	# The cheap test first: most builds have no regeneration at all, and the enemy scan below is
+	# only worth doing for one that does.
 	var per_second := 0.0
 	if _body:
 		per_second = float(_body.get_meta("combat_health_regen", 0.0))
 	if per_second <= 0.0:
 		return
+	_regen_scan_timer -= delta
+	if _regen_scan_timer <= 0.0:
+		_regen_scan_timer = REGEN_SCAN_INTERVAL
+		_enemy_in_combat_range = _any_enemy_near()
+	if _enemy_in_combat_range:
+		return
 	_health.heal(per_second * delta)
+
+
+func _any_enemy_near() -> bool:
+	if _body == null or _body.get_tree() == null:
+		return false
+	for node in _body.get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Node3D
+		if enemy and is_instance_valid(enemy) and enemy.global_position.distance_to(_body.global_position) <= REGEN_COMBAT_RADIUS:
+			return true
+	return false
 
 
 ## Called when the player is hit, so regeneration cannot tick through a fight.

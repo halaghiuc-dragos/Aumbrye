@@ -1,4 +1,4 @@
-"""Authored 16x16 status icons for the buff bar.
+"""16x16 status icons for the buff bar, rendered from Blender models.
 
 The shipped status_icons.png was placeholder noise: seven of the ten statuses were diagonal colour
 smears rather than shapes, and both polarity frames were empty. These are drawn to the same rules
@@ -9,6 +9,9 @@ Glyph legend per row string:
     .  transparent      o  outline        d  dark tone
     m  mid tone         l  light tone     h  highlight
 """
+
+import json
+from pathlib import Path
 
 from PIL import Image
 
@@ -28,232 +31,18 @@ RAMPS = {
     "umbral": ((0x18, 0x12, 0x24), (0x33, 0x27, 0x4c), (0x55, 0x44, 0x77), (0x83, 0x70, 0xa6), (0xc4, 0xb6, 0xdc)),
 }
 
-# A drop of blood, falling, with the wound-line behind it.
-BLEED = [
-    "................",
-    ".......oo.......",
-    "......ohho......",
-    "......ohlo......",
-    ".....oolmoo.....",
-    ".....olmmdo.....",
-    "....oolmmddo....",
-    "....olmmmddo....",
-    "...oolmmmdddo...",
-    "...olmmmmdddo...",
-    "...olmmmmdddo...",
-    "...oolmmmddoo...",
-    "....oodmmdoo....",
-    "......oddo......",
-    ".......oo.......",
-    "................",
-]
-
-# A flame with a hot core.
-BURN = [
-    "................",
-    ".......oo.......",
-    "......ohdo......",
-    "......ohdo......",
-    ".....oohddo.....",
-    ".....olhmdo.....",
-    "....oolhmddo....",
-    "...ooldhmdddo...",
-    "...olmdhmmddo...",
-    "..oolmmhlmdddo..",
-    "..olmmmhllmddo..",
-    "..olmmmlllmddo..",
-    "..oolmmmlmmddo..",
-    "...oolmmmmddo...",
-    ".....ooooooo....",
-    "................",
-]
-
-# A six-point ice star.
-FREEZE = [
-    "................",
-    ".......oo.......",
-    "......ohho......",
-    "..o...ohho...o..",
-    ".oho..ohho..oho.",
-    "..ohooohhooooo..",
-    "...ohhhhhhhho...",
-    "..ooohhllhhoooo.",
-    "..ooohhllhhoooo.",
-    "...ohhhhhhhho...",
-    "..ohoooohhoooo..",
-    ".oho..ohho..oho.",
-    "..o...ohho...o..",
-    "......ohho......",
-    ".......oo.......",
-    "................",
-]
-
-# A dripping vial-drop with rising bubbles.
-POISON = [
-    "................",
-    "................",
-    ".......oo.......",
-    "......ohho......",
-    ".....oolhoo.....",
-    "....oolmmhoo....",
-    "...oolmmmmdoo...",
-    "..oolmoomdddoo..",
-    "..olmmoommdddo..",
-    "..olmmmmoomddo..",
-    "..olmmoommdddo..",
-    "..oolmoomddddo..",
-    "...oodmmmdddo...",
-    "....ooddddoo....",
-    "......oooo......",
-    "................",
-]
-
-# An impact starburst.
-# A watching eye.
-FOCUS = [
-    "................",
-    "................",
-    ".....oooooo.....",
-    "...oohhhhhhoo...",
-    "..ohhllllllhho..",
-    ".ohhllooooollho.",
-    ".ohlloommoolllo.",
-    ".ollomodddomllo.",
-    ".ollomodddomllo.",
-    ".ohlloommoolllo.",
-    ".ohhllooooollho.",
-    "..ohhllllllhho..",
-    "...oohhhhhhoo...",
-    ".....oooooo.....",
-    "................",
-    "................",
-]
-
-# A steady upward chevron over a bar: the oath held.
-RESOLVE = [
-    "................",
-    ".......oo.......",
-    "......ohho......",
-    ".....ohhhho.....",
-    "....ohhllhho....",
-    "...ohhlmmlhho...",
-    "..ohhlmddmlhho..",
-    ".ohhlmdoodmlhho.",
-    ".ohlmdo..odmlho.",
-    ".omdo......odmo.",
-    ".omo........omo.",
-    "................",
-    "..oooooooooooo..",
-    "..ohhhhhhhhhho..",
-    "..oooooooooooo..",
-    "................",
-]
-
-# A faceted block of stone.
-STONESKIN = [
-    "................",
-    "................",
-    "...oooooooooo...",
-    "..ohhhhhhoddoo..",
-    ".ohhllllhommddo.",
-    ".ohllllhommmmdo.",
-    ".ohlllhommmmmdo.",
-    ".ohllhommmmdddo.",
-    ".ohlhommmmddddo.",
-    ".ohhommmmdddddo.",
-    ".ohommmmddddddo.",
-    ".ohommmdddddddo.",
-    "..oommdddddddo..",
-    "...oooooooooo...",
-    "................",
-    "................",
-]
-
-# Two swept chevrons: speed.
-# An hourglass, running down.
-TORPOR = [
-    "................",
-    "..oooooooooooo..",
-    "..ohhhhhhhhhho..",
-    "..oolllllllloo..",
-    "...oldddddlo....",
-    "....olddddlo....",
-    ".....olddlo.....",
-    "......ollo......",
-    "......ollo......",
-    ".....olmmlo.....",
-    "....olmmmmlo....",
-    "...olmmmmmmlo...",
-    "..oollllllllooo.",
-    "..ohhhhhhhhhho..",
-    "..oooooooooooo..",
-    "................",
-]
-
-def _blank():
-    return [["." for _ in range(CELL)] for _ in range(CELL)]
-
-
-def _put(grid, x, y, ch):
-    if 0 <= x < CELL and 0 <= y < CELL:
-        grid[y][x] = ch
-
-
-def _chevron(grid, ox, oy, height, thickness=3):
-    """A right-pointing ">" with its point on the vertical middle."""
-    half = height // 2
-    for i in range(half):
-        for t in range(thickness):
-            tone = "h" if t == 0 else ("l" if t == 1 else "m")
-            _put(grid, ox + i + t, oy + i, tone)
-            _put(grid, ox + i + t, oy + height - 1 - i, tone)
-    # Outline the leading and trailing edges so the shape closes.
-    for i in range(half):
-        _put(grid, ox + i - 1, oy + i, "o")
-        _put(grid, ox + i - 1, oy + height - 1 - i, "o")
-        _put(grid, ox + i + thickness, oy + i, "o")
-        _put(grid, ox + i + thickness, oy + height - 1 - i, "o")
-
-
-def _star(grid, cx, cy, arm):
-    """A four-point star: the classic 'seeing stars' mark."""
-    _put(grid, cx, cy, "h")
-    for d in range(1, arm + 1):
-        tone = "h" if d <= arm - 1 else "l"
-        for dx, dy in ((0, -d), (0, d), (-d, 0), (d, 0)):
-            _put(grid, cx + dx, cy + dy, tone)
-    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        _put(grid, cx + dx, cy + dy, "l")
-    # Ring the whole mark so it keeps the set's hard edge.
-    for d in range(1, arm + 2):
-        for dx, dy in ((0, -d), (0, d), (-d, 0), (d, 0)):
-            x, y = cx + dx, cy + dy
-            for ex, ey in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
-                if 0 <= ex < CELL and 0 <= ey < CELL and grid[ey][ex] == ".":
-                    grid[ey][ex] = "o"
-
-
-def _rows(grid):
-    return ["".join(r) for r in grid]
-
-
-def _build_stun():
-    g = _blank()
-    _star(g, 7, 7, 3)
-    _star(g, 4, 4, 1)
-    _star(g, 11, 10, 1)
-    return _rows(g)
-
-
-def _build_swiftness():
-    g = _blank()
-    _chevron(g, 3, 3, 10, 2)
-    _chevron(g, 8, 3, 10, 2)
-    return _rows(g)
-
-
-STUN = _build_stun()
-SWIFTNESS = _build_swiftness()
+_GLYPHS = json.loads(Path(__file__).with_name("glyphs.json").read_text(encoding="utf-8"))
+# The glyphs are rendered from tools/blender/icons.py by tools/blender/build_icons.py.
+BLEED = _GLYPHS["status/bleed"]
+BURN = _GLYPHS["status/burn"]
+FREEZE = _GLYPHS["status/freeze"]
+POISON = _GLYPHS["status/poison"]
+STUN = _GLYPHS["status/stun"]
+FOCUS = _GLYPHS["status/focus"]
+RESOLVE = _GLYPHS["status/resolve"]
+STONESKIN = _GLYPHS["status/stoneskin"]
+SWIFTNESS = _GLYPHS["status/swiftness"]
+TORPOR = _GLYPHS["status/torpor"]
 
 
 # Polarity frames: a corner-bracket ring the pip sits inside.

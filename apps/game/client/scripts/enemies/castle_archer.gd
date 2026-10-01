@@ -55,7 +55,7 @@ func _process_chase(delta: float) -> void:
 	else:
 		_reposition_target = Vector3.INF
 		_reposition_timer = 0.0
-	velocity = move_dir * _move_speed
+	velocity = move_dir * _effective_move_speed()
 	if to_player.length_squared() > 0.01:
 		_face_direction(to_player, delta)
 
@@ -92,8 +92,8 @@ func _is_reachable_reposition_target(target: Vector3) -> bool:
 		)
 		return path.size() >= 2 and path[path.size() - 1].distance_to(target) <= 1.0
 	# Small debug arenas and bespoke encounters can intentionally omit a navigation map.  A world
-	# ray still refuses a visibly blocked rear step rather than preserving the old wall-pushing
-	# fallback.  There is no synthetic escape when all three directions are obstructed.
+	# ray still refuses a visibly blocked rear step, and there is no synthetic escape when all three
+	# directions are obstructed.
 	var query := PhysicsRayQueryParameters3D.create(
 		global_position + Vector3.UP * 0.7, target + Vector3.UP * 0.7
 	)
@@ -102,9 +102,19 @@ func _is_reachable_reposition_target(target: Vector3) -> bool:
 	return hit.is_empty()
 
 
+## Probing whether a shot can land costs up to 48 rays, so a blocked shot is not probed again for a
+## moment: the archer keeps repositioning instead of retrying every tick.
+const BLOCKED_SHOT_RETRY_MSEC := 400
+var _shot_blocked_until_msec := 0
+
+
 func _start_windup() -> void:
+	if Time.get_ticks_msec() < _shot_blocked_until_msec:
+		_state = State.CHASE
+		return
 	_lock_shot_trajectory()
 	if not _shot_reachable:
+		_shot_blocked_until_msec = Time.get_ticks_msec() + BLOCKED_SHOT_RETRY_MSEC
 		_state = State.CHASE
 		return
 	super._start_windup()

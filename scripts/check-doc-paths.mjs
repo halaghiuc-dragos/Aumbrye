@@ -25,14 +25,7 @@ const SCAN_DIRS = ["docs", "apps/game/client/scripts", "tools", "scripts"];
 const SCAN_EXT = [".md", ".gd", ".py", ".mjs"];
 const SKIP_DIRS = new Set([".git", ".godot", "node_modules", "addons", "artifacts", "reports"]);
 
-/**
- * `CORE_GAMEPLAY_REVIEW.md` is a historical record: it quotes paths as they were when each finding
- * was written, including files the review itself then had deleted. Striking through every such
- * citation across 14k lines would be noise, and rewriting them would falsify the record. Exempted
- * deliberately rather than by omission — the tradeoff is that this check does not cover the repo's
- * largest document, and that is the right call for a file whose job is to say what *used* to be true.
- */
-const SKIP_FILES = new Set(["docs/CORE_GAMEPLAY_REVIEW.md"]);
+const SKIP_FILES = new Set([]);
 
 // Paths that look like repo references. `res://` maps to the Godot client root.
 const PATH_RE =

@@ -26,7 +26,6 @@ signal menu_closed
 @onready var _seed_hint_label: Label = $SeedPanel/Margin/VBox/SeedHintLabel
 @onready var _status_label: Label = $MainPanel/Margin/VBox/StatusLabel
 @onready var _dungeon_dropdown: OptionButton = $MainPanel/Margin/VBox/DungeonDropdown
-@onready var _difficulty_dropdown: OptionButton = $MainPanel/Margin/VBox/DifficultyDropdown
 @onready var _contract_label: Label = $MainPanel/Margin/VBox/ContractLabel
 @onready var _alt_mode_row: VBoxContainer = $MainPanel/Margin/VBox/AltModeRow
 
@@ -36,6 +35,8 @@ var _selected_dungeon := DungeonCatalog.DEFAULT_DUNGEON_ID
 var _selected_difficulty := 1
 var _ladder_grid: GridContainer
 var _tier_buttons: Dictionary = {}
+var _tier_rows: Dictionary = {}
+var _tier_detail_label: Label
 var _board_ui: Control
 
 
@@ -54,68 +55,20 @@ func _ready() -> void:
 	_seed_input.text_changed.connect(func(_t): _refresh_seed_hint())
 	if _dungeon_dropdown:
 		_dungeon_dropdown.item_selected.connect(_on_dungeon_selected)
-	if _difficulty_dropdown:
-		_difficulty_dropdown.item_selected.connect(_on_difficulty_selected)
 	_build_dungeon_dropdown()
 	_build_board_entry()
-	_build_mode_row()
 
 
 func _build_board_entry() -> void:
 	var vbox := _new_button.get_parent() as VBoxContainer
 	if vbox == null or vbox.has_node("BoardButton"):
 		return
-	var button := GameUISkinScript.make_button("The Board")
+	var button := GameUISkinScript.make_button(tr("ENTRY_THE_BOARD"))
 	button.name = "BoardButton"
 	button.pressed.connect(_on_board_pressed)
 	vbox.add_child(button)
 	if _seed_button and _seed_button.get_parent() == vbox:
 		vbox.move_child(button, _seed_button.get_index() + 1)
-
-
-## MD-05: alternate rule sets used to be reachable only through the tower board -- a menu inside a
-## menu inside the hub. Unlocked ones get their own row here, one press away from a run, with the
-## flavour line so the choice reads as "tonight I want X" rather than a rules dump.
-func _build_mode_row() -> void:
-	var vbox := _new_button.get_parent() as VBoxContainer
-	if vbox == null or vbox.has_node("ModeRow"):
-		return
-	var modes := RunModeCatalog.get_all()
-	if modes.is_empty():
-		return
-	var counters := ProgressCounters.snapshot()
-	var row := VBoxContainer.new()
-	row.name = "ModeRow"
-	row.add_theme_constant_override("separation", 4)
-	vbox.add_child(row)
-	if _new_button and _new_button.get_parent() == vbox:
-		vbox.move_child(row, _new_button.get_index() + 1)
-	for mode in modes:
-		var mode_id := str(mode.get("id", ""))
-		var unlocked := RunModeCatalog.is_unlocked(mode_id, counters)
-		if not unlocked:
-			continue
-		var btn := GameUISkinScript.make_button(ContentText.name(mode, mode_id))
-		btn.name = "Mode_%s" % mode_id
-		btn.tooltip_text = AlternateModeRowScript._mode_tooltip(mode, mode_id)
-		btn.disabled = not _can_start_run()
-		btn.pressed.connect(_on_mode_row_pressed.bind(mode_id))
-		row.add_child(btn)
-		var hint := Label.new()
-		hint.text = ContentText.description(mode)
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		GameUISkinScript.style_hint_label(hint)
-		row.add_child(hint)
-
-
-func _can_start_run() -> bool:
-	return not RunFlow.is_run_active()
-
-
-func _on_mode_row_pressed(mode_id: String) -> void:
-	if not _can_start_run():
-		return
-	RunFlow.start_alternate_mode_run(mode_id)
 
 
 func _on_board_pressed() -> void:
@@ -167,22 +120,17 @@ func _build_dungeon_dropdown() -> void:
 		var select_index := restore_index if restore_index >= 0 else 0
 		_dungeon_dropdown.select(select_index)
 		_selected_dungeon = str(_dungeon_dropdown.get_item_metadata(select_index))
-	_build_difficulty_dropdown()
-
-
-func _build_difficulty_dropdown() -> void:
 	_build_tier_ladder()
 
 
 func _build_tier_ladder() -> void:
-	if _difficulty_dropdown:
-		_difficulty_dropdown.visible = false
 	_ensure_ladder_container()
 	if _ladder_grid == null:
 		return
 	for child in _ladder_grid.get_children():
 		child.queue_free()
 	_tier_buttons.clear()
+	_tier_rows.clear()
 	var rows := DungeonTierService.get_difficulty_ladder(_selected_dungeon)
 	var last_difficulty := int(CharacterService.get_flag(LAST_DIFFICULTY_FLAG, 1))
 	var selectable: Array[int] = []
@@ -200,6 +148,9 @@ func _build_tier_ladder() -> void:
 			button.pressed.connect(_on_tier_card_pressed.bind(tier_num))
 		_ladder_grid.add_child(button)
 		_tier_buttons[tier_num] = button
+		_tier_rows[tier_num] = row
+		button.focus_entered.connect(_show_tier_detail.bind(tier_num))
+		button.mouse_entered.connect(_show_tier_detail.bind(tier_num))
 	if selectable.is_empty():
 		_selected_difficulty = 1
 		return
@@ -212,9 +163,7 @@ func _build_tier_ladder() -> void:
 func _ensure_ladder_container() -> void:
 	if _ladder_grid != null and is_instance_valid(_ladder_grid):
 		return
-	if _difficulty_dropdown == null:
-		return
-	var parent := _difficulty_dropdown.get_parent() as Container
+	var parent := _dungeon_dropdown.get_parent() as Container
 	if parent == null:
 		return
 	_ladder_grid = GridContainer.new()
@@ -226,9 +175,20 @@ func _ensure_ladder_container() -> void:
 	_ladder_grid.add_theme_constant_override(
 		"v_separation", GameUISkinScript.PIXEL_UNIT * 2
 	)
-	_ladder_grid.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	parent.add_child(_ladder_grid)
-	parent.move_child(_ladder_grid, _difficulty_dropdown.get_index() + 1)
+	parent.move_child(_ladder_grid, _dungeon_dropdown.get_index() + 1)
+	_tier_detail_label = Label.new()
+	_tier_detail_label.name = "TierDetail"
+	_tier_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameUISkinScript.style_hint_label(_tier_detail_label)
+	parent.add_child(_tier_detail_label)
+	parent.move_child(_tier_detail_label, _ladder_grid.get_index() + 1)
+
+
+## What a tier does, written out, for a controller that has no hover to read a tooltip with.
+func _show_tier_detail(tier: int) -> void:
+	if _tier_detail_label != null and _tier_rows.has(tier):
+		_tier_detail_label.text = _ladder_tooltip(_tier_rows[tier])
 
 
 func _ladder_card_text(row: Dictionary) -> String:
@@ -251,7 +211,7 @@ func _ladder_tooltip(row: Dictionary) -> String:
 		lines.append(description)
 	lines.append(
 		(
-			"Enemies x%.2f health, x%.2f harm. Loot +%d%%."
+			tr("ENTRY_TIER_HARM")
 			% [
 				float(row.get("hpMult", 1.0)),
 				float(row.get("damageMult", 1.0)),
@@ -261,18 +221,18 @@ func _ladder_tooltip(row: Dictionary) -> String:
 	)
 	var modifiers: Array = row.get("modifiers", [])
 	if modifiers.is_empty():
-		lines.append("No added rules.")
+		lines.append(tr("ENTRY_TIER_NO_RULES"))
 	else:
 		lines.append(RunModifierService.describe_all(modifiers))
 	var clears := int(row.get("clears", 0))
 	if clears > 0:
 		lines.append(
-			"Cleared %d time(s), best %s." % [clears, _format_time(float(row.get("bestSeconds", 0.0)))]
+			tr("ENTRY_TIER_CLEARED") % [clears, _format_time(float(row.get("bestSeconds", 0.0)))]
 		)
 	elif str(row.get("state", "")) == "locked":
-		lines.append("Clear the rung below to open this one.")
+		lines.append(tr("ENTRY_TIER_LOCKED_HINT"))
 	else:
-		lines.append("Never cleared.")
+		lines.append(tr("ENTRY_TIER_NEVER"))
 	return "\n".join(lines)
 
 
@@ -294,6 +254,7 @@ func _select_tier(tier: int) -> void:
 		var button: Button = _tier_buttons[tier_num]
 		if button and is_instance_valid(button):
 			button.button_pressed = int(tier_num) == tier
+	_show_tier_detail(tier)
 	_refresh_contract_label()
 
 
@@ -314,26 +275,18 @@ func _refresh_contract_label() -> void:
 	)
 
 
-func _on_difficulty_selected(index: int) -> void:
-	if _difficulty_dropdown == null or index >= _difficulty_dropdown.item_count:
-		return
-	_select_tier(int(_difficulty_dropdown.get_item_metadata(index)))
-
-
 func open_menu() -> void:
 	_close_board()
 	_build_dungeon_dropdown()
 	_refresh_continue_state()
 	_refresh_alt_modes()
 	_show_main_panel()
-	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.show_modal(self)
 	_new_button.grab_focus()
 
 
-## MD-05: boss_rush and gauntlet are castle-mode rule sets that used to be reachable only through
-## the tower board. Rebuilt every open so a mode unlocked mid-session shows up without reopening.
+## Boss_rush and gauntlet are castle-mode rule sets, listed here as well as on the tower board.
+## Rebuilt every open so a mode unlocked mid-session shows up without reopening.
 func _refresh_alt_modes() -> void:
 	if _alt_mode_row == null:
 		return
@@ -349,9 +302,7 @@ func _on_alt_mode_pressed(mode_id: String) -> void:
 
 func close_menu() -> void:
 	_close_board()
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.hide_modal(self)
 	menu_closed.emit()
 
 
@@ -359,15 +310,11 @@ func is_open() -> bool:
 	return visible
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		if _seed_panel.visible:
-			_show_main_panel()
-		else:
-			close_menu()
+func _on_cancel_requested() -> void:
+	if _seed_panel.visible:
+		_show_main_panel()
+	else:
+		close_menu()
 
 
 func _refresh_continue_state() -> void:
@@ -388,7 +335,7 @@ func _refresh_continue_state() -> void:
 		var floor_num := int(saved.get("currentFloor", 1))
 		var run_seed_value := int(saved.get("seed", 0))
 		_status_label.text = (
-			"Continue %s tier %d — floor %d (seed %d)."
+			tr("ENTRY_CONTINUE_STATUS")
 			% [
 				dungeon_name,
 				diff_tier,
@@ -398,7 +345,7 @@ func _refresh_continue_state() -> void:
 		)
 	else:
 		_status_label.text = (
-			"Clear the tenth floor to open the next rung of this dungeon's ladder."
+			tr("ENTRY_CLEAR_TENTH")
 		)
 	if weapon_id == "":
 		_status_label.text = tr("ENTRY_NEED_WEAPON")
@@ -432,7 +379,7 @@ func _refresh_seed_hint() -> void:
 		_seed_hint_label.text = DungeonSeedService.describe_tier_seed(int(trimmed), order)
 	else:
 		_seed_hint_label.text = (
-			"Enter a base run seed. Tier %d dungeons derive their layout seed from it." % order
+			tr("ENTRY_SEED_HINT") % order
 		)
 
 

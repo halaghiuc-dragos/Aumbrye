@@ -8,7 +8,6 @@ var _rows: Dictionary = {}
 
 
 func _ready() -> void:
-	GameUISkinScript.apply_pixel_theme(self)
 	QuestService.quest_updated.connect(_on_quest_updated)
 	QuestService.quest_progress_changed.connect(_on_quest_progress_changed)
 	QuestService.quest_tracker_changed.connect(_on_quest_tracker_changed)
@@ -69,12 +68,10 @@ func _set_row_text(line: Label, quest: Dictionary, progress: Dictionary, role: S
 
 
 ## The tracker sits in a corner of the HUD during gameplay and has to stay glanceable, not a
-## reading assignment -- the fetch branch used to print the quest's full prose description here,
-## which for a normal-length quest ran to two or three sentences. With more than one quest active
-## the tracker's fixed-size panel had no way to hold that and would grow past its own borders and
-## off the top of the screen. Every quest type now reports the same short "x/y" shape the kill
-## branch already used; the full description still lives in the Quest Board where there is room
-## for it and reading it does not need to be glanceable.
+## reading assignment. Every quest type reports the same short "x/y" shape: a full prose description
+## would run to two or three sentences and, with more than one quest active, grow the tracker's
+## fixed-size panel past its own borders and off the top of the screen. The full description lives in
+## the Quest Board where there is room for it.
 func _format_progress(quest: Dictionary, progress: Dictionary) -> String:
 	var quest_type: String = str(quest.get("type", ""))
 	match quest_type:

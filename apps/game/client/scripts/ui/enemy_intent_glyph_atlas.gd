@@ -6,7 +6,7 @@ class_name EnemyIntentGlyphAtlas
 
 const MANIFEST_PATH := "content/ui/intent_atlas.json"
 
-## `EN-01`'s four attack classes, each with its own glyph. `grab` shares no colour with the other
+## four attack classes, each with its own glyph. `grab` shares no colour with the other
 ## three under `AccessibilitySettings.get_telegraph_class_color()` (it falls to the same default as
 ## `blockable`), so the hand shape is what actually distinguishes it -- shape carries the message
 ## colour alone cannot.

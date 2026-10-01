@@ -325,7 +325,7 @@ function buildExchange(enemies, weapons) {
 // they can take -- so the envelope is computed by driving each of them to its worst and best legal
 // value at once and seeing where the fight lands.
 //
-//   deals:  weapon attack x quality x upgrade x two-hand x crit x damagePercent x flat bonus
+//   deals:  weapon attack x upgrade x two-hand x crit x damagePercent x flat bonus
 //           x attack speed (more swings per second, not harder ones)
 //   takes:  base + class + gear health, against armour on the diminishing-returns curve
 //
@@ -333,8 +333,6 @@ function buildExchange(enemies, weapons) {
 // floor is a common, chipped, unupgraded piece in every slot and the ceiling is an aumbral,
 // masterforged, fully-upgraded one.
 
-const QUALITY_MIN = 0.8;
-const QUALITY_MAX = 1.2;
 const UPGRADE_STEP_MIN = 0.04; // keen path
 const UPGRADE_STEP_MAX = 0.08; // heavy path
 const UPGRADE_LEVEL_MAX = 10; // aumbral
@@ -347,9 +345,7 @@ const FLAT_DAMAGE_CAP_RATIO = 2.0;
 function affixFlatDamageCeiling() {
   const rules = readJson(join(contentRoot, "affixes", "rarity_rules.json"));
   const limit = Number(rules.affixGroupLimits?.flatDamage ?? 99);
-  const flatKeys = new Set([
-    "physicalDamage", "fireDamage", "frostDamage", "arcaneDamage", "poisonDamage",
-  ]);
+  const flatKeys = new Set(["physicalDamage"]);
   const rolls = [];
   for (const pack of ["prefixes", "suffixes"]) {
     for (const affix of readJson(join(contentRoot, "affixes", `${pack}.json`)).affixes ?? []) {
@@ -366,13 +362,13 @@ function affixFlatDamageCeiling() {
 // or the endgame has no fights left in it.
 const CEILING_MAX_HITS_TO_KILL_PLAYER = 14;
 const FLOOR_MAX_SECONDS_TO_KILL = 90;
-// How far gear alone may swing one attack. The legal multipliers -- quality 1.2, ten upgrade
+// How far gear alone may swing one attack. The legal multipliers -- ten upgrade
 // levels at the heavy step 1.8, two-handing 1.25, best-in-slot damagePercent 1.47, crit 1.15,
 // attack speed 1.15, and gear flat damage capped at triple the swing -- multiply out to about
 // twenty against a chipped, unupgraded common in the hands of the worst-scaling class. That is the
 // budget; anything past it means a multiplier has grown out of step with the rest.
-const MAX_BUILD_SPREAD = 20;
-const MAX_ROSTER_SPREAD = 8;
+const MAX_BUILD_SPREAD = 14;
+const MAX_ROSTER_SPREAD = 4;
 
 function attackList(weapon) {
   const out = [];
@@ -426,17 +422,14 @@ function buildEnvelope(enemies, weapons, items, classes) {
     const points = pieces.map(
       (i) => Number(i.stats?.armor ?? 0) + Number(i.stats?.defense ?? 0)
     );
-    gearHealthMin += Math.min(...health) * QUALITY_MIN;
-    gearHealthMax += Math.max(...health) * QUALITY_MAX;
-    gearPointsMin += Math.min(...points) * QUALITY_MIN;
-    gearPointsMax += Math.max(...points) * QUALITY_MAX;
+    gearHealthMin += Math.min(...health);
+    gearHealthMax += Math.max(...health);
+    gearPointsMin += Math.min(...points);
+    gearPointsMax += Math.max(...points);
     gearDamagePctMax += Math.max(...pieces.map((i) => Number(i.stats?.damagePercent ?? 0)));
     gearFlatDamageMax += Math.max(
       ...pieces.map((i) =>
-        ["physicalDamage", "fireDamage", "frostDamage", "arcaneDamage", "poisonDamage"].reduce(
-          (a, k) => a + Number(i.stats?.[k] ?? 0),
-          0
-        )
+        Number(i.stats?.physicalDamage ?? 0)
       )
     );
     gearCritMax += Math.max(...pieces.map((i) => Number(i.stats?.critChance ?? 0)));
@@ -473,13 +466,12 @@ function buildEnvelope(enemies, weapons, items, classes) {
   const crit = Math.min(1, Math.max(...classCrit) + gearCritMax);
   const critMult = 1 + crit * (CRIT_BASE_MULT - 1);
   const ceilingMultiplier =
-    QUALITY_MAX *
     upgradeMax *
     TWO_HAND_DAMAGE_MULT *
     (1 + Math.max(...classDamage) + gearDamagePctMax / 100) *
     critMult *
     (1 + attackSpeed);
-  const floorMultiplier = QUALITY_MIN * upgradeMin * (1 + Math.min(...classDamage));
+  const floorMultiplier = upgradeMin * (1 + Math.min(...classDamage));
 
   let buildSpread = 0;
   let buildSpreadSource = "";
@@ -773,6 +765,14 @@ function buildDifficultyCurveReport() {
     );
     if (isBoss) enemyCount = Math.max(2, enemyCount >> 1);
     else if (isIntermission) enemyCount += Number(count.milestone_bonus ?? 2);
+    else {
+      // An ordinary wave is held to its chapter's pacing cap, as the runtime does.
+      const chapter = (waves.chapters ?? []).find(
+        (entry) => wave >= Number(entry.from ?? 0) && wave <= Number(entry.to ?? 0),
+      );
+      const chapterCap = Number(chapter?.maxOrdinaryEnemies ?? 0);
+      if (chapterCap > 0) enemyCount = Math.min(enemyCount, chapterCap);
+    }
     const unlocked = rosterUnlocks
       .filter((entry) => wave >= Number(entry.wave ?? 0))
       .sort((a, b) => Number(a.wave) - Number(b.wave));
@@ -910,7 +910,9 @@ function buildExport() {
   const xpToLevel = levels.map((row) => Number(row.xpRequired ?? 0));
   const maxXp = xpToLevel.length > 0 ? xpToLevel[xpToLevel.length - 1] : 0;
   const baseXp = Number(xpCurve.baseXpPerKill ?? 25);
-  const runsToLevelCap = baseXp > 0 ? Number((maxXp / baseXp).toFixed(2)) : 0;
+  // A typical run: about forty kills, one boss and an escape, which is what the XP curve is paid on.
+  const typicalRunXp = baseXp * 40 + Number(xpCurve.bossBonusXp ?? 0) + Number(xpCurve.escapeBonusXp ?? 0);
+  const runsToLevelCap = typicalRunXp > 0 ? Number((maxXp / typicalRunXp).toFixed(2)) : 0;
 
   const outlierThreshold = 2.0;
   // A group of one or two has no real median to be an outlier against -- everything in it either

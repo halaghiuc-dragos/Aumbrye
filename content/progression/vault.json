@@ -176,7 +176,7 @@
       "flavour": "It was never dressed. That turned out to be useful.",
       "trigger": {
         "type": "enemyKills",
-        "key": "swamp_hag",
+        "key": "swamp_witch",
         "value": 10
       }
     },
@@ -266,17 +266,6 @@
       "trigger": {
         "type": "totalKills",
         "value": 1000
-      }
-    },
-    {
-      "id": "vault_void_amulet",
-      "type": "item",
-      "grants": "void_amulet",
-      "name": "Void Amulet",
-      "flavour": "Holds a silence the chapel could not.",
-      "trigger": {
-        "type": "biomeCleared",
-        "key": "umbral_chapel"
       }
     },
     {

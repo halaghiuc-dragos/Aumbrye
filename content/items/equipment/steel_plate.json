@@ -2,8 +2,6 @@
   "id": "steel_plate",
   "name": "Steel Plate",
   "itemType": "armor",
-  "gridWidth": 2,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "magic",
   "description": "Castle-forged plate still bearing a warden's inventory mark.",

@@ -17,9 +17,7 @@ static func default_dissolve_duration() -> float:
 const META_ACTIVE_TWEEN := &"material_dissolve_tween"
 const META_DEATH_TWEENS := &"material_dissolve_death_tweens"
 const META_DEATH_STATE := &"death_visual_state"
-const SINK_DELAY := 0.45
 const SINK_DEPTH := 1.2
-const SINK_DURATION := 0.4
 
 const DEATH_DEFAULTS: Dictionary = {
 	"humanoid": {"duration": 0.65, "stagger": 0.12, "sweep": "up", "debris": 6},
@@ -273,7 +271,13 @@ static func _has_dissolve_shader(mesh: MeshInstance3D) -> bool:
 	var mat := mesh.material_override as ShaderMaterial
 	if mat == null:
 		mat = mesh.get_active_material(0) as ShaderMaterial
-	return mat != null and mat.shader != null
+	if mat == null or mat.shader == null:
+		return false
+	# The wall and floor shader has no dissolve; only a shader that declares it can be driven.
+	for uniform in mat.shader.get_shader_uniform_list(true):
+		if str((uniform as Dictionary).get("name", "")) == str(DISSOLVE_PARAM):
+			return true
+	return false
 
 
 static func _mesh_sweep_dir(mesh: Node3D, world_dir: Vector3, sweep_mode: String) -> Vector3:

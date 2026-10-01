@@ -26,7 +26,6 @@ const ROOM_KINDS := [
 	"arena",
 	"boss",
 	"puzzle",
-	# RM-14 / RM-19
 	"corridor_long",
 	"corridor_bend",
 	"balcony",
@@ -222,8 +221,12 @@ static func apply_run_presentation(
 		parent.add_child(fill)
 	VisualLighting.attach_atmosphere(parent, profile_id)
 	PixelDioramaSettings.set_biome_screen_grade(biome_id)
-	AudioDirector.set_biome(biome_id)
 	return env_node
+
+
+## What the floor sounds like underfoot, for the footstep bank.
+static func get_floor_surface(biome_id: String) -> String:
+	return str(get_biome(biome_id).get("floorSurface", "stone"))
 
 
 static func get_audio_profile_path(biome_id: String) -> String:

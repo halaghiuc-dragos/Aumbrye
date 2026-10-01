@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://carena001"]
 
 [ext_resource type="PackedScene" uid="uid://cplayer001" path="res://scenes/player/player.tscn" id="1_player"]
-[ext_resource type="PackedScene" uid="uid://cenemy001" path="res://scenes/enemies/training_grunt.tscn" id="2_enemy"]
-[ext_resource type="Script" path="res://scripts/debug/combat_arena.gd" id="3_arena"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/castle_grunt.tscn" id="2_enemy"]
+[ext_resource type="Script" path="res://scripts/practice/combat_arena.gd" id="3_arena"]
 [ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="4_overlay"]
 [ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="5_hud"]
 
@@ -47,27 +47,27 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, 0, 9.5)
 
 [node name="TrainingGruntA" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, -4.5)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="TrainingGruntB" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0, 0)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="TrainingGruntC" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 4.5)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="TrainingGruntD" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -4.5)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="TrainingGruntE" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0, 0)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="TrainingGruntF" parent="TrainingDummies" instance=ExtResource("2_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, 4.5)
-player_path = NodePath("../../Player")
+practice = true
 
 [node name="HubReturn" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
@@ -102,6 +102,7 @@ player_path = NodePath("../Player")
 enemy_path = NodePath("../TrainingDummies/TrainingGruntA")
 
 [node name="DebugLabel" type="Label" parent="DebugOverlay"]
+visible = false
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 500.0
@@ -110,7 +111,7 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-text = "Combat debug overlay"
+text = ""
 
 [node name="CombatHUD" parent="." instance=ExtResource("5_hud")]
 player_path = NodePath("../Player")

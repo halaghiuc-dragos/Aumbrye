@@ -25,6 +25,7 @@ func _ready() -> void:
 	_audit_statuses()
 	_audit_minimap()
 	_audit_minimap_state()
+	_audit_minimap_secrets()
 	print("ICON AUDIT RESULT %d failures" % _failures)
 	get_tree().quit(1 if _failures > 0 else 0)
 
@@ -43,7 +44,7 @@ func _audit_items() -> void:
 			continue
 		checked += 1
 	# Every equipment slot needs its empty-socket hint, or the paperdoll shows a hole.
-	for slot in ["weapon", "secondary", "helmet", "chest", "gloves", "boots", "ring", "amulet"]:
+	for slot in ["weapon", "secondary", "helmet", "chest", "ring"]:
 		if not atlas.has_cell("slot/%s" % slot):
 			_fail("item atlas has no slot hint for '%s'" % slot)
 	# There is deliberately no fallback cell: coverage is guaranteed when the sheet is built, so
@@ -59,7 +60,7 @@ func _audit_statuses() -> void:
 		var atlas := UISymbolAtlas.shared("content/ui/status_icon_atlas.json", texture_override)
 		var drawn := 0
 		# The catalog is the list the game can actually apply, so it is the list that must be
-		# drawable -- on both sheets. Half the colourblind sheet used to be empty cells.
+		# drawable -- on both sheets.
 		for status_id in _status_ids():
 			if not atlas.has_cell(status_id):
 				_fail("%s status sheet has no cell for '%s'" % [label, status_id])
@@ -110,6 +111,39 @@ func _audit_minimap() -> void:
 			continue
 		drawn += 1
 	print("MINIMAP ATLAS %d of %d kinds drawn" % [drawn, MinimapScript.KIND_CELLS.size()])
+
+
+## A secret passage is not on the map until it is found, and stays found across a save.
+func _audit_minimap_secrets() -> void:
+	var definition := {
+		"rooms": [
+			{"id": "a", "kind": "combat", "transform": {"x": 0.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+			{"id": "b", "kind": "combat", "transform": {"x": 8.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+			{"id": "c", "kind": "secret", "transform": {"x": 16.0, "z": 0.0}, "size": {"x": 4.0, "z": 4.0}},
+		],
+		"edges": [{"from": "a", "to": "b", "kind": "door"}, {"from": "b", "to": "c", "kind": "secret"}],
+	}
+	var minimap := MinimapScript.new()
+	minimap.configure(definition)
+	minimap.mark_visited("a")
+	minimap.mark_visited("b")
+	if minimap.get_reveal_tier("c") != MinimapScript.RevealTier.UNKNOWN:
+		_fail("standing next to an unfound secret revealed its room on the map")
+	minimap.reveal_edge("b", "c")
+	if minimap.get_reveal_tier("c") != MinimapScript.RevealTier.SEEN:
+		_fail("opening a secret did not reveal its room on the map")
+	var restored := MinimapScript.new()
+	restored.configure(definition)
+	restored.import_discovery_state(JSON.parse_string(JSON.stringify(minimap.export_discovery_state())))
+	restored.mark_visited("b")
+	if restored.get_reveal_tier("c") != MinimapScript.RevealTier.SEEN:
+		_fail("a found secret was forgotten across a save")
+	var stranger := MinimapScript.new()
+	stranger.configure(definition)
+	stranger.import_discovery_state({"revealed_edges": ["x|y"]})
+	stranger.mark_visited("b")
+	if stranger.get_reveal_tier("c") != MinimapScript.RevealTier.UNKNOWN:
+		_fail("a revealed-edge key for an edge that does not exist was accepted")
 
 
 func _audit_minimap_state() -> void:

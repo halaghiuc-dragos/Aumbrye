@@ -1,9 +1,8 @@
 extends Control
 
-## UX-01: the bestiary used to be a flat ItemList of "[Tier] Name" rows. This renders it as a
-## grid of enemy portraits instead -- each revealed entry gets a live 3D bust built the same way
-## `character_create_ui.gd` builds its player preview (a SubViewport around a small preview rig;
-## see `enemy_preview_rig.gd`), plus a tier progress ring and the progressive reveal text from
+## The bestiary: a grid of enemy portraits -- each revealed entry gets a live 3D bust built the
+## same way `character_create_ui.gd` builds its player preview (a SubViewport around a small preview
+## rig; see `enemy_preview_rig.gd`), plus a tier progress ring and the progressive reveal text from
 ## `BestiaryService.get_revealed()`.
 
 
@@ -14,6 +13,7 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const EnemyPreviewRigScript := preload("res://scripts/ui/enemy_preview_rig.gd")
 const CharacterSkinScript := preload("res://scripts/art/characters/diorama_character_skin.gd")
 
+const PORTRAIT_SETTLE_FRAMES := 5
 const CELL_MIN_SIZE := Vector2(148, 168)
 const PORTRAIT_SIZE := Vector2(120, 92)
 const GRID_COLUMNS := 4
@@ -143,6 +143,7 @@ func _refresh() -> void:
 	if _grid == null:
 		return
 	for child in _grid.get_children():
+		_grid.remove_child(child)
 		child.queue_free()
 	_cells.clear()
 	_rows.clear()
@@ -231,18 +232,25 @@ func _make_cell(row: Dictionary) -> void:
 	_cells[enemy_id] = frame
 
 
-## Same SubViewport approach `character_create_ui.gd` uses for the player: an owned 3D world in a
-## SubViewport, a diorama body built into it, and a stretch-shrunk container to keep it pixel-art
-## crisp at grid-cell scale.
+## Portraits are static, so each is rendered once into a texture that every later open reuses. The
+## render uses the same SubViewport approach `character_create_ui.gd` does (an owned 3D world, a
+## diorama body, a stretch-shrunk container); once captured, the viewport is freed so nothing keeps
+## drawing behind the closed codex.
+static var _portrait_cache: Dictionary = {}
+
 func _build_portrait(parent: Control, enemy_id: String) -> void:
+	var cached: Variant = _portrait_cache.get(enemy_id)
+	if cached is Texture2D:
+		parent.add_child(_portrait_rect(cached as Texture2D))
+		return
 	var container := SubViewportContainer.new()
 	container.stretch = true
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	parent.add_child(container)
 	var viewport := SubViewport.new()
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Redrawn while the codex is on screen until the capture below; never while it is hidden.
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	viewport.own_world_3d = true
 	viewport.size = Vector2i(180, 138)
 	container.add_child(viewport)
@@ -263,6 +271,44 @@ func _build_portrait(parent: Control, enemy_id: String) -> void:
 	var enemy_type := CharacterSkinScript.profile_for_enemy_data(data)
 	var enemy_theme := CharacterSkinScript.theme_for_enemy_id(enemy_id)
 	rig.show_enemy(enemy_id, enemy_type, enemy_theme, data)
+	_capture_portrait.call_deferred(enemy_id, container, viewport)
+
+
+## Waits for the rig to frame itself and the viewport to draw, then keeps the picture and drops the
+## live world. A headless run has no picture to keep, so the live viewport stays (and only draws
+## while visible).
+func _capture_portrait(enemy_id: String, container: SubViewportContainer, viewport: SubViewport) -> void:
+	for _i in PORTRAIT_SETTLE_FRAMES:
+		await get_tree().process_frame
+		if not is_instance_valid(viewport):
+			return
+	if not visible or not is_instance_valid(container):
+		# Not drawn while hidden; try again the next time the codex opens.
+		return
+	await RenderingServer.frame_post_draw
+	if not is_instance_valid(viewport):
+		return
+	var image := viewport.get_texture().get_image()
+	if image == null or image.is_empty():
+		return
+	var texture := ImageTexture.create_from_image(image)
+	_portrait_cache[enemy_id] = texture
+	var parent := container.get_parent()
+	if parent == null:
+		return
+	parent.add_child(_portrait_rect(texture))
+	parent.remove_child(container)
+	container.queue_free()
+
+
+func _portrait_rect(texture: Texture2D) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	return rect
 
 
 func _tier_color(tier: int) -> Color:
@@ -337,11 +383,20 @@ func _set_detail_for(revealed: Dictionary) -> void:
 	if tier >= BestiaryService.TIER_MASTERED:
 		lines.append("")
 		lines.append(str(revealed.get("mastered", "")))
-	var remaining := BestiaryService.kills_to_next_tier(enemy_id)
-	if remaining > 0:
+	if tier < BestiaryService.TIER_MASTERED:
 		lines.append("")
-		lines.append("%d more killed, and the page fills further." % remaining)
+		lines.append(_next_page_hint(enemy_id, tier))
 	_set_detail("\n".join(lines))
+
+
+## What fills the next page, worded the way the game checks it.
+func _next_page_hint(enemy_id: String, tier: int) -> String:
+	if tier < BestiaryService.TIER_STUDIED:
+		return tr("BESTIARY_NEXT_STUDIED") % [
+			BestiaryService.kills_to_next_tier(enemy_id), BestiaryService.SIGNATURES_FOR_STUDIED
+		]
+	var left := BestiaryService.mastery_remaining(enemy_id)
+	return tr("BESTIARY_NEXT_MASTERED") % [left["kills"], left["attacks"], left["counters"]]
 
 
 func _set_detail(text: String) -> void:

@@ -30,6 +30,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_heavy",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.39,
@@ -40,11 +41,15 @@
       "attack_poise_damage": 27,
       "max_range": 2.8,
       "telegraph_shape": "circle",
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "blockable",
+      "knockback": 3.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.94,
@@ -60,6 +65,7 @@
     },
     {
       "id": "chain",
+      "anim": "attack_heavy",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.55,
@@ -87,11 +93,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.0
     },
     {
       "id": "sweepback",
+      "anim": "attack_sweep",
       "name": "Turning Sweep",
       "weight": 2,
       "windup_duration": 0.69,
@@ -102,11 +109,15 @@
       "attack_poise_damage": 39,
       "max_range": 4.48,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "parryable",
+      "knockback": 3.0,
+      "tags": [
+        "gap_close"
+      ]
     },
     {
       "id": "sig_two_stage_overhead",
+      "anim": "attack_sweep",
       "name": "The Second Beat",
       "weight": 1.4,
       "windup_duration": 1.05,
@@ -136,7 +147,10 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -157,7 +171,7 @@
           "attack_poise_damage": 27,
           "max_range": 2.8,
           "telegraph_shape": "circle",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -204,7 +218,7 @@
               "knockback": 3.0
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -219,7 +233,7 @@
           "attack_poise_damage": 39,
           "max_range": 4.48,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         }
       ]
@@ -241,7 +255,7 @@
           "attack_poise_damage": 27,
           "max_range": 2.8,
           "telegraph_shape": "circle",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -256,7 +270,7 @@
           "attack_poise_damage": 48,
           "max_range": 3.08,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -271,7 +285,7 @@
           "attack_poise_damage": 41,
           "max_range": 7.28,
           "telegraph_shape": "line",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -333,7 +347,7 @@
               "knockback": 3.0
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {

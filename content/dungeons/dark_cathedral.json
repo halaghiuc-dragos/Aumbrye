@@ -9,7 +9,7 @@
   },
   "floorHpGrowth": 0.06,
   "floorDamageGrowth": 0.04,
-  "bossDoorRequirement": "sigil",
+  "bossDoorRequirement": "none",
   "difficultyTiers": [
     {
       "tier": 1,

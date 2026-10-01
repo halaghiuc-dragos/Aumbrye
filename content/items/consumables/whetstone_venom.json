@@ -2,8 +2,6 @@
   "id": "whetstone_venom",
   "name": "Venom Whetstone",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 5,
   "rarity": "magic",
   "description": "Handled with a rag. The rag is thrown away afterward.",
@@ -11,7 +9,7 @@
     "kind": "applyStatus",
     "statusId": "elixir_venom_edge",
     "duration": 120,
-    "stat": "poisonDamage",
+    "stat": "physicalDamage",
     "amount": 12,
     "usableInHub": false
   },

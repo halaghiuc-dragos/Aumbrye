@@ -6,7 +6,6 @@ const OUTCOME_ESCAPED := "escaped"
 const OUTCOME_DIED := "died"
 const OUTCOME_RESPAWNED := "respawned"
 const OUTCOME_RETREATED := "retreated"
-const OUTCOME_ABANDONED := "abandoned"
 const OUTCOME_WAVES_COMPLETE := "waves_complete"
 const OUTCOME_WAVES_FAILED := "waves_failed"
 
@@ -53,11 +52,11 @@ static func build_results(
 		"assists_active": bool(extra.get("assists_active", false)),
 		"cloud_synced": bool(extra.get("cloud_synced", false)),
 		"rules_summary": rules_summary,
-		# RM-09: read directly rather than threading through every one of `build_results()`'s call
+		# Read directly rather than threading through every one of `build_results()`'s call
 		# sites -- `WorldFlags.secrets_found_this_floor()` is already the single source of truth,
 		# and by the time results are built the floor it counts is the one that just ended.
 		"secrets_found": RunFlow.get_run_secret_count(),
-		# AD-06: the one sentence naming what killed the player and what they were doing, built by
+		# The one sentence naming what killed the player and what they were doing, built by
 		# `PlayerCombatReactions._build_death_recap()` -- empty on a non-death outcome.
 		"death_recap": extra.get("death_recap", {}),
 	}

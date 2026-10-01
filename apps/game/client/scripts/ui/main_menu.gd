@@ -6,7 +6,7 @@ const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const CharacterCreateUIScript := preload("res://scripts/ui/character_create_ui.gd")
 const CHARACTER_CREATE_SCENE := preload("res://scenes/ui/character_create.tscn")
 const ContinueMenuScript := preload("res://scripts/ui/continue_menu.gd")
-const LOADING_SCENE := "res://scenes/ui/loading_screen.tscn"
+const HUB_SCENE := "res://scenes/hub/hub.tscn"
 
 const PANEL_DROP_FRACTION := 0.14
 const WORDMARK_GAP := 36.0
@@ -20,7 +20,6 @@ static var _intro_shown := false
 var _character_create: Control
 var _continue_menu: Control
 var _menu_panel: PanelContainer
-var _quit_overlay: Control
 var _wordmark: TitleWordmark
 var _prompt: Label
 var _intro_active := false
@@ -41,6 +40,8 @@ func _ready() -> void:
 	_build_ui()
 	_connect_global_settings()
 	LocaleSettings.connect_changed(_on_locale_changed)
+	if not LocalSave.save_recovery_required.is_connected(_on_save_recovery_required):
+		LocalSave.save_recovery_required.connect(_on_save_recovery_required)
 	_character_create = CHARACTER_CREATE_SCENE.instantiate() as Control
 	_character_create.name = "CharacterCreateUI"
 	add_child(_character_create)
@@ -57,6 +58,12 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	if _intro_active:
 		_begin_intro()
+
+
+## A warden failed to load after the intro: ask the same question the first boot asks.
+func _on_save_recovery_required(_reason: String, _quarantine_path: String) -> void:
+	if not _intro_active:
+		_show_recovery_prompt()
 
 
 func _on_viewport_resized() -> void:
@@ -106,9 +113,8 @@ func _build_ui() -> void:
 	_refresh_today_label()
 	_refresh_continue_button()
 	_build_wordmark()
-	# HD-03: `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
+	# `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
 	# run after content exists, so it happens here rather than inside the shared builder.
-	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _apply_panel_drop() -> void:
@@ -355,20 +361,18 @@ func _connect_global_settings() -> void:
 		settings.closed.connect(_on_settings_closed)
 
 
-## MD-06: the weekly challenge previously lived only on the tower board -- one menu inside the
-## hub, never mentioned anywhere a player would see it without going looking. This "today" line is
+## The weekly challenge is shown here as well as on the tower board. This "today" line is
 ## the first thing a returning player sees.
 func _refresh_today_label() -> void:
 	if _today_label == null or not is_instance_valid(_today_label):
 		return
 	var parts: PackedStringArray = []
-	# SY-08: a free reason for a session to feel different -- the hub's day/night cycle used to
-	# run invisibly to anyone who did not linger outdoors long enough to notice it.
+	# A free reason for a session to feel different: the hub's day/night cycle.
 	if DayNightService:
 		var time_label := DayNightService.describe_time_of_day()
 		if time_label != "":
 			parts.append(time_label)
-	# AD-04: bounties are two clicks and a walk from where the player stands when the game loads
+	# Bounties are two clicks and a walk from where the player stands when the game loads
 	# -- this counts unclaimed ones from both rotations so "3 bounties" is visible before anything
 	# is pressed.
 	var open_bounties := 0
@@ -434,17 +438,14 @@ func _is_submenu_open() -> bool:
 
 func _on_new_game() -> void:
 	if not LocalSave.can_create_character():
-		MenuShellScript.show_confirmation(
-			self,
-			"No Room Left",
-			(
-				"All %d warden slots are taken. Retire one from Continue before starting another."
-				% LocalSave.character_slot_limit()
-			),
-			func() -> void: pass,
-			Callable(),
-			"Very well",
-			"Back"
+		MenuStack.confirm(
+			ConfirmSpec.texts(
+				tr("MENU_NO_ROOM_TITLE"),
+				tr("MENU_NO_ROOM_BODY") % LocalSave.character_slot_limit(),
+				tr("MENU_NO_ROOM_OK"),
+				tr("CONTINUE_BACK"),
+				Callable()
+			)
 		)
 		return
 	_show_main_panel(false)
@@ -472,18 +473,18 @@ func _on_quit_pressed() -> void:
 func _prompt_quit() -> void:
 	if _is_submenu_open():
 		return
-	if _quit_overlay != null and is_instance_valid(_quit_overlay):
+	if MenuStack.is_confirming():
 		return
-	_quit_overlay = MenuShellScript.show_confirmation(
-		self,
-		"Quit Game",
-		"Close Aumbrye and return to your desktop?",
-		func() -> void:
-			_quit_overlay = null
-			get_tree().quit(),
-		func() -> void: _quit_overlay = null,
-		"Quit Game",
-		"Stay"
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("MENU_QUIT"),
+			tr("MENU_QUIT_CONFIRM"),
+			tr("MENU_QUIT"),
+			tr("MENU_QUIT_STAY"),
+			func() -> void: get_tree().quit(),
+			Callable(),
+			true
+		)
 	)
 
 
@@ -496,7 +497,7 @@ func _on_character_created(
 	class_id: String, character_name: String, appearance: Dictionary
 ) -> void:
 	LocalSave.queue_boot_new_game(class_id, character_name, appearance)
-	SceneTransition.goto(get_tree(), LOADING_SCENE)
+	_enter_hub()
 
 
 func _on_character_create_cancelled() -> void:
@@ -508,7 +509,25 @@ func _on_continue_slot_selected(character_id: String) -> void:
 	if character_id == "":
 		return
 	LocalSave.queue_boot_continue_character(character_id)
-	SceneTransition.goto(get_tree(), LOADING_SCENE)
+	_enter_hub()
+
+
+## Boots the queued save and goes straight to the hub: one transition, not a loading scene in
+## between. A save that will not load keeps the player on the menu with the reason.
+func _enter_hub() -> void:
+	if LocalSave.execute_boot():
+		SceneTransition.goto(get_tree(), HUB_SCENE, tr("LOADING_OPENING_HUB"))
+		return
+	var reason := LocalSave.last_boot_failure
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("LOADING_ENTERING"),
+			tr(reason if reason != "" else "LOADING_SAVE_FAILED"),
+			tr("UI_CONFIRM"),
+			tr("UI_CLOSE"),
+			func() -> void: _show_main_panel(true)
+		)
+	)
 
 
 func _on_continue_cancelled() -> void:
@@ -536,10 +555,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if not event.is_action_pressed("ui_cancel"):
 		return
-	if _quit_overlay != null and is_instance_valid(_quit_overlay):
-		_quit_overlay.queue_free()
-		_quit_overlay = null
-		get_viewport().set_input_as_handled()
+	if MenuStack.is_confirming():
 		return
 	if _character_create != null and _character_create.is_open():
 		_character_create.request_cancel()

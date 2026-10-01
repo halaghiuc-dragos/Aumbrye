@@ -26,15 +26,15 @@ var fill_bounding_box: bool = true
 var max_height_level: int = 0
 var debug_ascii: bool = false
 
-## RM-13: what fraction of eligible two-opposite-door NORMAL rooms become corridors (`RM-14`).
+## What fraction of eligible two-opposite-door NORMAL rooms become corridors.
 var corridor_ratio: float = 0.15
-## RM-13: a multiplier on how often the assigner prefers the larger template for a kind
-## (`RM-17` consumes this).
+## A multiplier on how often the assigner prefers the larger template for a kind
+##.
 var size_bias: float = 1.0
-## RM-13: how often a dead-end room gets a reward instead of a combat encounter (`RM-17`).
+## How often a dead-end room gets a reward instead of a combat encounter.
 var dead_end_reward_ratio: float = 0.3
-## RM-15: the shape `_fill_bounding_box()` fills toward instead of the whole rectangle --
-## "blob" (no shape filter, the old behaviour), "cross", "ring", "spine" or "scatter".
+## The shape `_fill_bounding_box()` fills toward instead of the whole rectangle --
+## "blob" (no shape filter), "cross", "ring", "spine" or "scatter".
 var floor_silhouette: String = "blob"
 var discovery_role: String = "balanced"
 
@@ -76,7 +76,8 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	config.max_walk_attempts = int(generator.get("maxWalkAttempts", config.max_walk_attempts))
 	config.allow_2x2_blocks = bool(generator.get("allow2x2Blocks", config.allow_2x2_blocks))
 	config.fill_bounding_box = bool(generator.get("fillBoundingBox", config.fill_bounding_box))
-	config.max_height_level = int(biome.get("maxHeightLevel", 0))
+	# Every room in a generated floor shares one walkable elevation.
+	config.max_height_level = 0
 	config.corridor_ratio = clampf(float(generator.get("corridorRatio", config.corridor_ratio)), 0.0, 1.0)
 	config.size_bias = maxf(0.0, float(generator.get("sizeBias", config.size_bias)))
 	config.dead_end_reward_ratio = clampf(
@@ -86,9 +87,11 @@ static func from_biome(biome: Dictionary) -> RoomGraphConfig:
 	return config
 
 
-func apply_discovery_budget(run_count: int, floor_index: int) -> void:
+## How many secrets the floor may hide. Depends only on the floor, so a seed gives the same floor
+## however much has been played.
+func apply_discovery_budget(floor_index: int) -> void:
 	var role_bonus := 1 if discovery_role == "discovery" else 0
-	var cooldown := posmod(run_count + floor_index, 3)
+	var cooldown := posmod(floor_index, 3)
 	var budget := clampi(max_secrets + role_bonus - cooldown, 0, 3)
 	if discovery_role == "quiet":
 		budget = mini(budget, 1)

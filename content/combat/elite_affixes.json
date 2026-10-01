@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "affixes": [
+    {
+      "id": "swift",
+      "name": "Swift",
+      "description": "Faster on its feet and quicker between swings.",
+      "hpMult": 1.0,
+      "moveSpeedMult": 1.3,
+      "attackCooldownMult": 0.7,
+      "damageMult": 1.0,
+      "poiseMult": 1.0
+    },
+    {
+      "id": "ironclad",
+      "name": "Ironclad",
+      "description": "Hard to stagger and hard to put down.",
+      "hpMult": 1.3,
+      "moveSpeedMult": 0.9,
+      "attackCooldownMult": 1.0,
+      "damageMult": 1.0,
+      "poiseMult": 2.2
+    },
+    {
+      "id": "frenzied",
+      "name": "Frenzied",
+      "description": "Attacks without pause, in exchange for being brittle.",
+      "hpMult": 0.8,
+      "moveSpeedMult": 1.1,
+      "attackCooldownMult": 0.5,
+      "damageMult": 1.0,
+      "poiseMult": 0.7
+    },
+    {
+      "id": "brutal",
+      "name": "Brutal",
+      "description": "Slow, and every blow lands like a falling wall.",
+      "hpMult": 1.1,
+      "moveSpeedMult": 0.85,
+      "attackCooldownMult": 1.15,
+      "damageMult": 1.6,
+      "poiseMult": 1.5
+    }
+  ]
+}

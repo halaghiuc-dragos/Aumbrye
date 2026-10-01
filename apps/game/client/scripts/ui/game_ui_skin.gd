@@ -30,11 +30,7 @@ const FONT_SIZE_BODY := 15
 const FONT_SIZE_SMALL := 13
 const FONT_SIZE_MICRO := 11
 
-const HEADER_FONT_SIZE := FONT_SIZE_HEADER
-const TITLE_FONT_SIZE := FONT_SIZE_TITLE
-const HINT_FONT_SIZE := FONT_SIZE_SMALL
 const VIOLET := Color(0.45, 0.30, 0.72)
-const VIOLET_DEEP := Color(0.16, 0.09, 0.30)
 const GOLD := Color(0.96, 0.82, 0.42)
 
 const TITLE_COLOR := Color(0.96, 0.86, 0.58)
@@ -80,8 +76,6 @@ const LABEL_VARIATIONS: PackedStringArray = [
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const PixelDioramaSettingsScript := preload("res://scripts/art/pipeline/pixel_diorama_settings.gd")
-
-const PIXEL_BAR_STEPS := 8
 
 
 const BACKDROP_SHADER_PATH := "res://assets/shared/ui_vignette.gdshader"
@@ -395,7 +389,6 @@ static func apply_modal_menu(
 	fallback_panel_path: String = "Panel"
 ) -> void:
 	ensure_backdrop(root)
-	apply_pixel_theme(root)
 	var dimmer := root.get_node_or_null(dimmer_path) as ColorRect
 	if dimmer:
 		dimmer.color = BACKDROP_COLOR
@@ -415,7 +408,6 @@ static func build_paperdoll_backdrop(parent: Control, _cell_size: int, _gap: int
 	rect.name = "PaperdollBackdrop"
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.show_behind_parent = true
 	if ResourceLoader.exists(PAPERDOLL_TEXTURE_PATH):
@@ -457,45 +449,9 @@ static func is_pixel_ui() -> bool:
 	return PixelDioramaSettingsScript.low_res_viewport_enabled
 
 
-static func apply_pixel_theme(root: Control) -> void:
-	var native_hd := PixelDioramaSettingsScript.is_native_hd_preset()
-	if not is_pixel_ui() and not native_hd:
-		return
-	if not is_pixel_ui():
-		root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		return
-	root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var label_type := &"Label"
-	for child in root.find_children("*", label_type):
-		var label := child as Label
-		if label:
-			label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var button_type := &"Button"
-	for child in root.find_children("*", button_type):
-		var button := child as BaseButton
-		if button:
-			button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var bar_type := &"ProgressBar"
-	for child in root.find_children("*", bar_type):
-		var bar := child as ProgressBar
-		if bar:
-			bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var texture_rect_type := &"TextureRect"
-	for child in root.find_children("*", texture_rect_type):
-		var rect := child as TextureRect
-		if rect:
-			rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var nine_patch_type := &"NinePatchRect"
-	for child in root.find_children("*", nine_patch_type):
-		var patch := child as NinePatchRect
-		if patch:
-			patch.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-
-
 static func restyle_tree(root: Control) -> void:
 	if root == null:
 		return
-	apply_pixel_theme(root)
 	for child in root.find_children("*", "PanelContainer", true, false):
 		var panel := child as PanelContainer
 		if panel:
@@ -654,23 +610,9 @@ static func style_progress_bar(bar: ProgressBar, fill_color: Color, bg_color: Co
 	bg.set_content_margin_all(2)
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", make_bar_fill_style(fill_color, bar))
-	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sync_progress_bar_step(bar)
-
-
-## `step` quantises the bar to whole pixel blocks, and it has to be a fraction of *this* bar's own
-## max -- not whatever max the bar happened to have when it was styled. Health/stamina/mana are
-## styled once in `_ready()`, while the scene's default max (100) is still on the bar; the player's
-## real max (100 plus softened gear and talent bonuses, rarely a clean multiple of anything) is set
-## moments later by `Health.configure()` and friends, and never touched `step` again. A leftover
-## step of 12.5 snapping a max of, say, 123 rounds the "full" value down to the nearest multiple of
-## 12.5 instead of the bar's own max, which is why a bar could sit visibly short of full the moment
-## a fresh character's gear applied -- despite `current == max_health` underneath. Call this any
-## time a bar's `max_value` changes, not just when it is first styled.
-static func sync_progress_bar_step(bar: ProgressBar) -> void:
-	var steps := maxi(2, PIXEL_BAR_STEPS)
-	if bar.max_value > 0.0:
-		bar.step = bar.max_value / float(steps)
+	# Exact values: a step rounds every value to the nearest step and would hide small hits and draw
+	# a nearly-dead bar as empty.
+	bar.step = 0.0
 
 
 ## A resource bar that reads as a row of pixel blocks, matching the rest of the pixel-art frame
@@ -768,7 +710,6 @@ static func make_pixel_frame(title: String = "") -> PanelContainer:
 	outer.add_theme_stylebox_override(
 		"panel", make_pixel_frame_style(FRAME_OUTER, FRAME_BEVEL_DARK, 1)
 	)
-	outer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var inner := PanelContainer.new()
 	inner.add_theme_stylebox_override(
 		"panel", make_pixel_frame_style(FRAME_INNER, FRAME_BEVEL_LIGHT, 1)
@@ -810,8 +751,7 @@ static func make_meter_bar(fill_color: Color, width_px: int = 96) -> ProgressBar
 	fill.anti_aliasing = false
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fill)
-	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	bar.step = 1.0 / float(maxi(2, PIXEL_BAR_STEPS * 2))
+	bar.step = 0.0
 	return bar
 
 
@@ -828,7 +768,7 @@ static func style_ladder_button(button: Button, state: StringName) -> void:
 		&"available":
 			border = FRAME_BEVEL_LIGHT
 			text_color = BODY_COLOR
-		# MD-04: the rung a just-finished run actually reached, on the results screen -- distinct
+		# The rung a just-finished run actually reached, on the results screen -- distinct
 		# from "cleared" (a tier beaten in some past run) since this run may not have beaten it.
 		&"current":
 			border = LADDER_CURRENT
@@ -850,7 +790,6 @@ static func style_ladder_button(button: Button, state: StringName) -> void:
 	button.add_theme_color_override("font_pressed_color", LADDER_CURRENT)
 	button.add_theme_color_override("font_disabled_color", LADDER_LOCKED)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 static func make_item_cell_style(rarity: String, filled: bool) -> StyleBoxFlat:
@@ -875,7 +814,6 @@ static func make_item_cell_style(rarity: String, filled: bool) -> StyleBoxFlat:
 static func make_symbol_rect(tex: Texture2D, size_px: int = 16) -> TextureRect:
 	var rect := TextureRect.new()
 	rect.texture = tex
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.custom_minimum_size = Vector2i(size_px, size_px)

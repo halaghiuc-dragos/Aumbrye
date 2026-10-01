@@ -27,14 +27,14 @@ func open_menu() -> void:
 	_refresh_continue_state()
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.push(self)
 	_new_button.grab_focus()
 
 
 func close_menu() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.pop(self)
 	menu_closed.emit()
 
 
@@ -42,12 +42,8 @@ func is_open() -> bool:
 	return visible
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close_menu()
+func _on_cancel_requested() -> void:
+	close_menu()
 
 
 func _refresh_continue_state() -> void:

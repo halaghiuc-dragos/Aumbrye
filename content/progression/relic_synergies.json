@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "synergies": [
+    {
+      "id": "bulwark",
+      "name": "Bulwark",
+      "tag": "guard",
+      "count": 3,
+      "description": "A parry turns your skin to stone for a moment.",
+      "rules": [
+        {
+          "event": "onParry",
+          "effect": "apply_status",
+          "statusId": "stoneskin",
+          "stacks": 1,
+          "chance": 1,
+          "cooldown": 8
+        }
+      ]
+    },
+    {
+      "id": "wraith_step",
+      "name": "Wraith Step",
+      "tag": "dodge",
+      "count": 2,
+      "description": "A perfect dodge quickens you.",
+      "rules": [
+        {
+          "event": "onPerfectDodge",
+          "effect": "apply_status",
+          "statusId": "swiftness",
+          "stacks": 1,
+          "chance": 1,
+          "cooldown": 4
+        }
+      ]
+    },
+    {
+      "id": "razor_edge",
+      "name": "Razor Edge",
+      "tag": "critical",
+      "count": 3,
+      "description": "Critical hits open the wound further.",
+      "rules": [
+        {
+          "event": "onCrit",
+          "effect": "apply_status",
+          "statusId": "bleed",
+          "stacks": 1,
+          "chance": 0.5,
+          "cooldown": 0
+        }
+      ]
+    },
+    {
+      "id": "headsman",
+      "name": "Headsman",
+      "tag": "execution",
+      "count": 2,
+      "description": "Every kill returns breath and a little blood.",
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "restore_stamina",
+          "amount": 18,
+          "chance": 1,
+          "cooldown": 0
+        },
+        {
+          "event": "onKill",
+          "effect": "restore_health",
+          "amount": 6,
+          "chance": 1,
+          "cooldown": 0
+        }
+      ]
+    },
+    {
+      "id": "contagion",
+      "name": "Contagion",
+      "tag": "status",
+      "count": 3,
+      "description": "What kills one foe spreads its sickness to the next.",
+      "rules": [
+        {
+          "event": "onKill",
+          "effect": "spread_status",
+          "statusId": "poison",
+          "stacks": 1,
+          "radius": 5,
+          "chance": 1,
+          "cooldown": 0
+        }
+      ]
+    }
+  ]
+}

@@ -30,6 +30,7 @@
   "attacks": [
     {
       "id": "quick_shot",
+      "anim": "attack_shoot",
       "name": "Quick Shot",
       "weight": 3,
       "windup_duration": 0.63,
@@ -42,11 +43,12 @@
       "telegraph_shape": "line",
       "no_hitbox": true,
       "projectile_speed": 14,
-      "attackClass": "blockable",
+      "attackClass": "parryable",
       "knockback": 2.0
     },
     {
       "id": "aimed_shot",
+      "anim": "attack_shoot",
       "name": "Aimed Shot",
       "weight": 2,
       "windup_duration": 1.05,
@@ -60,11 +62,15 @@
       "telegraph_shape": "line",
       "no_hitbox": true,
       "projectile_speed": 19,
-      "attackClass": "blockable",
-      "knockback": 2.0
+      "attackClass": "unblockable",
+      "knockback": 2.0,
+      "tags": [
+        "anti_roll"
+      ]
     },
     {
       "id": "snap_shot",
+      "anim": "attack_shoot",
       "name": "Snap Shot",
       "weight": 2,
       "windup_duration": 0.41,
@@ -78,7 +84,10 @@
       "no_hitbox": true,
       "projectile_speed": 12,
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     }
   ]
 }

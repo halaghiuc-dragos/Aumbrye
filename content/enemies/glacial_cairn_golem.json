@@ -30,6 +30,7 @@
   "attacks": [
     {
       "id": "hammer",
+      "anim": "attack_heavy",
       "name": "Downward Hammer",
       "weight": 3,
       "windup_duration": 0.98,
@@ -41,11 +42,15 @@
       "max_range": 2.6,
       "telegraph_shape": "circle",
       "damage_type": "frost",
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "blockable",
+      "knockback": 3.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "slam",
+      "anim": "attack_heavy",
       "name": "Ground Slam",
       "weight": 2,
       "windup_duration": 1.66,
@@ -58,10 +63,15 @@
       "telegraph_shape": "circle",
       "damage_type": "frost",
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "held_sweep",
+      "anim": "attack_sweep",
       "name": "Held Sweep",
       "weight": 2,
       "windup_duration": 1.27,
@@ -73,11 +83,12 @@
       "max_range": 3.64,
       "telegraph_shape": "cone",
       "damage_type": "frost",
-      "attackClass": "unblockable",
+      "attackClass": "blockable",
       "knockback": 3.5
     },
     {
       "id": "sig_keening",
+      "anim": "attack_thrust_3",
       "name": "Keening",
       "weight": 1.2,
       "windup_duration": 1.5,
@@ -92,8 +103,11 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "parryable",
+      "knockback": 3.0,
+      "tags": [
+        "gap_close"
+      ]
     }
   ],
   "mass": 2.8

@@ -2,8 +2,6 @@
   "id": "cathedral_shadow_dagger",
   "name": "Cathedral Umbral Dagger",
   "itemType": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "Blessed steel twisted for silent work, and quiet enough to leave no umbral of its own.",
@@ -23,8 +21,7 @@
     }
   ],
   "stats": {
-    "arcaneDamage": 21,
-    "physicalDamage": 29
+    "physicalDamage": 50
   },
   "equipmentSlot": "weapon",
   "theme": "dark_cathedral",

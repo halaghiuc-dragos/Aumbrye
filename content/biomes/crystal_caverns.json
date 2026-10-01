@@ -4,8 +4,8 @@
   "templatePrefix": "crystal",
   "assetFolder": "crystal",
   "roomCount": {
-    "min": 26,
-    "max": 32
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "crystal_entrance",
@@ -56,48 +56,32 @@
     "rubble": [
       "res://scenes/props/crystal/rubble_a.tscn",
       "res://scenes/props/crystal/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/crystal/banner.tscn",
-    "statue": "res://scenes/props/crystal/statue.tscn",
-    "altar": "res://scenes/props/crystal/altar.tscn",
-    "debrisPile": "res://scenes/props/crystal/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "crystal_crawler",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "crystal_spitter",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "crystal_golem",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
-      "enemyId": "crystal_wisp",
-      "weight": 2
+      "enemyId": "crystal_shade",
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "miniboss_crystal_guardian",
       "weight": 1
-    },
-    {
-      "enemyId": "crystal_bat",
-      "weight": 2
-    },
-    {
-      "enemyId": "crystal_slime",
-      "weight": 2
-    },
-    {
-      "enemyId": "crystal_guardian",
-      "weight": 1
-    },
-    {
-      "enemyId": "crystal_shade",
-      "weight": 2
     }
   ],
   "roleComposition": {
@@ -240,11 +224,11 @@
   "maxHeightLevel": 1,
   "maxSecrets": 2,
   "generator": {
-    "bossMinDistance": 4,
-    "minDeadEnds": 4,
-    "branchMaxDepth": 10,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 5,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -269,5 +253,6 @@
     "lift": 0.01,
     "vignette": 0.24
   },
-  "lootTablePath": "content/loot/tables/crystal_caverns.json"
+  "lootTablePath": "content/loot/tables/crystal_caverns.json",
+  "floorSurface": "stone"
 }

@@ -2,8 +2,6 @@
   "id": "silver_ring",
   "name": "Silver Ring",
   "itemType": "armor",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 1,
   "rarity": "magic",
   "description": "Tarnished silver etched with oath-glyphs worn smooth by time.",

@@ -190,7 +190,6 @@ COMBAT_TWO_HANDED,Two-handed,Cu două mâini
 LORE_JOURNAL_EMPTY,No inscriptions have been recorded.,Nu a fost consemnată nicio inscripție.
 STAIR_RISK_COMPARISON,Current {current_hp}x HP / {current_damage}x damage · Next {next_hp}x HP / {next_damage}x damage,Acum {current_hp}x viață / {current_damage}x daune · Următorul {next_hp}x viață / {next_damage}x daune
 INV_TITLE_STASH,Stash,Depozit
-INV_TITLE_WAVES_STASH,Waves Stash,Depozit valuri
 INV_TITLE_CHARACTER,Character,Personaj
 INV_SEARCH_PLACEHOLDER,Search...,Căutare...
 INV_NO_RESULTS,No matching items.,Niciun obiect potrivit.
@@ -198,9 +197,7 @@ INV_BTN_EQUIP,Equip,Echipează
 INV_BTN_UNEQUIP,Unequip,Dezechipează
 INV_BTN_USE,Use,Folosește
 INV_BTN_DROP,Drop,Aruncă
-INV_BTN_SELL,Sell,Vinde
 PROMPT_PRESS,Press %s,Apasă %s
-INV_BTN_BIND,Bind %d,Asociază %d
 INV_FILTER_ROW,%s: %s   %s: %s   %s: %s,%s: %s   %s: %s   %s: %s
 INV_SORT,Sort,Sortare
 INV_TYPE,Type,Tip
@@ -210,7 +207,6 @@ INV_HINT_UNEQUIP,Unequip,Dezechipează
 INV_HINT_EQUIP,Equip,Echipează
 INV_HINT_USE,Use,Folosește
 INV_HINT_MOVE,Move,Mută
-INV_VS_EQUIPPED,vs equipped: %s,vs echipat: %s
 MAP_TITLE,Map,Hartă
 MAP_HINT,Click a visited room to pin or unpin · Scroll to zoom · Middle-drag to pan · Esc to close,Atinge o cameră vizitată pentru a fixa sau elimina marcajul · Rotește pentru zoom · Trage cu mijlocul pentru panoramare · Esc pentru închidere
 MAP_LEGEND_COMBAT,Combat,Luptă
@@ -220,8 +216,6 @@ MAP_LEGEND_KEY,Key,Cheie
 MAP_LEGEND_BOSS,Boss,Șef
 MAP_LEGEND_ENTRANCE,Entrance,Intrare
 MAP_LEGEND_STAIRS,Stairs,Scări
-UI_PAUSE,Paused,Pauză
-UI_RESUME,Resume,Continuă
 STORY_PREMISE,The Umbral Tower binds fallen wardens as umbrals until the oath is fulfilled.,Turnul Umbral leagă gardienii căzuți ca umbrali până când jurământul este împlinit.
 talent.branch.arms,Arms,Arms
 talent.branch.guard,Guard,Guard
@@ -229,22 +223,9 @@ talent.branch.aptitude,Aptitude,Aptitude
 talent.arms_1,Keen Edge,Keen Edge
 talent.arms_2,Weight Behind It,Weight Behind It
 talent.arms_3,Economy of Motion,Economy of Motion
-talent.arms_4,The Gap in the Guard,The Gap in the Guard
-talent.arms_5,Break the Stance,Break the Stance
-talent.arms_6,Follow Through,Follow Through
 talent.guard_1,Old Scars,Old Scars
 talent.guard_2,Plated,Plated
 talent.guard_3,Set Feet,Set Feet
-talent.guard_4,Take It on the Shield,Take It on the Shield
-talent.guard_5,Slow to Fall,Slow to Fall
-talent.guard_6,Second Wind,Second Wind
-talent.apt_1,Second Wind,Al doilea suflu
-talent.apt_2,Swift Feet,Picioare iuți
-talent.apt_3,Treasure Sense,Simț al comorii
-talent.apt_4,Quick Study,Învățare rapidă
-talent.apt_5,Midas Touch,Atingerea lui Midas
-talent.apt_6,Flow State,Stare de flux
-HUD_PARRY,PARRY,PARARE
 HUD_RIPOSTE_READY,RIPOSTE,RIPOSTĂ
 HUD_LEVEL,Lv %d,Nv %d
 HUD_BRANCH_AHEAD,Branch ahead — %s,Ramură în față — %s
@@ -336,7 +317,6 @@ PAUSE_RESTART_FLOOR,Restart floor,Repornește etajul
 PAUSE_QUIT,Quit run,Părăsește run-ul
 PAUSE_ACHIEVEMENTS,Achievements,Realizări
 PAUSE_BESTIARY,Bestiary,Bestiar
-PAUSE_HINT_RESUME,to resume,ca să continui
 PAUSE_INFO_SECTION,Run info,Info run
 PAUSE_INFO_MODE,Mode,Mod
 PAUSE_INFO_FLOOR,Floor,Etaj
@@ -401,124 +381,53 @@ STAT_XP_GAIN,Experience Gain,Câștig experiență
 STAT_GOLD_FIND,Gold Find,Găsire aur
 STAT_COOLDOWN_RED,Cooldown Reduction,Reducere cooldown
 STAT_PHYSICAL_DAMAGE,Physical Damage,Damage fizic
-STAT_FIRE_DAMAGE,Fire Damage,Damage de foc
-STAT_FROST_DAMAGE,Frost Damage,Damage de ger
-STAT_ARCANE_DAMAGE,Arcane Damage,Damage arcan
-STAT_POISON_DAMAGE,Poison Damage,Damage de otravă
-FORGE_PATH_STANDARD,Standard,Standard
-FORGE_PATH_HEAVY,Heavy,Greu
-FORGE_PATH_KEEN,Keen,Ascuțit
-FORGE_PATH_BLESSED,Blessed,Binecuvântat
-FORGE_INFUSION_FIRE,Fire,Foc
-FORGE_INFUSION_FROST,Frost,Ger
-FORGE_INFUSION_POISON,Poison,Otravă
-FORGE_INFUSION_ARCANE,Arcane,Arcan
-FORGE_INFUSION_LIGHTNING,Lightning,Fulger
-INV_DURABILITY,Durability %d/%d,Durabilitate %d/%d
-INV_DURABILITY_BROKEN,Broken — this item grants no stats,Rupt — obiectul nu oferă statistici
 INV_COMPARE_TITLE,Compared with %s,Comparat cu %s
-INV_ESCAPE_RETURNED,You returned to the tower. Your loot came with you.,Te-ai întors la turn. Prada a venit cu tine.
-CREATE_ROW_TITLE,Title,Titlu
 CLASS_ROLE_HUNTER,Ranged / Precision,La distanță / Precizie
 CLASS_ROLE_HERALD,Support / Status,Sprijin / Stări
 CLASS_PERK_KILLING_DISTANCE,Killing Distance,Distanța ucigașă
 CLASS_PERK_KILLING_DISTANCE_DESC,One clean shot pays for the next.,O lovitură curată o plătește pe următoarea.
 CLASS_PERK_CONTAGION,Contagion,Molimă
 CLASS_PERK_CONTAGION_DESC,"What one of them carries, the nearest carry too.","Ce poartă unul, poartă și cei de lângă el."
-talent.arms_7,Practised Hands,Practised Hands
-talent.arms_8,No Wasted Swing,No Wasted Swing
-talent.arms_9,The Killing Half-Second,The Killing Half-Second
 talent.arms_keystone,Executioner's Patience,Executioner's Patience
-talent.guard_7,Banded Iron,Banded Iron
-talent.guard_8,Weathered,Weathered
-talent.guard_9,Unmoved,Unmoved
 talent.guard_keystone,The Long Vigil,The Long Vigil
 talent.aptitude_1,Reader of Signs,Reader of Signs
 talent.aptitude_2,Careful Hands,Careful Hands
 talent.aptitude_3,Coin Sense,Coin Sense
-talent.aptitude_4,Long Breath,Long Breath
-talent.aptitude_5,Clear Head,Clear Head
-talent.aptitude_6,Light Step,Light Step
-talent.aptitude_7,Deep Pockets,Deep Pockets
-talent.aptitude_8,Study of the Dead,Study of the Dead
-talent.aptitude_9,Scavenger,Scavenger
 talent.aptitude_keystone,The Ledger Balances,The Ledger Balances
 talent.branch.oath,Oath,Oath
 talent.oath_1,Sworn Weight,Sworn Weight
 talent.oath_2,Answer in Kind,Answer in Kind
 talent.oath_3,Shield Discipline,Shield Discipline
-talent.oath_4,Unbroken Line,Unbroken Line
-talent.oath_5,Measured Advance,Measured Advance
-talent.oath_6,Held Ground,Held Ground
-talent.oath_7,Sword and Board,Sword and Board
-talent.oath_8,The Oath Remembered,The Oath Remembered
-talent.oath_9,Retribution,Retribution
 talent.oath_keystone,Answered in Kind,Answered in Kind
 talent.branch.ruin,Ruin,Ruin
 talent.ruin_1,Fed on Ruin,Fed on Ruin
 talent.ruin_2,Careless of the Body,Careless of the Body
 talent.ruin_3,Heavy Arms,Heavy Arms
-talent.ruin_4,Blood in the Mouth,Blood in the Mouth
-talent.ruin_5,Unstopping,Unstopping
-talent.ruin_6,Wider Arc,Wider Arc
-talent.ruin_7,No Guard At All,No Guard At All
-talent.ruin_8,Deeper Cuts,Deeper Cuts
-talent.ruin_9,Last Strength,Last Strength
 talent.ruin_keystone,Nothing Left to Spend,Nothing Left to Spend
 talent.branch.unlit,Unlit,Unlit
 talent.unlit_1,Quiet Approach,Quiet Approach
 talent.unlit_2,Between the Plates,Between the Plates
 talent.unlit_3,Short Blade Work,Short Blade Work
-talent.unlit_4,Read the Turn,Read the Turn
-talent.unlit_5,Cheap Footwork,Cheap Footwork
-talent.unlit_6,Opened Vein,Opened Vein
-talent.unlit_7,Practised Cruelty,Practised Cruelty
-talent.unlit_8,Nothing Wasted,Nothing Wasted
-talent.unlit_9,Faster Than Sorry,Faster Than Sorry
 talent.unlit_keystone,The Unlit Hour,The Unlit Hour
 talent.branch.vigil,Vigil,Vigil
 talent.vigil_1,Late Reading,Late Reading
 talent.vigil_2,Steady Draw,Steady Draw
 talent.vigil_3,Written Fire,Written Fire
-talent.vigil_4,Written Frost,Written Frost
-talent.vigil_5,Copied Hand,Copied Hand
-talent.vigil_6,Marginalia,Marginalia
-talent.vigil_7,The Longer Book,The Longer Book
-talent.vigil_8,Unhurried,Unhurried
-talent.vigil_9,Annotation,Annotation
 talent.vigil_keystone,What the Margins Said,What the Margins Said
 talent.branch.watch,Watch,Watch
 talent.watch_1,The Long Watch,The Long Watch
 talent.watch_2,Braced,Braced
 talent.watch_3,Spear Length,Spear Length
-talent.watch_4,Root and Stand,Root and Stand
-talent.watch_5,Watchful,Watchful
-talent.watch_6,Shield Weight,Shield Weight
-talent.watch_7,Never Yielding,Never Yielding
-talent.watch_8,Cold Patience,Cold Patience
-talent.watch_9,The Line Holds,The Line Holds
 talent.watch_keystone,Nothing Passes,Nothing Passes
 talent.branch.mile,Mile,Mile
 talent.mile_1,The Quiet Mile,The Quiet Mile
 talent.mile_2,Drawn Slow,Drawn Slow
 talent.mile_3,Steady Arm,Steady Arm
-talent.mile_4,Counted Arrows,Counted Arrows
-talent.mile_5,Wind Read,Wind Read
-talent.mile_6,Marked,Marked
-talent.mile_7,Long Sight,Long Sight
-talent.mile_8,Field Dressing,Field Dressing
-talent.mile_9,Trapline,Trapline
 talent.mile_keystone,One Shot Is Enough,One Shot Is Enough
 talent.branch.tide,Tide,Tide
 talent.tide_1,Carried Rot,Carried Rot
 talent.tide_2,Slow Fever,Slow Fever
 talent.tide_3,Open Vessel,Open Vessel
-talent.tide_4,Damp Hands,Damp Hands
-talent.tide_5,The Message,The Message
-talent.tide_6,Passed Along,Passed Along
-talent.tide_7,Deeper Water,Deeper Water
-talent.tide_8,Patient Contagion,Patient Contagion
-talent.tide_9,Everything Spreads,Everything Spreads
 talent.tide_keystone,It Was Always Going to Spread,It Was Always Going to Spread
 ASPECT_HUB_EMBER,Ember Watch,Straja Jarului
 ASPECT_HUB_EMBER_DESC,The colour of the last fire anyone kept.,Culoarea ultimului foc pe care l-a mai ținut cineva.
@@ -662,8 +571,6 @@ SETTINGS_BINDING_CONFLICT,That input is already used by %s. Swap it with %s?,Ace
 SETTINGS_BINDING_SWAP,Swap,Schimba
 SETTINGS_BINDING_CANCEL,Cancel,Anuleaza
 SETTINGS_CRASH_REPORTS,Send anonymous crash reports,Trimite rapoarte anonime de eroare
-SETTINGS_REPLAY_RECORDING_NAME,Record Run Replays,Inregistreaza reluari
-SETTINGS_REPLAY_RECORDING_DESC,Keeps an input recording of each run so it can be played back later.,"Pastreaza o inregistrare a comenzilor din fiecare cursa, pentru reluare."
 SETTINGS_NO_BACKUPS,No save backups yet.,Inca nu exista copii de rezerva.
 SETTINGS_RESTORE_BACKUP,Restore backup %d  -  %s,Restaureaza copia %d  -  %s
 SETTINGS_RESTORE_TITLE,Restore Backup,Restaureaza copia
@@ -676,9 +583,6 @@ INV_STASH_FULL,Your stash is full.,Inventarul tau este plin.
 CREATE_NAME_HEADER,Your Warden,Gardianul tau
 CREATE_APPEARANCE_HEADER,Appearance,Infatisare
 CREATE_CLASS_DETAIL_HEADER,Class Details,Detalii clasa
-CREATE_STAT_COL_STAT,Stat,Statistica
-CREATE_STAT_COL_BASE,Base,Baza
-CREATE_STAT_COL_CLASS,Class,Clasa
 SETTINGS_BINDING_COL_KEYBOARD,Keyboard,Tastatura
 SETTINGS_BINDING_COL_GAMEPAD,Gamepad,Gamepad
 MERCHANT_GOLD,Gold: %d,Aur: %d
@@ -698,7 +602,6 @@ MERCHANT_BUY_FAILED,That purchase failed.,Cumpararea a esuat.
 MERCHANT_SELL_FAILED,That sale failed.,Vanzarea a esuat.
 SMITH_COINS,Coins: %d,Monede: %d
 SMITH_UPGRADE,Upgrade,Imbunatateste
-SMITH_REPAIR,Repair,Repara
 SMITH_CLOSE,Close,Inchide
 SMITH_RESPEC,Respec Talents (%d),Reseteaza talentele (%d)
 SMITH_RESPEC_CONFIRM_TITLE,Respec Talents?,Resetezi talentele?
@@ -706,20 +609,12 @@ SMITH_RESPEC_CONFIRM_MESSAGE,Spend %d gold to reset every talent point? This can
 SMITH_RESPEC_CONFIRM_BUTTON,Respec,Reseteaza
 SMITH_UNLOCK_WEAPONS,Unlock Weapons,Deblocheaza arme
 SMITH_UNLOCK_NEXT,Unlock: %s (%dg),Deblocheaza: %s (%dg)
-SMITH_FORGE_SECTION,Forge,Forja
 SMITH_SALVAGE,Salvage,Dezmembreaza
-SMITH_REROLL,Reroll Affixes,Rearunca afixele
-SMITH_TRANSMUTE,Transmute,Transmuta
-SMITH_INFUSE,Infuse,Infuzeaza
-SMITH_INFUSION_ELEMENT,Element,Element
-SMITH_ITEM_ROW,%s  +%d/%d  -  durability %d/%d,%s  +%d/%d  -  durabilitate %d/%d
-SMITH_ITEM_ROW_EQUIPPED,[E] %s  +%d/%d  -  durability %d/%d,[E] %s  +%d/%d  -  durabilitate %d/%d
-SMITH_NO_ITEMS,No equippable items to upgrade or repair.,Niciun obiect echipabil de imbunatatit sau reparat.
+SMITH_ITEM_ROW,%s  +%d/%d,%s  +%d/%d
+SMITH_ITEM_ROW_EQUIPPED,[E] %s  +%d/%d,[E] %s  +%d/%d
+SMITH_NO_ITEMS,No equippable items to upgrade.,Niciun obiect echipabil de imbunatatit.
 SMITH_UPGRADE_DETAIL,%s  -  upgrade cost %d coins  (+%d/%d),%s  -  cost imbunatatire %d monede  (+%d/%d)
 SMITH_UPGRADE_FAILED,That upgrade failed.,Imbunatatirea a esuat.
-SMITH_REPAIR_FAILED,That repair failed.,Reparatia a esuat.
-SMITH_RESPEC_DONE,Talents reset.,Talente resetate.
-SMITH_RESPEC_FAILED,The respec failed.,Resetarea a esuat.
 SMITH_NO_UNLOCKS,No weapon unlocks available.,Nicio arma de deblocat.
 SMITH_UNLOCKED,Unlocked %s.,Ai deblocat %s.
 SMITH_UNLOCK_FAILED,That unlock failed.,Deblocarea a esuat.
@@ -728,12 +623,6 @@ SMITH_SALVAGED_FOR,Salvaged for %s.,Dezmembrat pentru %s.
 SMITH_SALVAGE_FAILED,That salvage failed.,Dezmembrarea a esuat.
 SMITH_SALVAGE_CONFIRM_TITLE,Salvage Item?,Dezmembrezi obiectul?
 SMITH_SALVAGE_CONFIRM_MESSAGE,Break down %s for %s? This destroys the item and cannot be undone.,Dezmembrezi %s pentru %s? Obiectul e distrus si nu poate fi anulat.
-SMITH_REROLLED,Affixes rerolled.,Afixe rearuncate.
-SMITH_REROLL_FAILED,That reroll failed.,Rearuncarea a esuat.
-SMITH_TRANSMUTED,Rarity transmuted to %s.,Raritate transmutata in %s.
-SMITH_TRANSMUTE_FAILED,That transmute failed.,Transmutarea a esuat.
-SMITH_INFUSED,Infused with %s.,Infuzat cu %s.
-SMITH_INFUSE_FAILED,That infusion failed.,Infuzarea a esuat.
 STORAGE_SELECT_INVENTORY,Select an item in your inventory.,Alege un obiect din inventar.
 STORAGE_SELECT_STORAGE,Select an item in storage.,Alege un obiect din depozit.
 STORAGE_MOVED_TO_STORAGE,Moved to storage.,Mutat in depozit.
@@ -766,19 +655,20 @@ PRACTICE_POISE_BREAK,Poise break,Ruperea echilibrului
 PRACTICE_GUARD_BREAK,Guard break,Ruperea gărzii
 PRACTICE_RECOVERY,Recover stamina,Recuperarea rezistenței
 PRACTICE_RETRY,Reset practice,Reia exercițiul
-PRACTICE_PARRY_DESC,Face the red wedge-shaped windup. Raise guard as the strike arrives to parry; color is supplementary.,Înfruntă pregătirea în formă de pană roșie. Ridică garda când vine lovitura pentru a para; culoarea este secundară.
-PRACTICE_DODGE_DESC,Move through the red wedge as the strike arrives. A successful dodge avoids the hit; moving away is not enough.,Eschivează prin pana roșie când vine lovitura. Eschiva reușită evită atacul; simpla retragere nu este suficientă.
+PRACTICE_PARRY_DESC,Face the blue dashed ring. Tap guard just as the strike arrives to parry; the ring's pattern matters as well as its color.,Înfruntă inelul întrerupt albastru. Apasă garda exact când vine lovitura pentru a para; modelul inelului contează la fel ca nuanța.
+PRACTICE_DODGE_DESC,Move through the red double ring as the strike arrives. A successful dodge avoids the hit; moving away is not enough.,Eschivează prin inelul dublu roșu când vine lovitura. Eschiva reușită evită atacul; simpla retragere nu este suficientă.
 PRACTICE_POISE_BREAK_DESC,Attack the dummy until its poise breaks, then observe the stagger and recovery opening.,Atacă manechinul până i se rupe echilibrul, apoi observă amețeala și fereastra de ripostă.
 PRACTICE_GUARD_BREAK_DESC,Hold guard with the shown action into the red double-ring cone to see why this unblockable attack breaks your guard. Practice protection prevents health and poise damage.,Ține garda cu acțiunea afișată în fața conului roșu cu inel dublu pentru a vedea de ce acest atac de neoprit îți rupe garda. Protecția exercițiului previne daunele la viață și echilibru.
 PRACTICE_RECOVERY_DESC,Stamina is depleted for this practice. Wait without spending stamina until it recovers.,Rezistența este epuizată pentru acest exercițiu. Așteaptă fără să o consumi până se reface.
 PRACTICE_RECOVERY_WAIT,Recovery begins after a short delay; the exhausted state clears at 15% stamina.,Refacerea începe după o scurtă întârziere; epuizarea dispare la 15% rezistență.
-PRACTICE_TELEGRAPH_SHAPE,Read the wedge shape and approach direction; the red color is not the only cue.,Citește forma de pană și direcția atacului; culoarea roșie nu este singurul indiciu.
+PRACTICE_TELEGRAPH_SHAPE,Read the ring's pattern and the approach direction; the color is not the only cue.,Citește modelul inelului și direcția atacului; culoarea nu este singurul indiciu.
 PRACTICE_PARRY_DONE,Parry successful. Retry or choose another exercise.,Parare reușită. Reia sau alege alt exercițiu.
 PRACTICE_DODGE_DONE,Dodge-through successful. Retry or choose another exercise.,Eschivă prin atac reușită. Reia sau alege alt exercițiu.
 PRACTICE_POISE_BREAK_DONE,Poise broken. Punish the stagger, then retry or choose another exercise.,Echilibru rupt. Pedepsește amețeala, apoi reia sau alege alt exercițiu.
 PRACTICE_GUARD_BREAK_DONE,Guard broken. The unblockable strike cannot be blocked; retry to restore your guard.,Gardă ruptă. Lovitura de neoprit nu poate fi blocată; reia pentru a-ți reface garda.
 PRACTICE_RECOVERY_DONE,Stamina recovered. Retry or choose another exercise.,Rezistență refăcută. Reia sau alege alt exercițiu.
 PRACTICE_ACTION_BLOCK,Guard with %s as the hit lands.,Apără-te cu %s când lovește.
+PRACTICE_ACTION_PARRY,Tap %s as the hit lands.,Apasă %s când lovește.
 PRACTICE_ACTION_DODGE,Dodge with %s as the hit lands.,Eschivează cu %s când lovește.
 PRACTICE_ACTION_ATTACK,Attack with %s to break poise.,Atacă cu %s pentru a rupe echilibrul.
 TOWER_PRIMARY_GOAL,Your character's next tower milestone: {name} — {requirement}. The tower will change: {change},Următorul obiectiv al personajului în turn: {name} — {requirement}. Turnul se va schimba astfel: {change}
@@ -791,8 +681,6 @@ CONTINUE_PLAY,Play Warden,Joaca gardianul
 CONTINUE_DELETE,Delete Warden,Sterge gardianul
 CONTINUE_NO_WARDENS,No wardens yet - create one with New Game.,Niciun gardian inca - creeaza unul din Joc nou.
 LOADING_ENTERING,Entering Aumbrye Tower,Intri in Turnul Aumbrye
-LOADING_PREPARING,Preparing your warden...,Se pregateste gardianul...
-LOADING_SYNCING,Syncing umbral...,Se sincronizează umbralul...
 LOADING_SAVE_FAILED,Could not load save - returning to menu.,Salvarea nu a putut fi incarcata - revenire la meniu.
 LOADING_SLOTS_FULL,All character slots are full - delete one to start a new warden.,Toate sloturile de personaje sunt pline - sterge unul pentru a incepe un warden nou.
 LOADING_CHARACTER_MISSING,That character's save could not be found - returning to menu.,Salvarea acelui personaj nu a fost gasita - revenire la meniu.
@@ -829,9 +717,6 @@ QUEST_SELECT_TO_ACCEPT,Select a quest to accept.,Alege o misiune de acceptat.
 QUEST_ACCEPTED,Quest accepted: %s,Misiune acceptata: %s
 QUEST_ACCEPT_FAILED,That quest could not be accepted.,Misiunea nu a putut fi acceptata.
 CREATE_COMPARE_HEADER,All Classes,Toate clasele
-CREATE_COMPARE_COL_CLASS,Class,Clasa
-CREATE_COMPARE_COL_ROLE,Role,Rol
-CREATE_COMPARE_COL_BONUSES,Stat Bonuses,Bonusuri
 CREATE_STAT_MANA,Mana,Mana
 CREATE_STAT_MANA_REGEN,Mana Regen,Regen mana
 CREATE_COMPARE_COL_STAT,Stat,Statistica
@@ -839,7 +724,7 @@ CREATE_COMPARE_COL_YOU,Your Pick,Alegerea ta
 CREATE_COMPARE_COL_YOU_NAMED,Your Pick (%s),Alegerea ta (%s)
 TALENTS_TITLE,Talents,Talente
 TALENTS_POINTS,Points: %d,Puncte: %d
-TALENTS_HINT,Arrows: move | Enter: unlock | Esc: close,Sageti: mutare | Enter: deblocheaza | Esc: inchide
+TALENTS_HINT,Arrows: move | Enter: queue | C / X: commit | Esc: close,Sageti: mutare | Enter: adauga in plan | C / X: confirma | Esc: inchide
 TALENTS_CAN_UNLOCK,Can unlock,Se poate debloca
 TALENTS_LOCKED,Locked,Blocat
 TALENTS_QUEUE,Queue,Adauga in plan
@@ -872,6 +757,7 @@ MAP_LEGEND_REST,Bonfire,Foc de tabără
 MAP_LEGEND_PUZZLE,Puzzle,Enigmă
 MAP_LEGEND_SECRET,Secret,Secret
 RESULTS_LOOT_NONE,(none),(niciuna)
+RESULTS_LOOT_UNKNOWN_ITEM,Unknown item,Obiect necunoscut
 RESULTS_CONTINUE,Continue,Continuă
 RESULTS_XP_PENDING,XP: --,XP: --
 RESULTS_TIME,Time: {time},Timp: {time}
@@ -968,7 +854,6 @@ HUD_XP_GRANTED,+{xp} XP,+{xp} XP
 HUD_DEPTH_RECORD,New deepest descent: floor {floor}.,Cea mai adâncă coborâre: etajul {floor}.
 HUD_DEPTH_RECORD_TOKENS,New deepest descent: floor {floor} — {tokens} descent tokens.,Cea mai adâncă coborâre: etajul {floor} — {tokens} jetoane.
 HUD_MILESTONE,Milestone reached: {name}.,Reper atins: {name}.
-LOCK_NEEDS_KEYS,This lock needs {count} keys.,Lacătul are nevoie de {count} chei.
 LOCK_NEEDS_KEY,You need the {key}.,Ai nevoie de {key}.
 LOCK_UNLOCK_ACTION,Unlock ({key}),Descuie ({key})
 STAIR_PACT_LABEL,Descend to floor {floor} -- {pact} ({desc}),Coboara la etajul {floor} -- {pact} ({desc})
@@ -1065,11 +950,6 @@ SHORTCUT_WRONG_SIDE,This won't open from this side.,Nu se deschide din partea ac
 WARN_FELL,You fell out of the world.,Ai căzut din lume.
 SHORTCUT_OPEN_PROMPT,E — Open shortcut,E — Deschide scurtătura
 SHORTCUT_BARRED,Barred from this side,Blocată din partea aceasta
-SMITH_UPGRADE_PATH,Upgrade path,Cale de îmbunătățire
-SMITH_SET_PATH,Set Path,Alege calea
-SMITH_MARK_RULE_SOURCE,Mark Rule Source,Marchează sursa
-SMITH_TRANSFER_RULE,Transfer Rule,Transferă regula
-SMITH_CONVERT,Convert,Conversie
 RECOVERY_TITLE,Save Could Not Be Read,Salvarea nu a putut fi citită
 RECOVERY_BODY,Your save and every backup failed to load ({reason}). Nothing has been deleted.,Salvarea ta și toate copiile de rezervă au eșuat la încărcare ({reason}). Nimic nu a fost șters.
 RECOVERY_KEPT_AT,A copy was kept at {path},O copie a fost păstrată la {path}
@@ -1130,7 +1010,6 @@ QUEST_OBJECTIVE_DEPTH,Reach depth {depth},Ajungeți la adâncimea {depth}
 QUEST_HAND_IN,Hand in,Livrează
 QUEST_HAND_IN_COMPLETE,Delivery complete.,Livrare finalizată.
 QUEST_HAND_IN_FAILED,You do not have the full delivery.,Nu ai întreaga livrare.
-ARROW_REGEN_TOOLTIP,Arrows recover after six seconds without shooting or taking damage.,Săgețile se refac după șase secunde fără a trage sau a suferi daune.
 RESULTS_DESCEND_AGAIN,Descend again,Coboară din nou
 RESULTS_VIGIL_AGAIN,Stand the Vigil again,Stai din nou de Veghe
 RESULTS_LONG_DARK_AGAIN,Back into the Long Dark,Înapoi în Bezna Lungă
@@ -1139,7 +1018,6 @@ RESULTS_VAULT_IMPACT_RELIC,Added to future relic offers.,Adăugată în ofertele
 RESULTS_VAULT_IMPACT_ITEM,Added to future item drops.,Adăugat la recompensele viitoare cu obiecte.
 RESULTS_VAULT_IMPACT_PACT,Added to future pact choices.,Adăugat la alegerile viitoare de pact.
 RESULTS_VAULT_IMPACT_GENERIC,Added to future run content.,Adăugat în conținutul viitoarelor expediții.
-VAULT_PROGRESS,Vault %d/%d,Seif %d/%d
 INV_STATS_TITLE,Warden,Veghetor
 INV_STATS_EMPTY,Nothing equipped.,Nimic echipat.
 UMBRAL_RECOVER_XP,Recover it ({xp} XP),Recuperează-l ({xp} XP)
@@ -1149,25 +1027,8 @@ UMBRAL_SUBTITLE,What the last warden left here has not finished sounding.,Ce a l
 UMBRAL_LISTEN,Take the umbral instead — leave what it was carrying,Ia umbralul în schimb — lasă ce ducea
 UMBRAL_HINT,Taking the umbral spends what was staked here and offers a relic for the rest of this run.,Luarea umbralului consumă ce a fost pus aici și oferă o relicvă pentru restul acestei incursiuni.
 UMBRAL_LEAVE,Leave it sounding,Lasă-l să răsune
-QUALITY_CHIPPED,Chipped,Ciobit
-QUALITY_DULL,Dull,Tocit
-QUALITY_BALANCED,Balanced,Echilibrat
-QUALITY_KEEN,Keen,Ascutit
-QUALITY_MASTERFORGED,Masterforged,Faurit Maiestrit
-QUALITY_BATTERED,Battered,Lovit
-QUALITY_WORN,Worn,Uzat
-QUALITY_STURDY,Sturdy,Trainic
-QUALITY_REINFORCED,Reinforced,Intarit
-QUALITY_MASTERWROUGHT,Masterwrought,Lucrat Maiestrit
-QUALITY_TARNISHED,Tarnished,Innegrit
-QUALITY_CLOUDED,Clouded,Tulbure
-QUALITY_POLISHED,Polished,Lustruit
-QUALITY_GLEAMING,Gleaming,Stralucitor
-QUALITY_BRILLIANT,Brilliant,Nestemat
 STAT_ATTACK_SPEED,Attack Speed,Viteză de atac
-INV_CONDITION,Condition:,Stare:
 HUB_GROWTH_ANNOUNCE,New in the tower: {names}.,Nou în turn: {names}.
-PUZZLE_SOLVED,Solved.,Rezolvat.
 INV_DAMAGE_PREVIEW,Opening light (base stance): {before} → {after} ({delta}),Lovitură ușoară inițială (poziție de bază): {before} → {after} ({delta})
 INV_DAMAGE_PREVIEW_SCOPE,Before target resistance; excludes critical hits and temporary combat effects.,Înainte de rezistența țintei; nu include lovituri critice sau efecte temporare de luptă.
 INV_DAMAGE_CAP_NOTE,Flat gear bonus capped at twice this move's base damage.,Bonusul fix de echipament este plafonat la dublul daunelor de bază ale acestei mișcări.
@@ -1441,8 +1302,6 @@ CONTENT_VAULT_MYTHIC_CROWN_NAME,Aumbral Crown,Coroană Umbrală
 CONTENT_VAULT_MYTHIC_CROWN_FLAVOUR,Worn by the one who decided the tower would hold.,Purtată de cel care a hotărât că turnul va rezista.
 CONTENT_VAULT_MYTHIC_RING_NAME,Aumbral Ring,Inel Umbral
 CONTENT_VAULT_MYTHIC_RING_FLAVOUR,Small enough to swallow. Several did.,Destul de mic ca să fie înghițit. Mai mulți au făcut-o.
-CONTENT_VAULT_VOID_AMULET_NAME,Void Amulet,Amuletă a Vidului
-CONTENT_VAULT_VOID_AMULET_FLAVOUR,Holds a silence the chapel could not.,Păstrează o tăcere pe care capela nu a putut-o ține.
 CONTENT_VAULT_FROST_WARLORD_BLADE_NAME,Frost Warlord's Blade,Lama Lordului Înghețului
 CONTENT_VAULT_FROST_WARLORD_BLADE_FLAVOUR,"Taken off the warlord, still cold.",Luata de la lordul războiului încă rece.
 CONTENT_VAULT_CATHEDRAL_SHADOW_DAGGER_NAME,Umbral Dagger,Pumnal Umbral
@@ -1688,14 +1547,11 @@ CONTENT_PRISM_REFRACTOR_NAME,Refractor,Refractorul
 CONTENT_PRISM_SHARDLING_NAME,Shardling,Așchie Vie
 CONTENT_SWAMP_BOGLING_NAME,Swamp Bogling,Spiridușul Mlaștinii
 CONTENT_SWAMP_BRUTE_NAME,Swamp Brute,Bruta Mlaștinii
-CONTENT_SWAMP_HAG_NAME,Swamp Hag,Baba Mlaștinii
 CONTENT_SWAMP_LEECH_NAME,Swamp Leech,Lipitoarea Mlaștinii
 CONTENT_SWAMP_SLASHER_NAME,Swamp Slasher,Tăietorul Mlaștinii
 CONTENT_SWAMP_SPITTER_NAME,Swamp Spitter,Scuipătorul Mlaștinii
-CONTENT_SWAMP_SWARM_NAME,Swamp Swarm,Roiul Mlaștinii
 CONTENT_SWAMP_TOAD_NAME,Swamp Toad,Broasca Mlaștinii
 CONTENT_SWAMP_WITCH_NAME,Swamp Witch,Vrăjitoarea Mlaștinii
-CONTENT_TRAINING_GRUNT_NAME,Training Grunt,Recrutul de Antrenament
 CONTENT_UMBRAL_CENSER_NAME,Chapel Censer,Cădelnița Capelei
 CONTENT_UMBRAL_CONFESSOR_NAME,The Confessor,Mărturisitorul
 CONTENT_UMBRAL_COWL_NAME,Cowled Thing,Lucrul cu Glugă
@@ -1826,7 +1682,7 @@ CONTENT_BOUNTY_DEEP_SURVEY_DESCRIPTION,"Standing bounty. Reach the fourth floor 
 CONTENT_BOUNTY_FEN_CULL_DESCRIPTION,"Standing bounty. Nettle counts drifters the way other people count debts. Eight.",Recompensă permanentă. Nettle numără rătăcitorii cum alții numără datoriile. Opt.
 CONTENT_BOUNTY_FIRST_LANDING_DESCRIPTION,"Standing bounty. Three floors and back up. Vessit writes it down whether or not you come back up.",Recompensă permanentă. Trei etaje și înapoi sus. Vessit notează asta fie că te întorci fie că nu.
 CONTENT_BOUNTY_HOLLOWED_DESCRIPTION,"Standing bounty. Six of the hollowed, out of the drift. They were garrison once and the order to hold was posted over the top of them.",Recompensă permanentă. Șase dintre goliți ieșiți din nămeți. Au fost odată garnizoană iar ordinul de a ține poziția a fost afișat peste ei.
-CONTENT_BOUNTY_LANTERN_OIL_DESCRIPTION,"Standing bounty. Corrin needs iron for the brackets. Not good iron. Iron.",Recompensă permanentă. Corrin are nevoie de fier pentru console. Nu fier bun. Fier.
+CONTENT_BOUNTY_LAMP_IRON_DESCRIPTION,"Standing bounty. Corrin needs iron for the brackets. Not good iron. Iron.",Recompensă permanentă. Corrin are nevoie de fier pentru console. Nu fier bun. Fier.
 CONTENT_BOUNTY_NO_LAMP_LIT_DESCRIPTION,"Weekly bounty. Down to the thing at the bottom and out again, inside the quarter hour the lamps are dark for. Nobody has ever explained who put the lamps out.",Recompensă săptămânală. Coboară la lucrul de la fund și ieși din nou în sfertul de oră cât stau lămpile stinse. Nimeni nu a explicat vreodată cine a stins lămpile.
 CONTENT_BOUNTY_PENITENTS_DESCRIPTION,"Standing bounty. Six penitents. Their ledger-pages are worn soft and the column that owes them is crossed through.",Recompensă permanentă. Șase pocăiți. Paginile lor de registru sunt tocite iar coloana care le datorează ceva este tăiată.
 CONTENT_BOUNTY_QUIET_HOUR_DESCRIPTION,"Standing bounty. Down, through the boss, and out inside ten minutes. Between the last bell and the first, nothing is permitted to happen.",Recompensă permanentă. Jos prin șef și afară în zece minute. Între ultimul clopot și primul nimic nu are voie să se întâmple.
@@ -1875,7 +1731,7 @@ CONTENT_BOUNTY_DEEP_SURVEY_TITLE,Bounty: Survey,Recompensă: Cercetarea
 CONTENT_BOUNTY_FEN_CULL_TITLE,Bounty: The Overflow,Recompensă: Revărsarea
 CONTENT_BOUNTY_FIRST_LANDING_TITLE,Bounty: Three Floors Down,Recompensă: Trei Etaje Jos
 CONTENT_BOUNTY_HOLLOWED_TITLE,Bounty: The Hollowed,Recompensă: Cei Goliți
-CONTENT_BOUNTY_LANTERN_OIL_TITLE,Bounty: Lamp Iron,Recompensă: Fier pentru Lampă
+CONTENT_BOUNTY_LAMP_IRON_TITLE,Bounty: Lamp Iron,Recompensă: Fier pentru Lampă
 CONTENT_BOUNTY_NO_LAMP_LIT_TITLE,Bounty: Without a Light,Recompensă: Fără Lumină
 CONTENT_BOUNTY_PENITENTS_TITLE,Bounty: Penitents,Recompensă: Pocăiții
 CONTENT_BOUNTY_QUIET_HOUR_TITLE,Bounty: The Quiet Hour,Recompensă: Ora Tăcută
@@ -1916,20 +1772,12 @@ CONTENT_THE_SALLYPORT_TITLE,Out and Back Before the Horn,Afară și Înapoi Îna
 CONTENT_THE_SOCKET_ABOVE_THE_ALTAR_TITLE,The Socket Above the Altar,Locașul de deasupra Altarului
 CONTENT_THIN_ENOUGH_TITLE,Thin Enough,Destul de Subțire
 CONTENT_VANE_THE_LAST_MUSTER_TITLE,The Last Muster,Ultima Adunare
-CONTENT_CASTLE_AMULET_NAME,Castle Amulet,Amuleta Castelului
-CONTENT_CASTLE_AMULET_DESCRIPTION,An amulet warding off harm.,O amuletă care alungă răul.
-CONTENT_CASTLE_BANNER_NAME,Castle War Banner,Stindard de Război al Castelului
-CONTENT_CASTLE_BANNER_DESCRIPTION,A battle-worn banner fragment that bolsters resolve.,Un fragment de stindard încercat în luptă care întărește hotărârea.
-CONTENT_CASTLE_BOOTS_NAME,Castle Boots,Cizmele Castelului
-CONTENT_CASTLE_BOOTS_DESCRIPTION,Sturdy boots for long dungeon treks.,Cizme trainice pentru drumuri lungi prin temnițe.
 CONTENT_CASTLE_BUCKLER_NAME,Castle Buckler,Pavăza Castelului
 CONTENT_CASTLE_BUCKLER_DESCRIPTION,A small shield for off-hand defense.,Un scut mic pentru apărarea cu mâna secundară.
 CONTENT_CASTLE_CHALICE_NAME,Castle Chalice,Potirul Castelului
 CONTENT_CASTLE_CHALICE_DESCRIPTION,A sacred chalice that mends wounds over time.,Un potir sacru care vindecă rănile în timp.
 CONTENT_CASTLE_CROWN_NAME,Castle Crown,Coroana Castelului
 CONTENT_CASTLE_CROWN_DESCRIPTION,A tarnished crown radiating regal authority.,O coroană pătată care emană autoritate regală.
-CONTENT_CASTLE_GAUNTLETS_NAME,Castle Gauntlets,Mănușile de Fier ale Castelului
-CONTENT_CASTLE_GAUNTLETS_DESCRIPTION,Iron gauntlets.,Mănuși de fier.
 CONTENT_CASTLE_HELM_NAME,Castle Helm,Coiful Castelului
 CONTENT_CASTLE_HELM_DESCRIPTION,A dented helm from the castle armory.,Un coif îndoit din arsenalul castelului.
 CONTENT_CASTLE_PLATE_NAME,Castle Plate,Platoșa Castelului
@@ -1940,12 +1788,6 @@ CONTENT_CASTLE_SWORD_NAME,Castle Sword,Sabia Castelului
 CONTENT_CASTLE_SWORD_DESCRIPTION,A sturdy blade found in the castle.,O lamă trainică găsită în castel.
 CONTENT_CATHEDRAL_ARCANE_STAFF_NAME,Cathedral Arcane Staff,Toiag Arcan al Catedralei
 CONTENT_CATHEDRAL_ARCANE_STAFF_DESCRIPTION,"Holy sigils spiral the shaft, amplifying arcane strikes.",Sigilii sfinte se învârt pe tijă amplificând loviturile arcane.
-CONTENT_CATHEDRAL_GLOVES_NAME,Cathedral Gloves,Mănușile Catedralei
-CONTENT_CATHEDRAL_GLOVES_DESCRIPTION,Woven linen gloves stained with votive ash from a hundred rites.,Mănuși țesute din in pătate de cenușa votivă a o sută de rituri.
-CONTENT_CATHEDRAL_HOLY_CHARM_NAME,Cathedral Holy Charm,Talisman Sfânt al Catedralei
-CONTENT_CATHEDRAL_HOLY_CHARM_DESCRIPTION,Blessed silver that glows faintly near the unholy.,Argint binecuvântat care strălucește slab lângă cei nelegiuiți.
-CONTENT_CATHEDRAL_PILGRIM_BOOTS_NAME,Cathedral Pilgrim Boots,Cizmele Pelerinului Catedralei
-CONTENT_CATHEDRAL_PILGRIM_BOOTS_DESCRIPTION,Worn leather soles shaped by a pilgrimage that never ended.,Tălpi de piele uzate modelate de un pelerinaj care nu s-a terminat niciodată.
 CONTENT_CATHEDRAL_SANCTUM_RING_NAME,Cathedral Sanctum Ring,Inelul Sanctuarului Catedralei
 CONTENT_CATHEDRAL_SANCTUM_RING_DESCRIPTION,A sanctum seal bent into a ring — authority outlives the priest.,O pecete de sanctuar îndoită într-un inel — autoritatea supraviețuiește preotului.
 CONTENT_CATHEDRAL_SHADOW_CLOAK_NAME,Cathedral Umbral Cloak,Mantaua Umbrală a Catedralei
@@ -1958,18 +1800,10 @@ CONTENT_CRYSTAL_BOW_NAME,Crystal Bow,Arcul de Cristal
 CONTENT_CRYSTAL_BOW_DESCRIPTION,Drawn string hums with brittle light; arrows bite hard.,Coarda întinsă zumzăie cu lumină casantă; săgețile mușcă tare.
 CONTENT_CRYSTAL_FROST_RING_NAME,Crystal Frost Ring,Inelul de Îngheț Cristalin
 CONTENT_CRYSTAL_FROST_RING_DESCRIPTION,A ring of eternal frost that chills attackers.,Un inel de îngheț etern care răcește atacatorii.
-CONTENT_CRYSTAL_PRISM_AMULET_NAME,Crystal Prism Amulet,Amuleta Prismei de Cristal
-CONTENT_CRYSTAL_PRISM_AMULET_DESCRIPTION,Refracts arcane energy to shield the wearer.,Refractă energia arcană pentru a-l proteja pe purtător.
 CONTENT_CRYSTAL_SHARD_BLADE_NAME,Crystal Shard Blade,Lama cu Așchii de Cristal
 CONTENT_CRYSTAL_SHARD_BLADE_DESCRIPTION,A sword edged with razor-sharp crystal shards.,O sabie cu marginea plină de așchii de cristal ascuțite ca briciul.
-CONTENT_EMBER_GAUNTLETS_NAME,Ember Gauntlets,Mănuși cu Tăciuni
-CONTENT_EMBER_GAUNTLETS_DESCRIPTION,Heat lingers in the runes — each parry sparks like dry tinder.,Căldura stăruie în rune — fiecare parare scânteiază ca iasca uscată.
 CONTENT_FLAME_SWORD_NAME,Flame Sword,Sabia Flăcării
 CONTENT_FLAME_SWORD_DESCRIPTION,Runes along the fuller smolder even when the blade rests.,Runele de-a lungul lamei mocnesc chiar și când sabia se odihnește.
-CONTENT_FROST_AMULET_NAME,Frost Amulet,Amuleta Înghețului
-CONTENT_FROST_AMULET_DESCRIPTION,A shard of eternal ice warms only when your pulse slows.,O așchie de gheață eternă se încălzește numai când îți încetinește pulsul.
-CONTENT_FROST_GAUNTLETS_NAME,Frost Gauntlets,Mănușile Înghețului
-CONTENT_FROST_GAUNTLETS_DESCRIPTION,Gauntlets rimed in hoarfrost; steel bites colder with them.,Mănuși acoperite de chiciură; oțelul mușcă mai rece cu ele.
 CONTENT_FROST_GLACIER_SWORD_NAME,Frost Glacier Sword,Sabia Ghețarului Înghețat
 CONTENT_FROST_GLACIER_SWORD_DESCRIPTION,Ice crystals creep along the edge; each swing leaves a chill.,Cristale de gheață se târăsc pe margine; fiecare lovitură lasă frig.
 CONTENT_FROST_ICE_RING_NAME,Frost Ice Ring,Inelul Gheții Înghețate
@@ -1978,26 +1812,18 @@ CONTENT_FROST_KNIGHT_HELM_NAME,Frost Knight Helm,Coiful Cavalerului Înghețului
 CONTENT_FROST_KNIGHT_HELM_DESCRIPTION,A helm sealed in rime; breath fogs inside like a tomb.,Un coif pecetluit în chiciură; răsuflarea se încețoșează înăuntru ca într-un mormânt.
 CONTENT_FROST_KNIGHT_PLATE_NAME,Frost Knight Plate,Platoșa Cavalerului Înghețului
 CONTENT_FROST_KNIGHT_PLATE_DESCRIPTION,Plate armor frozen to a knight who never thawed.,Armură de plăci înghețată pe un cavaler care nu s-a dezghețat niciodată.
-CONTENT_FROST_RAIDER_BOOTS_NAME,Frost Raider Boots,Cizmele Jefuitorului Înghețului
-CONTENT_FROST_RAIDER_BOOTS_DESCRIPTION,"Hide boots rimed with ice — raiders hear you, but rarely catch you.",Cizme de piele tivite cu gheață — jefuitorii te aud dar rareori te prind.
 CONTENT_FROST_WARLORD_BLADE_NAME,Frost Warlord Blade,Lama Lordului Războiului Înghețului
 CONTENT_FROST_WARLORD_BLADE_DESCRIPTION,"Forged in glacial depths, it drinks warmth from every wound.",Făurită în adâncuri glaciare bea căldură din fiecare rană.
 CONTENT_GOLD_RING_NAME,Gold Ring,Inel de Aur
 CONTENT_GOLD_RING_DESCRIPTION,Heavy gold without hallmark — looted from a treasury that rewinds.,Aur greu fără marcă — jefuit dintr-o vistierie care se derulează înapoi.
 CONTENT_HUNTER_BOW_NAME,Hunter Bow,Arcul Vânătorului
 CONTENT_HUNTER_BOW_DESCRIPTION,A reliable bow for ranged hunts.,Un arc sigur pentru vânători la distanță.
-CONTENT_IRON_BOOTS_NAME,Iron Boots,Cizme de Fier
-CONTENT_IRON_BOOTS_DESCRIPTION,Iron soles that ring on stone — you always hear yourself coming.,Tălpi de fier care sună pe piatră — te auzi mereu venind.
-CONTENT_IRON_GAUNTLETS_NAME,Iron Gauntlets,Mănuși de Fier
-CONTENT_IRON_GAUNTLETS_DESCRIPTION,Thick gauntlets that trade dexterity for one more swing.,Mănuși groase care schimbă dexteritatea pentru încă o lovitură.
 CONTENT_IRON_HELM_NAME,Iron Helm,Coif de Fier
 CONTENT_IRON_HELM_DESCRIPTION,A bucket helm dented by countless tower umbrals.,Un coif de tip găleată îndoit de nenumărate umbre ale turnului.
 CONTENT_IRON_PLATE_NAME,Iron Plate,Platoșă de Fier
 CONTENT_IRON_PLATE_DESCRIPTION,"Riveted plates scavenged from fallen wardens. Heavy, honest, unremarkable.",Plăci nituite recuperate de la străjerii căzuți. Grele oneste și neieșite din comun.
 CONTENT_IRON_SWORD_NAME,Iron Sword,Sabie de Fier
 CONTENT_IRON_SWORD_DESCRIPTION,A serviceable blade for those who cannot afford castle steel.,O lamă folositoare pentru cei ce nu-și permit oțelul castelului.
-CONTENT_JADE_AMULET_NAME,Jade Amulet,Amuleta de Jad
-CONTENT_JADE_AMULET_DESCRIPTION,Pale jade cool against the skin — a charm from before the reset.,Jad pal rece pe piele — un talisman dinaintea resetării.
 CONTENT_KNIGHT_BLADE_NAME,Knight Blade,Lama Cavalerului
 CONTENT_KNIGHT_BLADE_DESCRIPTION,"Heavier than a patrol sword, favored by oath-sworn knights.",Mai grea decât o sabie de patrulă preferată de cavalerii jurați.
 CONTENT_MYTHIC_AEGIS_NAME,Mythic Aegis,Egida Mitică
@@ -2010,48 +1836,30 @@ CONTENT_MYTHIC_RING_NAME,Mythic Ring,Inelul Mitic
 CONTENT_MYTHIC_RING_DESCRIPTION,A band of star-metal humming at the tower's threshold.,O verigă de metal stelar care zumzăie la pragul turnului.
 CONTENT_ROGUE_DAGGER_NAME,Rogue Dagger,Pumnalul Nelegiuitului
 CONTENT_ROGUE_DAGGER_DESCRIPTION,A quick blade favored by rogues.,O lamă rapidă preferată de nelegiuiți.
-CONTENT_RUBY_AMULET_NAME,Ruby Amulet,Amuleta de Rubin
-CONTENT_RUBY_AMULET_DESCRIPTION,A blood-ruby set in bronze; superstition calls it lucky.,Un rubin de sânge așezat în bronz; superstiția îl numește norocos.
 CONTENT_SAGE_STAFF_NAME,Sage Staff,Toiagul Înțeleptului
 CONTENT_SAGE_STAFF_DESCRIPTION,"A focus for channelled force, as much blunt instrument as wand.",Un focar pentru forță canalizată la fel de mult armă bontă ca baghetă.
 CONTENT_SILVER_RING_NAME,Silver Ring,Inel de Argint
 CONTENT_SILVER_RING_DESCRIPTION,Tarnished silver etched with oath-glyphs worn smooth by time.,Argint pătat gravat cu glife ale jurământului netezite de timp.
-CONTENT_STEEL_BOOTS_NAME,Steel Boots,Cizme de Oțel
-CONTENT_STEEL_BOOTS_DESCRIPTION,Steel shanks that keep footing on blood-slick flagstones.,Tije de oțel care îți păstrează sprijinul pe dale alunecoase de sânge.
-CONTENT_STEEL_GAUNTLETS_NAME,Steel Gauntlets,Mănuși de Oțel
-CONTENT_STEEL_GAUNTLETS_DESCRIPTION,Articulated steel fingers built for gripping a great blade.,Degete articulate de oțel făcute pentru a prinde o lamă mare.
 CONTENT_STEEL_HELM_NAME,Steel Helm,Coif de Oțel
 CONTENT_STEEL_HELM_DESCRIPTION,Visored steel that hides fear as well as it stops blades.,Oțel cu vizieră care ascunde frica la fel de bine cum oprește lamele.
 CONTENT_STEEL_PLATE_NAME,Steel Plate,Platoșă de Oțel
 CONTENT_STEEL_PLATE_DESCRIPTION,Castle-forged plate still bearing a warden's inventory mark.,Plăci făurite în castel care încă poartă marca de inventar a unui străjer.
-CONTENT_SWAMP_BOG_BOOTS_NAME,Swamp Bog Boots,Cizmele Mlaștinii
-CONTENT_SWAMP_BOG_BOOTS_DESCRIPTION,Waterlogged boots that grip treacherous mire.,Cizme îmbibate cu apă care prind mlaștina înșelătoare.
-CONTENT_SWAMP_MIRE_CHARM_NAME,Swamp Mire Charm,Talismanul Mlaștinii
-CONTENT_SWAMP_MIRE_CHARM_DESCRIPTION,A fetish charm that dulls venomous bites.,Un talisman fetiș care domolește mușcăturile veninoase.
 CONTENT_SWAMP_TOXIN_DAGGER_NAME,Swamp Toxin Dagger,Pumnalul cu Toxină de Mlaștină
 CONTENT_SWAMP_TOXIN_DAGGER_DESCRIPTION,A dagger coated in caustic bog toxins.,Un pumnal acoperit cu toxine caustice de mlaștină.
-CONTENT_TIDE_BOOTS_NAME,Tide Boots,Cizme de Maree
-CONTENT_TIDE_BOOTS_DESCRIPTION,Salt-stitched boots that grip wet stone like a dockhand's tread.,Cizme cusute cu sare care prind piatra udă ca pasul unui docher.
 CONTENT_TRAINING_GREATSWORD_NAME,Training Greatsword,Spadă Mare de Antrenament
 CONTENT_TRAINING_GREATSWORD_DESCRIPTION,A heavy greatsword for learning wide swings.,O spadă mare grea pentru a învăța lovituri largi.
 CONTENT_GUARD_SPEAR_NAME,Guard Spear,Sulița Străjerului
 CONTENT_GUARD_SPEAR_DESCRIPTION,A long spear suited for disciplined guards.,O suliță lungă potrivită pentru străjeri disciplinați.
 CONTENT_VENOM_DAGGER_NAME,Venom Dagger,Pumnalul Veninului
 CONTENT_VENOM_DAGGER_DESCRIPTION,A thin coat of mire toxin waits on the edge.,Un strat subțire de toxină de mlaștină așteaptă pe margine.
-CONTENT_VOID_AMULET_NAME,Void Amulet,Amuleta Vidului
-CONTENT_VOID_AMULET_DESCRIPTION,Dark glass that seems to swallow the torchlight around your throat.,Sticlă întunecată care pare să înghită lumina torței din jurul gâtului tău.
 CONTENT_WAR_HAMMER_NAME,War Hammer,Ciocan de Război
 CONTENT_WAR_HAMMER_DESCRIPTION,Crushing weight behind every swing—poise breaks before bone.,Greutate zdrobitoare în spatele fiecărei lovituri — echilibrul se frânge înaintea osului.
 CONTENT_GRAYSTEEL_BAND_NAME,Graysteel Band,Inel de Oțel Cenușiu
 CONTENT_GRAYSTEEL_BAND_DESCRIPTION,"Sized for a finger that is no longer attached to anyone. Vault-stock, stamped and stacked for a war that was called off.",Potrivit pentru un deget care nu mai aparține nimănui. Stoc de seif ștanțat și stivuit pentru un război anulat.
 CONTENT_GRAYSTEEL_CUIRASS_NAME,Graysteel Cuirass,Cuirasă de Oțel Cenușiu
 CONTENT_GRAYSTEEL_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță C.
-CONTENT_GRAYSTEEL_GAUNTLETS_NAME,Graysteel Gauntlets,Mănuși de Oțel Cenușiu
-CONTENT_GRAYSTEEL_GAUNTLETS_DESCRIPTION,"Worn thin at the knuckles, thick everywhere else. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength D.",Uzate subțire la încheieturi groase peste tot în rest. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță D.
 CONTENT_GRAYSTEEL_GREATSWORD_NAME,Graysteel Greatsword,Spadă Mare de Oțel Cenușiu
 CONTENT_GRAYSTEEL_GREATSWORD_DESCRIPTION,"Two hands, and a promise not to step back. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength B, Dexterity E.",Două mâini și promisiunea de a nu face un pas înapoi. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță B Dexteritate E.
-CONTENT_GRAYSTEEL_GREAVES_NAME,Graysteel Greaves,Greave de Oțel Cenușiu
-CONTENT_GRAYSTEEL_GREAVES_DESCRIPTION,"Mud to the ankle, and none of it from this floor. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength D.",Noroi până la gleznă și nimic din el de pe acest etaj. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță D.
 CONTENT_GRAYSTEEL_HALBERD_NAME,Graysteel Halberd,Halebardă de Oțel Cenușiu
 CONTENT_GRAYSTEEL_HALBERD_DESCRIPTION,"Carried by gatekeepers who never once opened the gate. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength B, Dexterity C.",Purtată de paznici de poartă care nu au deschis-o niciodată. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță B Dexteritate C.
 CONTENT_GRAYSTEEL_HELM_NAME,Graysteel Helm,Coif de Oțel Cenușiu
@@ -2060,8 +1868,6 @@ CONTENT_GRAYSTEEL_KITESHIELD_NAME,Graysteel Kite Shield,Scut Zmeu de Oțel Cenu�
 CONTENT_GRAYSTEEL_KITESHIELD_DESCRIPTION,"The heraldry has worn to a shape nobody can name. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C.",Heraldica s-a uzat până la o formă pe care nimeni nu o poate numi. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță C.
 CONTENT_GRAYSTEEL_LONGSWORD_NAME,Graysteel Longsword,Sabie Lungă de Oțel Cenușiu
 CONTENT_GRAYSTEEL_LONGSWORD_DESCRIPTION,"Long enough to keep a stranger honest. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C, Dexterity C.",Destul de lungă pentru a ține un străin cinstit. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță C Dexteritate C.
-CONTENT_GRAYSTEEL_PENDANT_NAME,Graysteel Pendant,Pandantiv de Oțel Cenușiu
-CONTENT_GRAYSTEEL_PENDANT_DESCRIPTION,"The chain is newer than the stone by several centuries. Vault-stock, stamped and stacked for a war that was called off.",Lanțul e mai nou decât piatra cu câteva secole. Stoc de seif ștanțat și stivuit pentru un război anulat.
 CONTENT_GRAYSTEEL_SHORTSWORD_NAME,Graysteel Shortsword,Sabie Scurtă de Oțel Cenușiu
 CONTENT_GRAYSTEEL_SHORTSWORD_DESCRIPTION,"Issued by the hundred, buried by the hundred. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength C, Dexterity C.",Emisă cu sutele îngropată cu sutele. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță C Dexteritate C.
 CONTENT_GRAYSTEEL_WARAXE_NAME,Graysteel War Axe,Topor de Război din Oțel Cenușiu
@@ -2070,12 +1876,8 @@ CONTENT_GRAYSTEEL_WARHAMMER_NAME,Graysteel Warhammer,Ciocan de Război din Oțel
 CONTENT_GRAYSTEEL_WARHAMMER_DESCRIPTION,"Plate is a suggestion. This is the rebuttal. Vault-stock, stamped and stacked for a war that was called off. Scaling: Strength A, Dexterity E.",Platoșa este o sugestie. Acesta este răspunsul. Stoc de seif ștanțat și stivuit pentru un război anulat. Scalare: Forță A Dexteritate E.
 CONTENT_HOARFROST_CUIRASS_NAME,Hoarfrost Cuirass,Cuirasă de Chiciură
 CONTENT_HOARFROST_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Quenched in meltwater that never fully melted. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Călită în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță C.
-CONTENT_HOARFROST_GAUNTLETS_NAME,Hoarfrost Gauntlets,Mănuși de Chiciură
-CONTENT_HOARFROST_GAUNTLETS_DESCRIPTION,"Worn thin at the knuckles, thick everywhere else. Quenched in meltwater that never fully melted. Scaling: Strength D.",Uzate subțire la încheieturi groase peste tot în rest. Călite în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță D.
 CONTENT_HOARFROST_GREATSWORD_NAME,Hoarfrost Greatsword,Spadă Mare de Chiciură
 CONTENT_HOARFROST_GREATSWORD_DESCRIPTION,"Two hands, and a promise not to step back. Quenched in meltwater that never fully melted. Scaling: Strength B, Dexterity E.",Două mâini și promisiunea de a nu face un pas înapoi. Călită în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță B Dexteritate E.
-CONTENT_HOARFROST_GREAVES_NAME,Hoarfrost Greaves,Greave de Chiciură
-CONTENT_HOARFROST_GREAVES_DESCRIPTION,"Mud to the ankle, and none of it from this floor. Quenched in meltwater that never fully melted. Scaling: Strength D.",Noroi până la gleznă și nimic din el de pe acest etaj. Călite în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță D.
 CONTENT_HOARFROST_HALBERD_NAME,Hoarfrost Halberd,Halebardă de Chiciură
 CONTENT_HOARFROST_HALBERD_DESCRIPTION,"Carried by gatekeepers who never once opened the gate. Quenched in meltwater that never fully melted. Scaling: Strength B, Dexterity C.",Purtată de paznici de poartă care nu au deschis-o niciodată. Călită în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță B Dexteritate C.
 CONTENT_HOARFROST_HELM_NAME,Hoarfrost Helm,Coif de Chiciură
@@ -2086,8 +1888,6 @@ CONTENT_HOARFROST_LONGBOW_NAME,Hoarfrost Longbow,Arc Lung de Chiciură
 CONTENT_HOARFROST_LONGBOW_DESCRIPTION,"A stave taller than the archer, and older. Quenched in meltwater that never fully melted. Scaling: Strength D, Dexterity A.",O tijă mai înaltă decât arcașul și mai veche. Călită în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță D Dexteritate A.
 CONTENT_HOARFROST_LONGSWORD_NAME,Hoarfrost Longsword,Sabie Lungă de Chiciură
 CONTENT_HOARFROST_LONGSWORD_DESCRIPTION,"Long enough to keep a stranger honest. Quenched in meltwater that never fully melted. Scaling: Strength C, Dexterity C.",Destul de lungă pentru a ține un străin cinstit. Călită în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță C Dexteritate C.
-CONTENT_HOARFROST_PENDANT_NAME,Hoarfrost Pendant,Pandantiv de Chiciură
-CONTENT_HOARFROST_PENDANT_DESCRIPTION,"The chain is newer than the stone by several centuries. Quenched in meltwater that never fully melted.",Lanțul e mai nou decât piatra cu câteva secole. Călită în apă de topire care nu s-a topit deplin niciodată.
 CONTENT_HOARFROST_TOWERSHIELD_NAME,Hoarfrost Tower Shield,Scut Turn de Chiciură
 CONTENT_HOARFROST_TOWERSHIELD_DESCRIPTION,"A wall you have to carry. Most people put it down. Quenched in meltwater that never fully melted. Scaling: Strength B.",Un zid pe care trebuie să-l porți. Cei mai mulți îl lasă jos. Călit în apă de topire care nu s-a topit deplin niciodată. Scalare: Forță B.
 CONTENT_HOARFROST_WARHAMMER_NAME,Hoarfrost Warhammer,Ciocan de Război de Chiciură
@@ -2100,10 +1900,6 @@ CONTENT_PITIRON_CUIRASS_NAME,Pit-Iron Cuirass,Cuirasă de Fier de Groapă
 CONTENT_PITIRON_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Scoasă din groapa curții și niciodată curățată cum trebuie. Scalare: Forță C.
 CONTENT_PITIRON_DAGGER_NAME,Pit-Iron Dagger,Pumnal de Fier de Groapă
 CONTENT_PITIRON_DAGGER_DESCRIPTION,"Short enough to carry where blades are forbidden. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength E, Dexterity B.",Destul de scurt pentru a fi purtat unde lamele sunt interzise. Scos din groapa curții și niciodată curățat cum trebuie. Scalare: Forță E Dexteritate B.
-CONTENT_PITIRON_GAUNTLETS_NAME,Pit-Iron Gauntlets,Mănuși de Fier de Groapă
-CONTENT_PITIRON_GAUNTLETS_DESCRIPTION,"Worn thin at the knuckles, thick everywhere else. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D.",Uzate subțire la încheieturi groase peste tot în rest. Scoase din groapa curții și niciodată curățate cum trebuie. Scalare: Forță D.
-CONTENT_PITIRON_GREAVES_NAME,Pit-Iron Greaves,Greave de Fier de Groapă
-CONTENT_PITIRON_GREAVES_DESCRIPTION,"Mud to the ankle, and none of it from this floor. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D.",Noroi până la gleznă și nimic din el de pe acest etaj. Scoase din groapa curții și niciodată curățate cum trebuie. Scalare: Forță D.
 CONTENT_PITIRON_HELM_NAME,Pit-Iron Helm,Coif de Fier de Groapă
 CONTENT_PITIRON_HELM_DESCRIPTION,"The visor is dented inward. It was not removed in time. Dug out of the courtyard pit and never properly cleaned. Scaling: Strength D.",Viziera e îndoită spre interior. Nu a fost scoasă la timp. Scos din groapa curții și niciodată curățat cum trebuie. Scalare: Forță D.
 CONTENT_PITIRON_LONGSWORD_NAME,Pit-Iron Longsword,Sabie Lungă de Fier de Groapă
@@ -2118,8 +1914,6 @@ CONTENT_RELIQUARY_BAND_NAME,Reliquary Band,Inel Reliquar
 CONTENT_RELIQUARY_BAND_DESCRIPTION,"Sized for a finger that is no longer attached to anyone. Melted down from offering plate. Nobody asked the congregation.",Potrivit pentru un deget care nu mai aparține nimănui. Topit din plăci de ofrandă. Nimeni nu a întrebat congregația.
 CONTENT_RELIQUARY_CUIRASS_NAME,Reliquary Cuirass,Cuirasă Reliquar
 CONTENT_RELIQUARY_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Topită din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță C.
-CONTENT_RELIQUARY_GAUNTLETS_NAME,Reliquary Gauntlets,Mănuși Reliquar
-CONTENT_RELIQUARY_GAUNTLETS_DESCRIPTION,"Worn thin at the knuckles, thick everywhere else. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D.",Uzate subțire la încheieturi groase peste tot în rest. Topite din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță D.
 CONTENT_RELIQUARY_GREATSWORD_NAME,Reliquary Greatsword,Spadă Mare Reliquar
 CONTENT_RELIQUARY_GREATSWORD_DESCRIPTION,"Two hands, and a promise not to step back. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength B, Dexterity E.",Două mâini și promisiunea de a nu face un pas înapoi. Topită din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță B Dexteritate E.
 CONTENT_RELIQUARY_HELM_NAME,Reliquary Helm,Coif Reliquar
@@ -2128,8 +1922,6 @@ CONTENT_RELIQUARY_KITESHIELD_NAME,Reliquary Kite Shield,Scut Zmeu Reliquar
 CONTENT_RELIQUARY_KITESHIELD_DESCRIPTION,"The heraldry has worn to a shape nobody can name. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength C.",Heraldica s-a uzat până la o formă pe care nimeni nu o poate numi. Topit din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță C.
 CONTENT_RELIQUARY_LONGSWORD_NAME,Reliquary Longsword,Sabie Lungă Reliquar
 CONTENT_RELIQUARY_LONGSWORD_DESCRIPTION,"Long enough to keep a stranger honest. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength C, Dexterity C.",Destul de lungă pentru a ține un străin cinstit. Topită din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță C Dexteritate C.
-CONTENT_RELIQUARY_PENDANT_NAME,Reliquary Pendant,Pandantiv Reliquar
-CONTENT_RELIQUARY_PENDANT_DESCRIPTION,"The chain is newer than the stone by several centuries. Melted down from offering plate. Nobody asked the congregation.",Lanțul e mai nou decât piatra cu câteva secole. Topit din plăci de ofrandă. Nimeni nu a întrebat congregația.
 CONTENT_RELIQUARY_RAPIER_NAME,Reliquary Rapier,Rapieră Reliquar
 CONTENT_RELIQUARY_RAPIER_DESCRIPTION,"A duelling blade, in a place that stopped keeping duels. Melted down from offering plate. Nobody asked the congregation. Scaling: Strength D, Dexterity B.",O lamă de duel într-un loc care a încetat să mai țină dueluri. Topită din plăci de ofrandă. Nimeni nu a întrebat congregația. Scalare: Forță D Dexteritate B.
 CONTENT_RELIQUARY_SPEAR_NAME,Reliquary Spear,Suliță Reliquar
@@ -2146,12 +1938,8 @@ CONTENT_SPELLGLASS_CUIRASS_NAME,Spellglass Cuirass,Cuirasă de Sticlă Vrăjită
 CONTENT_SPELLGLASS_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Crescută nu făurită. Sună pe o notă pe care urechea o urăște. Scalare: Forță C.
 CONTENT_SPELLGLASS_DAGGER_NAME,Spellglass Dagger,Pumnal de Sticlă Vrăjită
 CONTENT_SPELLGLASS_DAGGER_DESCRIPTION,"Short enough to carry where blades are forbidden. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength E, Dexterity B.",Destul de scurt pentru a fi purtat unde lamele sunt interzise. Crescut nu făurit. Sună pe o notă pe care urechea o urăște. Scalare: Forță E Dexteritate B.
-CONTENT_SPELLGLASS_GAUNTLETS_NAME,Spellglass Gauntlets,Mănuși de Sticlă Vrăjită
-CONTENT_SPELLGLASS_GAUNTLETS_DESCRIPTION,"Worn thin at the knuckles, thick everywhere else. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",Uzate subțire la încheieturi groase peste tot în rest. Crescute nu făurite. Sună pe o notă pe care urechea o urăște. Scalare: Forță D.
 CONTENT_SPELLGLASS_GREATSWORD_NAME,Spellglass Greatsword,Spadă Mare de Sticlă Vrăjită
 CONTENT_SPELLGLASS_GREATSWORD_DESCRIPTION,"Two hands, and a promise not to step back. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength B, Dexterity E.",Două mâini și promisiunea de a nu face un pas înapoi. Crescută nu făurită. Sună pe o notă pe care urechea o urăște. Scalare: Forță B Dexteritate E.
-CONTENT_SPELLGLASS_GREAVES_NAME,Spellglass Greaves,Greave de Sticlă Vrăjită
-CONTENT_SPELLGLASS_GREAVES_DESCRIPTION,"Mud to the ankle, and none of it from this floor. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",Noroi până la gleznă și nimic din el de pe acest etaj. Crescute nu făurite. Sună pe o notă pe care urechea o urăște. Scalare: Forță D.
 CONTENT_SPELLGLASS_HELM_NAME,Spellglass Helm,Coif de Sticlă Vrăjită
 CONTENT_SPELLGLASS_HELM_DESCRIPTION,"The visor is dented inward. It was not removed in time. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D.",Viziera e îndoită spre interior. Nu a fost scoasă la timp. Crescut nu făurit. Sună pe o notă pe care urechea o urăște. Scalare: Forță D.
 CONTENT_SPELLGLASS_KITESHIELD_NAME,Spellglass Kite Shield,Scut Zmeu de Sticlă Vrăjită
@@ -2160,8 +1948,6 @@ CONTENT_SPELLGLASS_LONGBOW_NAME,Spellglass Longbow,Arc Lung de Sticlă Vrăjită
 CONTENT_SPELLGLASS_LONGBOW_DESCRIPTION,"A stave taller than the archer, and older. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D, Dexterity A.",O tijă mai înaltă decât arcașul și mai veche. Crescut nu făurit. Sună pe o notă pe care urechea o urăște. Scalare: Forță D Dexteritate A.
 CONTENT_SPELLGLASS_LONGSWORD_NAME,Spellglass Longsword,Sabie Lungă de Sticlă Vrăjită
 CONTENT_SPELLGLASS_LONGSWORD_DESCRIPTION,"Long enough to keep a stranger honest. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength C, Dexterity C.",Destul de lungă pentru a ține un străin cinstit. Crescută nu făurită. Sună pe o notă pe care urechea o urăște. Scalare: Forță C Dexteritate C.
-CONTENT_SPELLGLASS_PENDANT_NAME,Spellglass Pendant,Pandantiv de Sticlă Vrăjită
-CONTENT_SPELLGLASS_PENDANT_DESCRIPTION,"The chain is newer than the stone by several centuries. Grown, not forged. It rings on a note the ear dislikes.",Lanțul e mai nou decât piatra cu câteva secole. Crescut nu făurit. Sună pe o notă pe care urechea o urăște.
 CONTENT_SPELLGLASS_RAPIER_NAME,Spellglass Rapier,Rapieră de Sticlă Vrăjită
 CONTENT_SPELLGLASS_RAPIER_DESCRIPTION,"A duelling blade, in a place that stopped keeping duels. Grown, not forged. It rings on a note the ear dislikes. Scaling: Strength D, Dexterity B.",O lamă de duel într-un loc care a încetat să mai țină dueluri. Crescută nu făurită. Sună pe o notă pe care urechea o urăște. Scalare: Forță D Dexteritate B.
 CONTENT_SPELLGLASS_STAFF_NAME,Spellglass Staff,Toiag de Sticlă Vrăjită
@@ -2176,12 +1962,8 @@ CONTENT_MIREBRASS_CUIRASS_NAME,Mirebrass Cuirass,Cuirasă de Alamă de Mlaștin�
 CONTENT_MIREBRASS_CUIRASS_DESCRIPTION,"Straps replaced more often than the plate they hold. Green to the touch. The swamp finished it for the smith. Scaling: Strength C.",Curele înlocuite mai des decât plăcile pe care le țin. Verde la atingere. Mlaștina a terminat-o pentru fierar. Scalare: Forță C.
 CONTENT_MIREBRASS_DAGGER_NAME,Mirebrass Dagger,Pumnal de Alamă de Mlaștină
 CONTENT_MIREBRASS_DAGGER_DESCRIPTION,"Short enough to carry where blades are forbidden. Green to the touch. The swamp finished it for the smith. Scaling: Strength E, Dexterity B.",Destul de scurt pentru a fi purtat unde lamele sunt interzise. Verde la atingere. Mlaștina l-a terminat pentru fierar. Scalare: Forță E Dexteritate B.
-CONTENT_MIREBRASS_GREAVES_NAME,Mirebrass Greaves,Greave de Alamă de Mlaștină
-CONTENT_MIREBRASS_GREAVES_DESCRIPTION,"Mud to the ankle, and none of it from this floor. Green to the touch. The swamp finished it for the smith. Scaling: Strength D.",Noroi până la gleznă și nimic din el de pe acest etaj. Verde la atingere. Mlaștina le-a terminat pentru fierar. Scalare: Forță D.
 CONTENT_MIREBRASS_HELM_NAME,Mirebrass Helm,Coif de Alamă de Mlaștină
 CONTENT_MIREBRASS_HELM_DESCRIPTION,"The visor is dented inward. It was not removed in time. Green to the touch. The swamp finished it for the smith. Scaling: Strength D.",Viziera e îndoită spre interior. Nu a fost scoasă la timp. Verde la atingere. Mlaștina l-a terminat pentru fierar. Scalare: Forță D.
-CONTENT_MIREBRASS_PENDANT_NAME,Mirebrass Pendant,Pandantiv de Alamă de Mlaștină
-CONTENT_MIREBRASS_PENDANT_DESCRIPTION,The chain is newer than the stone by several centuries. Green to the touch. The swamp finished it for the smith.,Lanțul e mai nou decât piatra cu câteva secole. Verde la atingere. Mlaștina l-a terminat pentru fierar.
 CONTENT_MIREBRASS_RAPIER_NAME,Mirebrass Rapier,Rapieră de Alamă de Mlaștină
 CONTENT_MIREBRASS_RAPIER_DESCRIPTION,"A duelling blade, in a place that stopped keeping duels. Green to the touch. The swamp finished it for the smith. Scaling: Strength D, Dexterity B.",O lamă de duel într-un loc care a încetat să mai țină dueluri. Verde la atingere. Mlaștina a terminat-o pentru fierar. Scalare: Forță D Dexteritate B.
 CONTENT_MIREBRASS_SHORTBOW_NAME,Mirebrass Shortbow,Arc Scurt de Alamă de Mlaștină
@@ -2196,8 +1978,6 @@ CONTENT_UNIQUE_BOG_OATH_NAME,Bog-Oath,Jurământ de Mlaștină
 CONTENT_UNIQUE_BOG_OATH_DESCRIPTION,Bound with reed cord swollen tight. Cutting it would take longer than the fight.,Legat cu sfoară de stuf umflată strâns. Tăierea ei ar dura mai mult decât lupta.
 CONTENT_UNIQUE_CAVERNLIGHT_HELM_NAME,Cavernlight Helm,Coif cu Lumină de Peșteră
 CONTENT_UNIQUE_CAVERNLIGHT_HELM_DESCRIPTION,Set with a shard that lights nothing but shows the wearer where the walls are.,Împodobit cu o așchie care nu luminează nimic dar îi arată purtătorului unde sunt zidurile.
-CONTENT_UNIQUE_CENSER_OF_SMALL_MERCIES_NAME,Censer of Small Mercies,Cădelnița Micilor Îndurări
-CONTENT_UNIQUE_CENSER_OF_SMALL_MERCIES_DESCRIPTION,"Swung down the aisle for the dying, never for the dead. The distinction mattered to someone.",Legănată pe culoar pentru muribunzi niciodată pentru morți. Distincția a contat pentru cineva.
 CONTENT_UNIQUE_CHOIRLESS_HELM_NAME,Choirless Helm,Coif Fără Cor
 CONTENT_UNIQUE_CHOIRLESS_HELM_DESCRIPTION,Lined to muffle sound. The wearer had already heard the choir once.,Căptușit pentru a înăbuși sunetul. Purtătorul auzise deja corul o dată.
 CONTENT_UNIQUE_CONFESSORS_BURDEN_NAME,Confessor's Burden,Povara Mărturisitorului
@@ -2206,8 +1986,6 @@ CONTENT_UNIQUE_COURTYARD_VIGIL_NAME,Courtyard Vigil,Vegherea Curții
 CONTENT_UNIQUE_COURTYARD_VIGIL_DESCRIPTION,"Propped upright against the well, still angled toward the gate it was set to watch.",Sprijinită în picioare de fântână încă îndreptată către poarta pe care trebuia să o vegheze.
 CONTENT_UNIQUE_CROWN_OF_THE_CRYSTAL_SOVEREIGN_NAME,Crown of the Crystal Sovereign,Coroana Suveranului de Cristal
 CONTENT_UNIQUE_CROWN_OF_THE_CRYSTAL_SOVEREIGN_DESCRIPTION,Taken from a head that had grown into it. The removal was not clean and was not quick.,Luata de pe un cap care crescuse în ea. Îndepărtarea nu a fost curată și nici rapidă.
-CONTENT_UNIQUE_DEBTORS_PENDANT_NAME,Debtor's Pendant,Pandantivul Datornicului
-CONTENT_UNIQUE_DEBTORS_PENDANT_DESCRIPTION,"Pawned four times, redeemed three. The fourth ledger entry has no closing mark.",Amanetat de patru ori răscumpărat de trei. A patra intrare din registru nu are semn de închidere.
 CONTENT_UNIQUE_DEEP_CUT_NAME,Deep Cut,Tăietură Adâncă
 CONTENT_UNIQUE_DEEP_CUT_DESCRIPTION,"The shafts are knapped, not fletched. They go in straight and do not come out.",Tijele sunt cioplite nu împenate. Intră drept și nu mai ies.
 CONTENT_UNIQUE_DROWNED_PROCESSION_NAME,Drowned Procession,Procesiunea Înecată
@@ -2216,8 +1994,6 @@ CONTENT_UNIQUE_FACET_AND_FRACTURE_NAME,Facet and Fracture,Fațetă și Fractură
 CONTENT_UNIQUE_FACET_AND_FRACTURE_DESCRIPTION,"It broke on the first strike and has broken on every strike since, without getting shorter.",S-a spart la prima lovitură și s-a spart la fiecare lovitură de atunci fără să devină mai scurtă.
 CONTENT_UNIQUE_FEN_WIDOWS_VEIL_NAME,Fen Widow's Veil,Vălul Văduvei Mlaștinii
 CONTENT_UNIQUE_FEN_WIDOWS_VEIL_DESCRIPTION,"Mourning cloth, waxed against the damp. It kept the flies off for a long while.",Pânză de doliu ceruită împotriva umezelii. A ținut muștele departe mult timp.
-CONTENT_UNIQUE_FOUNDRY_GAUNTLETS_NAME,Foundry Gauntlets,Mănușile Turnătoriei
-CONTENT_UNIQUE_FOUNDRY_GAUNTLETS_DESCRIPTION,The palms are scorched through. The wearer kept working anyway.,Palmele sunt arse până la capăt. Purtătorul a continuat să lucreze oricum.
 CONTENT_UNIQUE_FROSTBITTEN_OATH_NAME,Frostbitten Oath,Jurământ Mușcat de Ger
 CONTENT_UNIQUE_FROSTBITTEN_OATH_DESCRIPTION,Sworn with a bare hand on cold iron. The hand did not come away whole.,Jurată cu mâna goală pe fier rece. Mâna nu a mai plecat întreagă.
 CONTENT_UNIQUE_GATEWARDENS_ANSWER_NAME,The Gatewarden's Answer,Răspunsul Paznicului Porții
@@ -2236,10 +2012,6 @@ CONTENT_UNIQUE_LAST_MUSTER_NAME,Last Muster,Ultima Adunare
 CONTENT_UNIQUE_LAST_MUSTER_DESCRIPTION,Forty-one names were called that morning. The blade belonged to the one who answered last.,Patruzeci și unu de nume au fost strigate în acea dimineață. Lama a aparținut celui care a răspuns ultimul.
 CONTENT_UNIQUE_LATTICE_WARD_NAME,Lattice Ward,Protecție cu Zăbrele
 CONTENT_UNIQUE_LATTICE_WARD_DESCRIPTION,"Grown across the doorway of a sealed gallery, then cut free and given a handle.",Crescută peste ușa unei galerii pecetluite apoi tăiată liber și primind un mâner.
-CONTENT_UNIQUE_LECTOR_GAUNTLETS_NAME,Lector's Gauntlets,Mănușile Lectorului
-CONTENT_UNIQUE_LECTOR_GAUNTLETS_DESCRIPTION,"Ink under the nail beds, permanent. He read aloud for thirty years and was not thanked.",Cerneală sub unghii permanentă. A citit cu glas tare treizeci de ani și nu i s-a mulțumit.
-CONTENT_UNIQUE_LEDGER_OF_DEBTS_NAME,Ledger of Debts,Registrul Datoriilor
-CONTENT_UNIQUE_LEDGER_OF_DEBTS_DESCRIPTION,A page folded into a locket. The sums are still owed to somebody.,O pagină împăturită într-un medalion. Sumele sunt încă datorate cuiva.
 CONTENT_UNIQUE_LEECHBOUND_BAND_NAME,Leechbound Band,Inel Legat de Lipitoare
 CONTENT_UNIQUE_LEECHBOUND_BAND_DESCRIPTION,"Worn until the finger beneath went grey, and then worn a while longer.",Purtat până când degetul de dedesubt s-a făcut gri și apoi purtat încă o vreme.
 CONTENT_UNIQUE_MIRE_TONGUE_NAME,Mire-Tongue,Limba Mlaștinii
@@ -2248,22 +2020,14 @@ CONTENT_UNIQUE_PRISM_OF_NO_COLOUR_NAME,Prism of No Colour,Prisma Fără Culoare
 CONTENT_UNIQUE_PRISM_OF_NO_COLOUR_DESCRIPTION,Light enters it. Something leaves. The two have never been shown to be the same light.,Lumina intră în ea. Ceva iese. Cele două nu au fost arătate niciodată ca fiind aceeași lumină.
 CONTENT_UNIQUE_QUARTERMASTERS_TALLY_NAME,The Quartermaster's Tally,Calculul Intendentului
 CONTENT_UNIQUE_QUARTERMASTERS_TALLY_DESCRIPTION,"He counted every hammer out and every hammer back. This one he counted twice, then stopped counting.",A numărat fiecare ciocan la plecare și fiecare ciocan la întoarcere. Pe acesta l-a numărat de două ori apoi a încetat să mai numere.
-CONTENT_UNIQUE_REFRACTION_GREAVES_NAME,Refraction Greaves,Greave de Refracție
-CONTENT_UNIQUE_REFRACTION_GREAVES_DESCRIPTION,You arrive slightly before the sound of arriving. It is not restful.,Ajungi puțin înainte de sunetul sosirii. Nu e liniștitor.
 CONTENT_UNIQUE_RELIQUARY_OF_ASH_NAME,Reliquary of Ash,Reliquarul de Cenușă
 CONTENT_UNIQUE_RELIQUARY_OF_ASH_DESCRIPTION,The hilt is a reliquary. What it holds was already burned when it was placed inside.,Mânerul este un reliquar. Ce ține fusese deja ars când a fost pus înăuntru.
-CONTENT_UNIQUE_RIMEGLASS_PENDANT_NAME,Rimeglass Pendant,Pandantiv de Sticlă de Chiciură
-CONTENT_UNIQUE_RIMEGLASS_PENDANT_DESCRIPTION,"Ice that will not thaw, in a setting that was made to hold something else.",Gheață care nu se va dezgheța într-o montură făcută să țină altceva.
 CONTENT_UNIQUE_ROT_AND_REMEDY_NAME,Rot and Remedy,Putreziciune și Leac
 CONTENT_UNIQUE_ROT_AND_REMEDY_DESCRIPTION,The physician carried both in the same jar and stopped labelling which was which.,Medicul le purta pe amândouă în același borcan și a încetat să eticheteze care era care.
-CONTENT_UNIQUE_SALLYPORT_GREAVES_NAME,Sallyport Greaves,Greave de Poartă Laterală
-CONTENT_UNIQUE_SALLYPORT_GREAVES_DESCRIPTION,Made for men who had to be outside the wall and back before the horn finished.,Făcute pentru oameni care trebuiau să fie dincolo de zid și înapoi înainte ca cornul să se termine.
 CONTENT_UNIQUE_SEALED_REQUISITION_NAME,Sealed Requisition,Rechiziție Pecetluită
 CONTENT_UNIQUE_SEALED_REQUISITION_DESCRIPTION,"Requested, approved, never issued. It waited in the vault for the war to come back.",Cerută aprobată niciodată emisă. A așteptat în seif ca războiul să revină.
 CONTENT_UNIQUE_SNOWBLIND_NAME,Snowblind,Orbit de Zăpadă
 CONTENT_UNIQUE_SNOWBLIND_DESCRIPTION,The archer shot at a shape in the white for an hour. There was no shape.,Arcașul a tras o oră către o formă în alb. Nu era nicio formă.
-CONTENT_UNIQUE_STILTWALKERS_GREAVES_NAME,Stiltwalker's Greaves,Greavele Mergătorului pe Picioroange
-CONTENT_UNIQUE_STILTWALKERS_GREAVES_DESCRIPTION,The soles are worn flat on the outer edge only. He never once put his heel down.,Tălpile sunt uzate plat doar pe marginea exterioară. Nu și-a pus niciodată călcâiul jos.
 CONTENT_UNIQUE_STONEWIFE_BAND_NAME,Stonewife's Band,Inelul Soției de Piatră
 CONTENT_UNIQUE_STONEWIFE_BAND_DESCRIPTION,Given at a wedding held during the siege. Both parties kept their promise briefly.,Dăruit la o nuntă ținută în timpul asediului. Ambele părți și-au ținut promisiunea pentru scurt timp.
 CONTENT_UNIQUE_THAWING_BAND_NAME,Thawing Band,Inelul Dezghețării
@@ -2274,8 +2038,6 @@ CONTENT_UNIQUE_THE_GEODES_PATIENCE_NAME,The Geode's Patience,Răbdarea Geodei
 CONTENT_UNIQUE_THE_GEODES_PATIENCE_DESCRIPTION,It took nine thousand years to close. It objects to being opened in an afternoon.,I-a luat nouă mii de ani să se închidă. Se împotrivește să fie deschisă într-o după-amiază.
 CONTENT_UNIQUE_THE_LONG_WINTER_NAME,The Long Winter,Iarna Lungă
 CONTENT_UNIQUE_THE_LONG_WINTER_DESCRIPTION,Drawn once at the start of a season that has not yet ended.,Scoasă o dată la începutul unui anotimp care încă nu s-a sfârșit.
-CONTENT_UNIQUE_THE_QUIET_HOUR_NAME,The Quiet Hour,Ora Tăcută
-CONTENT_UNIQUE_THE_QUIET_HOUR_DESCRIPTION,"Between the last bell and the first, nothing was permitted to happen. Something did.",Între ultimul clopot și primul nimic nu avea voie să se întâmple. Ceva s-a întâmplat.
 CONTENT_UNIQUE_THE_SINGING_STONE_NAME,The Singing Stone,Piatra Cântătoare
 CONTENT_UNIQUE_THE_SINGING_STONE_DESCRIPTION,"It is audible only in the last room of a floor, and only to whoever is wearing it.",Se aude numai în ultima cameră a unui etaj și numai pentru cine o poartă.
 CONTENT_UNIQUE_THE_UNSAID_PRAYER_NAME,The Unsaid Prayer,Rugăciunea Nespusă
@@ -2355,14 +2117,219 @@ CONTENT_GLACIAL_ANCHORITE_TITLE,Walled In By Choice,Zidit Din Proprie Alegere
 CONTENT_IRON_FOREMAN_TITLE,Keeper Of The Shift,Păzitorul Schimbului
 CONTENT_IRON_SENTINEL_TITLE,Sealed In Its Post,Pecetluită la Postul Ei
 CONTENT_PRISM_CANTOR_TITLE,Voice In The Glass,Vocea din Sticlă
-CONTENT_SWAMP_HAG_TITLE,The Hag Who Stayed,Baba Care a Rămas
 CONTENT_UMBRAL_CONFESSOR_TITLE,Hearing An Empty Booth,Ascultând un Jilț Gol
 CONTENT_VENOM_MATRON_TITLE,Mother Of The Drift,Mama Nămeților
-HUB_SERVICE_ROUTE_TITLE,PREPARATION ROUTE,RUTA DE PREGĂTIRE
-HUB_SERVICE_ROUTE_RECOVERED,Recovered at the gate · Blacksmith → Storage → Portal,Refăcut la poartă · Fierar → Depozit → Portal
-HUB_SERVICE_ROUTE_CLEAR,No service action is pending. Leave when ready.,Nicio acțiune de serviciu nu este în așteptare. Pleacă atunci când ești gata.
-HUB_SERVICE_ROUTE_READY,All services are optional before your next expedition.,Toate serviciile sunt opționale înaintea următoarei expediții.
 HUB_SERVICE_BLACKSMITH,Blacksmith,Fierar
 HUB_SERVICE_STORAGE,Storage,Depozit
 HUB_SERVICE_BLACKSMITH_READY,Blacksmith: {count} ready,Fierar: {count} pregătite
 HUB_SERVICE_STORAGE_FULL,Storage: inventory full,Depozit: inventar plin
+RELIC_OFFER_BUILD_SYNERGY,Build synergy: %s,Sinergie de construcție: %s
+CONTENT_GILDED_DELVE_DESCRIPTION,"Four floors of richer caches and volatile foes. Hunt the hoard, then survive long enough to claim it.","Patru etaje cu ascunzători mai bogate și dușmani instabili. Vânează comoara, apoi supraviețuiește destul cât s-o revendici."
+CONTENT_GILDED_DELVE_FLAVOUR,The gold below is warm because it has already buried someone else.,Aurul de jos e cald pentru că a îngropat deja pe altcineva.
+CONTENT_GILDED_DELVE_NAME,Gilded Delve,Coborârea Aurită
+CONTENT_HOLLOW_CLEAR_DESCRIPTION,Clear Glacial Hollow.,Străbate Scobitura Glaciară.
+CONTENT_HOLLOW_CLEAR_NAME,Hollowbound,Legat de Scobitură
+CONTENT_MIRE_CLEAR_DESCRIPTION,Clear Venom Mire.,Străbate Mlaștina Veninului.
+CONTENT_MIRE_CLEAR_NAME,Mirewalker,Umblător prin Mlaștină
+CONTENT_PRISM_CLEAR_DESCRIPTION,Clear Prism Depths.,Străbate Adâncurile Prismei.
+CONTENT_PRISM_CLEAR_NAME,Prism Breaker,Spărgător de Prismă
+CONTENT_RELIC_WAR_BELL_DESCRIPTION,Five health given to the ringing. An execution leaves a ward around you and brings the weapon art closer.,Cinci puncte de viață date bătăii clopotului. O execuție lasă în jurul tău o pavăză și apropie arta armei.
+CONTENT_RELIC_WAR_BELL_NAME,Relic War Bell,Clopotul de Război
+CONTENT_SHROUDED_PILGRIMAGE_DESCRIPTION,Six floors under a blind map. Barred routes and elite packs make every key and detour matter.,Șase etaje sub o hartă oarbă. Rutele baricadate și haitele de elită fac fiecare cheie și fiecare ocoliș să conteze.
+CONTENT_SHROUDED_PILGRIMAGE_FLAVOUR,Follow the bell through halls that refuse to be remembered.,Urmează clopotul prin săli care refuză să fie ținute minte.
+CONTENT_SHROUDED_PILGRIMAGE_NAME,Shrouded Pilgrimage,Pelerinajul Învăluit
+CONTENT_TREASURE_DESCENT_DESCRIPTION,"An endless descent with richer caches, escalating threats, and a clean escape whenever greed gives way.","O coborâre fără sfârșit, cu ascunzători mai bogate, amenințări tot mai mari și o scăpare curată oricând lăcomia cedează."
+CONTENT_TREASURE_DESCENT_FLAVOUR,The deeper vaults offer more. They do not offer it twice.,Seifurile mai adânci oferă mai mult. Nu oferă de două ori.
+CONTENT_TREASURE_DESCENT_NAME,Treasure Descent,Coborârea Comorii
+CONTENT_UMBRAL_CLEAR_DESCRIPTION,Clear Umbral Chapel.,Străbate Capela Umbrală.
+CONTENT_UMBRAL_CLEAR_NAME,Night Lantern,Felinarul Nopții
+CONTENT_VAULT_CLEAR_DESCRIPTION,Clear Iron Vault.,Străbate Seiful de Fier.
+CONTENT_VAULT_CLEAR_NAME,Iron Claim,Pretenția de Fier
+CONTENT_WEEK_ACID_CROWN_DESCRIPTION,The mire keeps what it takes. The deeper hoards are worth more only because fewer return for them.,Mlaștina păstrează ce ia. Comorile mai adânci valorează mai mult doar pentru că mai puțini se întorc după ele.
+CONTENT_WEEK_ACID_CROWN_NAME,Acid Crown,Coroana de Acid
+CONTENT_WEEK_PRISMATIC_WOUND_DESCRIPTION,"The crystal halls split every route and every mistake. Move quickly, read the light, and take the warden's hoard.","Sălile de cristal despică fiecare rută și fiecare greșeală. Mișcă-te repede, citește lumina și ia comoara gardianului."
+CONTENT_WEEK_PRISMATIC_WOUND_NAME,Prismatic Wound,Rana Prismatică
+EXIT_PORTAL_TITLE,Leave the dungeon?,Părăsești temnița?
+EXIT_PORTAL_MESSAGE,Leave with your loot?,Pleci cu prada ta?
+EXIT_PORTAL_LEAVE,Leave,Pleacă
+EXIT_PORTAL_STAY,Stay,Rămâi
+EXIT_PORTAL_PROMPT,Leave the dungeon,Părăsește temnița
+BOSS_HALL_TRADE,Trade,Negociază
+BOSS_HALL_RETURN,Return to the hub,Întoarce-te în hub
+PUZZLE_PULL_LEVER,Pull the lever,Trage pârghia
+NPC_QUEST_TALK,Talk,Vorbește
+SAVE_RESTORED_NOTICE,"Your save could not be read, so it was restored from the backup made at {time}.","Salvarea nu a putut fi citită, așa că a fost restaurată din copia făcută la {time}."
+PAUSE_SAVE_QUIT,Save & Quit,Salvează și ieși
+PAUSE_INVENTORY,Inventory,Inventar
+TALENTS_CLOSE_TITLE,Queued talents,Talente în plan
+TALENTS_CLOSE_COMMIT,Commit %d queued talents before you leave?,Confirmi cele %d talente din plan înainte să pleci?
+TALENTS_COMMIT_NOW,Commit,Confirmă
+TALENTS_NOT_NOW,Not now,Nu acum
+TALENTS_CLOSE_DISCARD,Discard the queued talents?,Renunți la talentele din plan?
+TALENTS_DISCARD,Discard,Renunță
+TALENTS_KEEP_EDITING,Keep editing,Continuă editarea
+RESULTS_MASTERY_DODGES,%d perfect dodges,%d eschive perfecte
+RESULTS_MASTERY_PARRIES,%d parries,%d parări
+RESULTS_MASTERY_EXECUTIONS,%d executions,%d execuții
+RESULTS_MASTERY,Combat mastery: %s.,Măiestrie în luptă: %s.
+RESULTS_RELIC_HEALTH,%d health restored,%d viață refăcută
+RESULTS_RELIC_STAMINA,%d stamina restored,%d rezistență refăcută
+RESULTS_RELIC_BARRIER,%d barrier granted,%d barieră acordată
+RESULTS_RELIC_STACKS,%d status stacks applied,%d straturi de stare aplicate
+RESULTS_RELIC_CONTRIBUTION,Relic contribution: %s,Contribuția relicvei: %s
+CONTINUE_DELETE_CONFIRM,Permanently delete %s? All progress and inventory for this warden will be erased.,Ștergi definitiv pe %s? Tot progresul și inventarul acestui gardian vor fi șterse.
+CONTINUE_DELETE_FOREVER,Delete Forever,Șterge definitiv
+CONTINUE_KEEP,Keep Warden,Păstrează gardianul
+MENU_NO_ROOM_TITLE,No Room Left,Nu mai este loc
+MENU_NO_ROOM_BODY,All %d warden slots are taken. Retire one from Continue before starting another.,Toate cele %d locuri de gardian sunt ocupate. Retrage unul din Continuă înainte de a începe altul.
+MENU_NO_ROOM_OK,Very well,Bine
+MENU_QUIT_CONFIRM,Close Aumbrye and return to your desktop?,Închizi Aumbrye și te întorci pe desktop?
+MENU_QUIT_STAY,Stay,Rămâi
+PAUSE_INFO_MODIFIERS,Modifiers,Modificatori
+PAUSE_LOADOUT,Loadout,Echipament
+CONTENT_VIGIL_3_DESCRIPTION,Your hits sometimes leave the page burning.,Loviturile tale lasă uneori pagina în flăcări.
+CONTENT_TIDE_1_DESCRIPTION,Your hits sometimes leave rot behind.,Loviturile tale lasă uneori putregai în urmă.
+CONTENT_TIDE_2_DESCRIPTION,Whatever is already poisoned runs a fever.,Orice e deja otrăvit face febră.
+BESTIARY_NEXT_STUDIED,Kill it %d more times to study it (or see %d of its attacks).,Omoară-l de încă %d ori pentru a-l studia (sau vezi %d dintre atacurile lui).
+BESTIARY_NEXT_MASTERED,Still needed to master it: kills %d - attacks seen %d - counters %d.,Încă necesar pentru a-l stăpâni: ucideri %d - atacuri văzute %d - contrări %d.
+RUN_NO_WEEKLY,No challenge is posted this week.,Nicio provocare nu este postată săptămâna aceasta.
+RUN_WEEKLY_LOCKED,This week's hall is not open to you yet.,Sala din această săptămână nu ți-e încă deschisă.
+RUN_MODE_UNKNOWN,That mode does not exist.,Modul acela nu există.
+RUN_MODE_LOCKED,That mode is not unlocked yet.,Modul acela nu e încă deblocat.
+RUN_DUNGEON_LOCKED,That dungeon is not unlocked yet.,Temnița aceea nu e încă deblocată.
+RUN_DIFFICULTY_LOCKED,That difficulty is not unlocked yet.,Dificultatea aceea nu e încă deblocată.
+RUN_SEED_TIER_LOCKED,Tier %d is locked — you cannot use a seed for that tier yet.,Nivelul %d este blocat — nu poți folosi o sămânță pentru el încă.
+RUN_RETURNED_TOWER,Returned to Aumbrye Tower.,Te-ai întors în Turnul Aumbrye.
+RUN_ABANDONED,Run abandoned. Loot from this run was lost.,Run abandonat. Prada din acest run s-a pierdut.
+RUN_RESTART_FAILED,Could not restart floor %d.,Nu s-a putut reporni etajul %d.
+RUN_CHECKPOINT_RESTORE_FAILED,Could not restore the checkpoint floor. Your saved checkpoint is intact.,Nu s-a putut restaura etajul punctului de control. Punctul tău salvat e intact.
+RUN_DUNGEON_DATA_MISSING,Dungeon data missing — could not load generated layout.,Datele temniței lipsesc — structura generată nu a putut fi încărcată.
+HUB_WELCOME_BACK,"Welcome back, %s.","Bine ai revenit, %s."
+HUB_APPEARANCE_UPDATED,Appearance updated.,Înfățișare actualizată.
+HUB_RECORD_STONE,Record stone: %d expeditions · deepest floor %d · most kills %d,Piatra recordurilor: %d expediții · cel mai adânc etaj %d · cele mai multe ucideri %d
+HUB_INVENTORY_FULL,Inventory full.,Inventar plin.
+ARENA_RETURNED,Returned from the training arena.,Te-ai întors din arena de antrenament.
+ENTRY_THE_BOARD,The Board,Panoul
+PAUSE_LORE_JOURNAL,Lore Journal,Jurnalul de povești
+BOARD_TAKE_CHALLENGE,Take the challenge,Acceptă provocarea
+BOARD_BEGIN,Begin,Începe
+WAVES_CONFIRM_SELECTION,Confirm selection,Confirmă alegerea
+INV_CONSUMABLE_NO_EFFECT,This item has no effect.,Acest obiect nu are niciun efect.
+INV_CONSUMABLE_RUN_BLOCKED,It cannot be used during a run.,Nu poate fi folosit în timpul unui run.
+INV_CONSUMABLE_HUB_BLOCKED,It cannot be used in the hub.,Nu poate fi folosit în hub.
+INV_SKIP_PORTAL_ONLY,Floor skips are used at the portal.,Sărirea etajelor se face la portal.
+TOWER_DISPLAY_NAME,Aumbrye Tower,Turnul Aumbrye
+RUN_RETREATED,Retreated to %s. Continue from the portal.,Te-ai retras în %s. Continuă de la portal.
+RUN_NO_SKIP_ITEM,You do not have that skip item.,Nu ai obiectul acela de sărit peste etaj.
+RUN_NO_CASTLE_SAVE,No saved castle run to continue.,Niciun run de castel salvat de continuat.
+RUN_NOT_CASTLE_SAVE,Saved run is not a castle run — use the correct portal.,Run-ul salvat nu e unul de castel — folosește portalul potrivit.
+RUN_NO_ENDLESS_SAVE,No saved endless run to continue.,Niciun run nesfârșit salvat de continuat.
+RUN_NOT_ENDLESS_SAVE,Saved run is not an endless run.,Run-ul salvat nu e unul nesfârșit.
+RUN_FLOOR_GEN_FAILED,"Floor generation failed — seed %d, reason %s","Generarea etajului a eșuat — sămânța %d, motiv %s"
+RUN_DEFINITION_LOAD_FAILED,Failed to load dungeon definition.,Definiția temniței nu a putut fi încărcată.
+RUN_TIER_LOCKED_SEED,Tier %d is locked — clear the previous tier to use this seed.,Nivelul %d e blocat — termină nivelul anterior pentru a folosi această sămânță.
+RUN_SAVE_INVALID,Saved run data was invalid.,Datele run-ului salvat erau invalide.
+RUN_TIER_LOCKED_CONTINUE,That dungeon tier is locked — continue from the hub portal.,Nivelul acela de temniță e blocat — continuă de la portalul din hub.
+RUN_FLOOR_AHEAD,Saved floor was ahead of progression — restored to floor %d.,Etajul salvat era înaintea progresului — restaurat la etajul %d.
+RUN_FLOOR_GEN_STAY,Could not generate floor %d — you are still on floor %d.,Nu s-a putut genera etajul %d — ești tot pe etajul %d.
+WAVES_LEFT_AT_WAVE,Left the Vigil at wave %d. The loadout stayed behind.,Ai părăsit Veghea la valul %d. Echipamentul a rămas în urmă.
+WAVES_LEFT_BEFORE_START,Left the Vigil before it began.,Ai părăsit Veghea înainte să înceapă.
+WAVES_CARRY_ONE,carrying one thing,purtând un obiect
+WAVES_CARRY_MANY,carrying %d things,purtând %d obiecte
+WAVES_LEFT_PORTAL,"Left the Vigil at wave %d through the summoner's portal, %s.","Ai părăsit Veghea la valul %d prin portalul invocatorului, %s."
+WAVES_CLEARED_NOTE,Waves cleared: kept up to 3 chosen items.,Valuri încheiate: păstrezi până la 3 obiecte alese.
+WAVES_FAILED_NOTE,Waves failed: no items transferred to main inventory.,Valuri eșuate: niciun obiect nu a fost mutat în inventarul principal.
+RULES_ESCAPE,Escaped alive: kept all loot and full XP. The tower releases you — your umbral returns to Aumbrye Tower with proof of the oath.,Ai scăpat cu viață: păstrezi toată prada și tot XP-ul. Turnul te eliberează — umbralul tău se întoarce în Turnul Aumbrye cu dovada jurământului.
+RULES_DEATH,"The tower pulls you back: 50% XP saved, the rest lingers as a recoverable umbral at your death spot, together with a share of your coin. Die again before you reach it and it is gone. Run loot and relics are lost. Your umbral wakes in Aumbrye Tower — the ascent begins again.","Turnul te trage înapoi: 50% din XP e salvat, restul rămâne ca un umbral recuperabil unde ai murit, împreună cu o parte din monede. Mori din nou înainte să ajungi la el și dispare. Prada și relicvele din run se pierd. Umbralul tău se trezește în Turnul Aumbrye — urcarea începe din nou."
+RULES_RESPAWN,"Bonfire respawn: 50% XP saved, the rest lingers as a recoverable umbral at your death spot. Loot gained since the last bonfire was stripped.","Reînviere la foc: 50% din XP e salvat, restul rămâne ca un umbral recuperabil unde ai murit. Prada câștigată de la ultimul foc a fost pierdută."
+RUN_FAILURE_LABEL,"%s, floor %d","%s, etajul %d"
+RESULTS_HUB_DIED,Returned to Aumbrye Tower. Permanent XP saved.,Te-ai întors în Turnul Aumbrye. XP-ul permanent a fost salvat.
+RESULTS_HUB_WAVES_FAILED,Waves failed. Run loot was lost.,Valuri eșuate. Prada din run s-a pierdut.
+RESULTS_HUB_WAVES_CLEARED,Waves cleared! Rewards saved to your stash.,Valuri încheiate! Recompensele au fost salvate în depozit.
+RESULTS_HUB_ESCAPED,Run complete! Your progress was saved.,Run încheiat! Progresul a fost salvat.
+RESULTS_HUB_DEFAULT,Returned to Aumbrye Tower.,Te-ai întors în Turnul Aumbrye.
+ENTRY_TIER_HARM,"Enemies x%.2f health, x%.2f harm. Loot +%d%%.","Dușmani x%.2f viață, x%.2f daune. Pradă +%d%%."
+ENTRY_TIER_NO_RULES,No added rules.,Fără reguli adăugate.
+ENTRY_TIER_CLEARED,"Cleared %d time(s), best %s.","Terminat de %d ori, cel mai bun timp %s."
+ENTRY_TIER_LOCKED_HINT,Clear the rung below to open this one.,Termină treapta de dedesubt pentru a o deschide pe aceasta.
+ENTRY_TIER_NEVER,Never cleared.,Niciodată terminat.
+ENTRY_CONTINUE_STATUS,Continue %s tier %d — floor %d (seed %d).,Continuă %s nivelul %d — etajul %d (sămânța %d).
+ENTRY_CLEAR_TENTH,Clear the tenth floor to open the next rung of this dungeon's ladder.,Termină etajul zece pentru a deschide următoarea treaptă a scării acestei temnițe.
+ENTRY_SEED_HINT,Enter a base run seed. Tier %d dungeons derive their layout seed from it.,Introdu o sămânță de bază. Temnițele de nivel %d își derivă structura din ea.
+BOARD_NOTHING_POSTED,Nothing is posted this week.,Nimic nu e afișat săptămâna aceasta.
+BOARD_NO_MARK,You have not set a mark on it yet.,Încă nu ți-ai lăsat semnul pe ea.
+BOARD_YOUR_BEST,Your best: %s,Cel mai bun scor al tău: %s
+BOARD_NO_MODES,No alternate rule sets are written down.,Nu sunt scrise seturi de reguli alternative.
+BOARD_STANDING,Tower Standing,Clasamentul Turnului
+BOARD_NOTHING_TO_SHOW,The tower has nothing to show yet.,Turnul nu are încă nimic de arătat.
+CONTINUE_SUBTITLE,Choose a warden to enter Aumbrye Tower.,Alege un gardian pentru a intra în Turnul Aumbrye.
+HUB_WELCOME_LANDMARKS,Welcome to Aumbrye Tower — explore the landmarks,Bine ai venit în Turnul Aumbrye — explorează reperele
+HUB_WELCOME_WEEKLY,%s. This week: %s (%s).,%s. Săptămâna aceasta: %s (%s).
+RELIC_EVENT_ONHIT,On Hit,La lovitură
+RELIC_EVENT_ONKILL,On Kill,La ucidere
+RELIC_EVENT_ONPARRY,On Parry,La parare
+RELIC_EVENT_ONBLOCK,On Block,La blocare
+RELIC_EVENT_ONDODGE,On Dodge,La eschivare
+RELIC_EVENT_ONCRIT,On Crit,La lovitură critică
+RELIC_EVENT_ONBACKSTAB,On Backstab,La lovitură pe la spate
+RELIC_EVENT_ONRIPOSTE,On Riposte,La ripostă
+RELIC_EVENT_ONHITTAKEN,When Hit,Când ești lovit
+RELIC_EVENT_ONLOWHEALTH,At Low Health,La viață scăzută
+RELIC_EVENT_ONROOMCLEAR,On Room Clear,La curățarea sălii
+RELIC_EVENT_ONFLOORENTER,On Floor Enter,La intrarea pe etaj
+RELIC_EVENT_ONSTATUSAPPLIED,On Status Applied,La aplicarea unei stări
+RELIC_EVENT_ONRUNSTART,On Run Start,La începutul run-ului
+RELIC_QUAL_CHANCE,%d%% chance,%d%% șansă
+RELIC_QUAL_DAMAGE,%s damage,daune %s
+RELIC_QUAL_TARGET,target %s,ținta are %s
+RELIC_QUAL_COOLDOWN,%ss cooldown,%ss reîncărcare
+RELIC_QUAL_RESETS,resets %s,se resetează la %s
+RELIC_EFFECT_STAMINA,+%d Stamina,+%d Rezistență
+RELIC_EFFECT_HEALTH,+%d Health,+%d Viață
+RELIC_EFFECT_MANA,+%d Mana,+%d Mană
+RELIC_EFFECT_LIFESTEAL_PCT,%d%% Lifesteal,%d%% Furt de viață
+RELIC_EFFECT_LIFESTEAL,Lifesteal,Furt de viață
+RELIC_EFFECT_APPLY,Apply %s%s,Aplică %s%s
+RELIC_EFFECT_SPREAD,Spread %s to nearby enemies (%sm),Răspândește %s la dușmanii din apropiere (%sm)
+RELIC_EFFECT_STACKS,Stacks up to %s (max %d),Se adună până la %s (max %d)
+RELIC_EFFECT_GOLD,+%d Gold,+%d Aur
+RELIC_EFFECT_FLASK_ONE,+%d Flask Charge,+%d Încărcătură de fiolă
+RELIC_EFFECT_FLASK_MANY,+%d Flask Charges,+%d Încărcături de fiolă
+RELIC_EFFECT_CLEAR_ALL,Clear All Status Effects,Șterge toate stările
+RELIC_EFFECT_CLEANSE,Cleanse Harmful Status Effects,Curăță stările dăunătoare
+MERCHANT_SELL_ALL,Sell all,Vinde tot
+RESULTS_ASSIST_OFFER,"Struggling with this boss? Settings has assists: less damage taken, a wider dodge window and longer lock-on range.","Te chinuie acest boss? In Setari gasesti asistente: daune reduse, fereastra de esivare mai larga si lock-on mai lung."
+HUD_LEVEL_BANKED,Level %d banked - it is yours when this run ends,Nivelul %d acumulat - il pastrezi cand se termina aceasta cursa
+ROOM_CURSE_TAKEN,The curse takes hold - your blows land softer for a while,Blestemul se prinde - loviturile tale sunt mai slabe o vreme
+ROOM_GAUNTLET_CLEAN,Crossed unhurt - the gauntlet rewards you with a relic,Ai trecut nevatamat - proba te rasplateste cu o relicva
+RELIC_SYNERGY_ACTIVE,Synergy awakened: %s,Sinergie trezita: %s
+CONTENT_BULWARK_NAME,Bulwark,Bastion
+CONTENT_BULWARK_DESCRIPTION,"A parry turns your skin to stone for a moment.","O parare iti transforma pielea in piatra pentru o clipa."
+CONTENT_WRAITH_STEP_NAME,Wraith Step,Pasul Stafiei
+CONTENT_WRAITH_STEP_DESCRIPTION,"A perfect dodge quickens you.","O esivare perfecta te face mai iute."
+CONTENT_RAZOR_EDGE_NAME,Razor Edge,Ascutis de Brici
+CONTENT_RAZOR_EDGE_DESCRIPTION,"Critical hits open the wound further.","Loviturile critice deschid rana si mai mult."
+CONTENT_HEADSMAN_NAME,Headsman,Calaul
+CONTENT_HEADSMAN_DESCRIPTION,"Every kill returns breath and a little blood.","Fiecare ucidere iti intoarce suflarea si putin sange."
+CONTENT_CONTAGION_NAME,Contagion,Contagiune
+CONTENT_CONTAGION_DESCRIPTION,"What kills one foe spreads its sickness to the next.","Ce ucide un dusman isi raspandeste boala asupra urmatorului."
+HUD_BRANCH_REST,%d rest path(s),%d cale(i) de odihna
+PRACTICE_REMATCH,Fight a defeated boss again - no penalty,Infrunta din nou un boss invins - fara pedeapsa
+PRACTICE_REMATCH_NONE,Defeat a boss in the dungeon to fight it again here,Invinge un boss in temnita ca sa il infrunti din nou aici
+PRACTICE_REMATCH_FIGHT,Rematch: learn its patterns. Dying only resets the fight,Revansa: invata-i tiparele. Moartea doar reseteaza lupta
+PRACTICE_REMATCH_WON,Boss defeated again,Boss invins din nou
+RELIC_EVENT_ONACQUIRED,On Pickup,La ridicare
+RELIC_EVENT_ONPERFECTDODGE,On Perfect Dodge,La eschivare perfectă
+RELIC_EVENT_ONEXECUTE,On Execution,La execuție
+ROOM_TIMED_START,The cache will seal in %d seconds,Camera se va sigila in %d secunde
+ROOM_TIMED_LOST,The cache has sealed,Camera s-a sigilat
+CONTENT_SWIFT_NAME,Swift,Iute
+CONTENT_SWIFT_DESCRIPTION,"Faster on its feet and quicker between swings.","Mai rapid pe picioare si mai prompt intre lovituri."
+CONTENT_FRENZIED_NAME,Frenzied,Frenetic
+CONTENT_FRENZIED_DESCRIPTION,"Attacks without pause, in exchange for being brittle.","Ataca fara pauza, dar este fragil."
+CONTENT_BRUTAL_NAME,Brutal,Brutal
+CONTENT_BRUTAL_DESCRIPTION,"Slow, and every blow lands like a falling wall.","Lent, iar fiecare lovitura cade ca un zid."
+
+CONTENT_IRONCLAD_NAME,Ironclad,Blindat
+CONTENT_IRONCLAD_DESCRIPTION,"Hard to stagger and hard to put down.","Greu de zdruncinat si greu de doborat."
+ELITE_SLAIN_FLASK,The elite falls - a flask charge returns,Elita cade - se reintoarce o incarcatura de flacon

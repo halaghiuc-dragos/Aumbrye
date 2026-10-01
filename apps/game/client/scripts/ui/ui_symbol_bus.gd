@@ -10,10 +10,6 @@ func _ready() -> void:
 		InputGlyphWatcher.device_family_changed.connect(
 			func() -> void: symbols_invalidated.emit(&"device")
 		)
-	if InputRebindService.has_signal("bindings_changed"):
-		InputRebindService.bindings_changed.connect(
-			func(_action: StringName) -> void: symbols_invalidated.emit(&"rebind")
-		)
 
 
 func invalidate(reason: StringName) -> void:

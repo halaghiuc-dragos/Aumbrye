@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw the class-select portrait atlas.
+"""Build the class-select portrait atlas from Blender-rendered emblems.
 
 Each of the seven cells shipped as a single flat colour, so the character-creation list read as a
 column of blank swatches. This keeps the established per-class colour identity and draws a legible
@@ -8,21 +8,20 @@ emblem in it: a weapon or symbol that says what the class does at a glance.
 Everything is authored on the 64x64 cell grid the manifest declares
 (content/ui/class_icon_atlas.json), with hard edges so it stays crisp under nearest filtering.
 
-The original Python publisher is retired. ``tools/generate_class_icons.mjs`` is the sole owner and
-uses the generated-asset registry to protect hand-edited output.
 """
 
 from __future__ import annotations
 
 import argparse
 import io
+import json
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from generated_manifest import record_write, write_generated_bytes  # noqa: E402
+from asset_io import write_bytes_set  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS = ROOT / "apps" / "game" / "client" / "assets" / "ui" / "atlas" / "class_icons.png"
@@ -67,76 +66,42 @@ def backdrop(draw: ImageDraw.ImageDraw, base: tuple[int, int, int]) -> None:
     draw.rectangle([3, CELL - 8, CELL - 4, CELL - 4], fill=shade(base, 0.55))
 
 
-def draw_berserker(d: ImageDraw.ImageDraw) -> None:
-    """Crossed axes."""
-    for flip in (False, True):
-        x = lambda v: (CELL - 1 - v) if flip else v  # noqa: E731
-        d.line([(x(18), 48), (x(44), 18)], fill=WOOD, width=4)
-        d.polygon([(x(40), 12), (x(52), 20), (x(42), 28), (x(34), 20)], fill=STEEL)
-        d.polygon([(x(42), 15), (x(48), 20), (x(42), 25)], fill=STEEL_DARK)
+# Emblems are rendered from Blender models (tools/blender/icons.py) by tools/blender/build_icons.py into
+# emblems.json: sixty-four rows of tone letters per class. `d m l h` are the main metal, `a b c` the
+# accent, `o` the outline.
+_EMBLEMS = json.loads((Path(__file__).resolve().parent / "icon-gen" / "emblems.json").read_text(encoding="utf-8"))
 
-
-def draw_knight(d: ImageDraw.ImageDraw) -> None:
-    """Kite shield with a cross."""
-    d.polygon([(18, 12), (46, 12), (46, 38), (32, 52), (18, 38)], fill=STEEL)
-    d.polygon([(22, 16), (42, 16), (42, 37), (32, 47), (22, 37)], fill=STEEL_DARK)
-    d.rectangle([30, 19, 34, 43], fill=GOLD)
-    d.rectangle([24, 25, 40, 29], fill=GOLD)
-
-
-def draw_rogue(d: ImageDraw.ImageDraw) -> None:
-    """Paired daggers."""
-    for flip in (False, True):
-        x = lambda v: (CELL - 1 - v) if flip else v  # noqa: E731
-        d.polygon([(x(24), 14), (x(30), 20), (x(24), 44), (x(20), 44), (x(20), 20)], fill=STEEL)
-        rect(d, x(18), 44, x(28), 48, GOLD)
-        rect(d, x(21), 48, x(25), 54, WOOD)
-
-
-def draw_scholar(d: ImageDraw.ImageDraw) -> None:
-    """Open tome with an arcane spark."""
-    d.polygon([(10, 24), (31, 20), (31, 46), (10, 44)], fill=STEEL)
-    d.polygon([(33, 20), (54, 24), (54, 44), (33, 46)], fill=STEEL)
-    d.polygon([(13, 27), (29, 24), (29, 42), (13, 41)], fill=STEEL_DARK)
-    d.polygon([(35, 24), (51, 27), (51, 41), (35, 42)], fill=STEEL_DARK)
-    d.rectangle([31, 20, 33, 46], fill=WOOD)
-    d.polygon([(32, 6), (35, 14), (32, 18), (29, 14)], fill=GOLD)
-
-
-def draw_sentinel(d: ImageDraw.ImageDraw) -> None:
-    """Tower shield with a bar."""
-    d.rectangle([18, 10, 46, 46], fill=STEEL)
-    d.polygon([(18, 46), (46, 46), (32, 56)], fill=STEEL)
-    d.rectangle([22, 14, 42, 43], fill=STEEL_DARK)
-    d.rectangle([22, 24, 42, 30], fill=GOLD)
-
-
-def draw_hunter(d: ImageDraw.ImageDraw) -> None:
-    """Bow drawn with an arrow."""
-    d.arc([16, 8, 48, 56], start=250, end=110, fill=WOOD, width=5)
-    d.line([(22, 14), (22, 50)], fill=STEEL_DARK, width=2)
-    d.line([(22, 32), (50, 32)], fill=STEEL, width=3)
-    d.polygon([(48, 27), (58, 32), (48, 37)], fill=STEEL)
-
-
-def draw_herald(d: ImageDraw.ImageDraw) -> None:
-    """Banner on a staff."""
-    d.rectangle([20, 8, 24, 56], fill=WOOD)
-    d.polygon([(24, 12), (50, 16), (50, 36), (24, 32)], fill=GOLD)
-    d.polygon([(24, 32), (50, 36), (42, 42), (24, 38)], fill=shade(GOLD, 0.7))
-    d.rectangle([30, 20, 44, 24], fill=INK)
-    d.rectangle([35, 16, 39, 30], fill=INK)
-
-
-PAINTERS = {
-    "berserker": draw_berserker,
-    "knight": draw_knight,
-    "rogue": draw_rogue,
-    "scholar": draw_scholar,
-    "sentinel": draw_sentinel,
-    "hunter": draw_hunter,
-    "herald": draw_herald,
+#: (main material, accent material) per class emblem.
+MATERIALS = {
+    "berserker": (STEEL, WOOD),
+    "knight": (STEEL, GOLD),
+    "rogue": (STEEL, WOOD),
+    "scholar": (GOLD, WOOD),
+    "sentinel": (STEEL, STEEL_DARK),
+    "hunter": (STEEL, WOOD),
+    "herald": (GOLD, WOOD),
 }
+
+
+def _ramp(colour):
+    return {
+        "d": shade(colour, 0.5), "m": shade(colour, 0.72), "l": colour, "h": shade(colour, 1.18),
+        "a": shade(colour, 0.6), "b": colour, "c": shade(colour, 1.25),
+    }
+
+
+def paint_emblem(cell: Image.Image, class_id: str) -> None:
+    main, accent = MATERIALS[class_id]
+    table = {"o": INK}
+    for key in "dmlh":
+        table[key] = _ramp(main)[key]
+    for key in "abc":
+        table[key] = _ramp(accent)[key]
+    px = cell.load()
+    for y, row in enumerate(_EMBLEMS[class_id]):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                px[x, y] = table[ch] + (255,)
 
 
 def build() -> Image.Image:
@@ -145,7 +110,7 @@ def build() -> Image.Image:
         cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
         draw = ImageDraw.Draw(cell)
         backdrop(draw, BASE[class_id])
-        PAINTERS[class_id](draw)
+        paint_emblem(cell, class_id)
         atlas.paste(cell, (index * CELL, 0))
     return atlas
 
@@ -153,8 +118,7 @@ def build() -> Image.Image:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="report whether the atlas is flat art")
-    parser.add_argument("--dry-run", action="store_true", help="validate ownership without writing")
-    parser.add_argument("--force", action="store_true", help="explicitly replace an unowned output")
+    parser.add_argument("--dry-run", action="store_true", help="report what would change without writing")
     args = parser.parse_args()
 
     if args.check:
@@ -175,46 +139,7 @@ def main() -> int:
 
     buffer = io.BytesIO()
     build().save(buffer, format="PNG", optimize=True)
-    manifest = ROOT / "content" / "ui" / "class_icon_atlas.json"
-    candidate_bytes = buffer.getvalue()
-    generator = Path(__file__).resolve()
-    if ATLAS.is_file() and not args.force:
-        existing_bytes = ATLAS.read_bytes()
-        try:
-            existing = Image.open(io.BytesIO(existing_bytes)).convert("RGBA")
-            candidate = Image.open(io.BytesIO(candidate_bytes)).convert("RGBA")
-            same_pixels = existing.size == candidate.size and ImageChops.difference(
-                existing, candidate
-            ).getbbox() is None
-        except OSError:
-            same_pixels = False
-        if same_pixels:
-            if args.dry_run:
-                print(f"already matches generated pixels: {ATLAS.relative_to(ROOT)}")
-                written = False
-            else:
-                # Preserve the byte-identical authored PNG container while adopting it under the
-                # canonical generator. The source render and shipped pixels were proven equal.
-                record_write(ATLAS, existing_bytes, generator=generator, sources=[manifest])
-                written = True
-        else:
-            written = write_generated_bytes(
-                ATLAS,
-                candidate_bytes,
-                generator=generator,
-                sources=[manifest],
-                force=args.force,
-                dry_run=args.dry_run,
-            )
-    else:
-        written = write_generated_bytes(
-            ATLAS,
-            candidate_bytes,
-            generator=generator,
-            sources=[manifest],
-            force=args.force,
-            dry_run=args.dry_run,
-        )
+    written = bool(write_bytes_set([(ATLAS, buffer.getvalue())], dry_run=args.dry_run))
     print(
         f"{'validated' if args.dry_run else 'published'} {ATLAS.relative_to(ROOT)} "
         f"({len(ORDER)} cells at {CELL}x{CELL}; {'would write' if args.dry_run else 'written'}={written})"

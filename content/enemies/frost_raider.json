@@ -29,6 +29,7 @@
   "attacks": [
     {
       "id": "jab",
+      "anim": "attack_light_1",
       "name": "Short Thrust",
       "weight": 3,
       "windup_duration": 0.44,
@@ -42,10 +43,14 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "overhead",
+      "anim": "attack_sweep",
       "name": "Overhead Cleave",
       "weight": 2,
       "windup_duration": 1.04,
@@ -59,10 +64,16 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
       "attackClass": "unblockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "opening_cut",
+      "anim": "attack_light_3",
       "name": "Opening Cut",
       "weight": 2,
       "windup_duration": 0.62,

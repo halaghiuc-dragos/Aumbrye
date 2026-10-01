@@ -1,4 +1,4 @@
-extends SceneTree
+extends Node
 
 
 const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_graph_generator.gd")
@@ -11,7 +11,6 @@ const DEFAULT_COUNT := 1000
 const DEFAULT_MAX_FALLBACK_RATE := 0.01
 const DEFAULT_REPORT_PATH := "reports/procgen_seed_health.json"
 const WORST_SEED_LIMIT := 10
-const RATE_DECIMALS := 6
 
 const BIOME_IDS: PackedStringArray = [
 	"forgotten_castle",
@@ -40,10 +39,10 @@ const REASON_TEMPLATES: PackedStringArray = [
 ]
 
 
-func _initialize() -> void:
+func _ready() -> void:
 	var options := parse_args(OS.get_cmdline_user_args())
 	var exit_code := run_tool(options)
-	quit(exit_code)
+	get_tree().quit(exit_code)
 
 
 static func parse_args(user_args: PackedStringArray) -> Dictionary:
@@ -343,7 +342,6 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 		room_min = mini(room_min, main_count)
 		room_max = maxi(room_max, main_count)
 		room_histogram[str(main_count)] = int(room_histogram.get(str(main_count), 0)) + 1
-		# RM-18
 		scores.append(RoomGraphGeneratorScript.score_graph(gen_report.graph, config))
 		if gen_report.attempts > 1 or gen_report.used_fallback:
 			worst_seeds.append(
@@ -371,7 +369,7 @@ static func _sweep_biome(biome_id: String, seed_from: int, seed_count: int) -> D
 	return {"ok": true, "stats": stats}
 
 
-## RM-18: min/max/mean plus the percentiles the threshold was picked from.
+## Min/max/mean plus the percentiles the threshold was picked from.
 static func _score_stats(scores: Array[float]) -> Dictionary:
 	if scores.is_empty():
 		return {"min": 0.0, "max": 0.0, "mean": 0.0, "p25": 0.0, "p35": 0.0, "p50": 0.0}

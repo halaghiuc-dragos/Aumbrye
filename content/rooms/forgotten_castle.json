@@ -1115,15 +1115,6 @@
             ]
           },
           {
-            "kind": "statue",
-            "at": [
-              0.0,
-              0,
-              6.0
-            ],
-            "yaw": 180
-          },
-          {
             "kind": "pillar",
             "at": [
               -6.0,
@@ -2909,14 +2900,6 @@
         "id": "arena_pillared",
         "coverPattern": "ring",
         "props": [
-          {
-            "kind": "altar",
-            "at": [
-              0.0,
-              0,
-              0.0
-            ]
-          },
           {
             "kind": "brazier",
             "at": [

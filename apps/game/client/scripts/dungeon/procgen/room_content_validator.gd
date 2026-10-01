@@ -7,33 +7,22 @@ static func validate_definition(definition: Dictionary) -> Dictionary:
 	if locks.is_empty():
 		return {"ok": true}
 	var placements: Dictionary = definition.get("placements", {})
-	# `entrance` is a bare room id while `boss` is a record with one inside it. This used to insist
-	# on the record shape for both, so a floor with a lock on it always failed here with "missing
-	# entrance placement" -- the solvability walk below has never once run.
+	# `entrance` is a bare room id while `boss` is a record with one inside it, so the two are read
+	# in their own shapes.
 	var start_id := _placement_room_id(placements.get("entrance"))
 	if start_id == "":
 		return {"ok": false, "reason": "Missing entrance room id"}
 	var boss_id := _placement_room_id(placements.get("boss"))
 	if boss_id == "":
 		return {"ok": true}
-	# RM-06: full traversability model -- see `_traverse_with_capabilities()`'s header for the
-	# invariant. `keys_by_room` used to read a `roomContent[].keyId` field nothing ever wrote; the
-	# real source is `locks[].keyRoomIds`.
+	# Full traversability model -- see `_traverse_with_capabilities()`'s header for the
+	# invariant. `keys_by_room` is read from `locks[].keyRoomIds`.
 	var adjacency := _definition_adjacency(definition)
 	var keys_by_room := _keys_by_room_from_locks(locks)
-	var locks_by_to := {}
-	var required_by_to := {}
-	for lock in locks:
-		if not lock is Dictionary:
-			continue
-		var to_room := str(lock.get("to", ""))
-		locks_by_to[to_room] = str(lock.get("keyId", ""))
-		required_by_to[to_room] = maxi(1, int(lock.get("keysRequired", 1)))
-	var gate_by_locked_room := _shortcut_gate_targets(definition.get("shortcutGates", []))
-	var puzzle_gates := _puzzle_gate_targets(definition.get("puzzles", []))
-	var reachable := _traverse_with_capabilities(
-		start_id, adjacency, keys_by_room, locks_by_to, required_by_to, gate_by_locked_room, puzzle_gates
+	var blocked_edges := _blocked_edges(
+		locks, definition.get("shortcutGates", []), definition.get("puzzles", [])
 	)
+	var reachable := _traverse_with_capabilities(start_id, adjacency, keys_by_room, blocked_edges)
 	var required_ids: Array = [boss_id]
 	var stairs_id := _placement_room_id(placements.get("stairs"))
 	if stairs_id != "":
@@ -129,11 +118,9 @@ static func validate(
 			# Rejecting it here just sent the generator back for an ungated floor instead.
 			if layout == graph.start_id or layout == graph.stairs_id or layout == graph.boss_id:
 				return {"ok": false, "reason": "Key room uses reserved layout"}
-			# The rule that matters is that the key is gettable with the door shut. This used to
-			# demand the key room be an ancestor of the room behind the door, which on a
-			# breadth-first tree means a room on the critical path -- rejected four lines above.
-			# No lock could satisfy both, so every floor carrying one failed validation and the
-			# assigner retried until it happened to produce a floor with no locks at all.
+			# The rule that matters is that the key is gettable with the door shut. The key room need not be
+			# an ancestor of the room behind the door: on a breadth-first tree that would mean a room on the
+			# critical path, which is rejected above, and no lock could satisfy both.
 			if from_layout != "" and to_layout != "":
 				var open_rooms := RoomGraphPaths.reachable_without_edge(
 					graph, from_layout, to_layout
@@ -143,7 +130,7 @@ static func validate(
 						"ok": false,
 						"reason": "Key room %s is behind the lock it opens" % layout
 					}
-	# RM-06: the boss, the stairs, and every key room -- not just the boss -- must be provably
+	# The boss, the stairs, and every key room -- not just the boss -- must be provably
 	# reachable with only the capabilities the walk itself can gain along the way.
 	var required_semantics: Array = [boss_semantic]
 	var stairs_semantic := _semantic_for_layout(assignment, graph.stairs_id)
@@ -184,6 +171,13 @@ static func validate_pacing(
 				"ok": false,
 				"reason": "Floor has %d reward rooms, needs %d" % [rewards, config.min_reward_rooms],
 			}
+	if config.min_rest_rooms > 0:
+		var rests := 0
+		for entry in room_content:
+			if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REST:
+				rests += 1
+		if rests < config.min_rest_rooms:
+			return {"ok": false, "reason": "Floor has %d rest rooms, needs %d" % [rests, config.min_rest_rooms]}
 	if config.max_consecutive_combat > 0:
 		var by_room := {}
 		for entry in room_content:
@@ -209,21 +203,18 @@ static func validate_pacing(
 
 ## Whether the player can reach the boss, picking keys up as they explore.
 ##
-## This used to walk the critical path and collect only the keys lying on it. But a key is placed
-## *off* the critical path by design -- `_find_key_room_layout` skips on-path rooms, and the check
-## above rejects a key room that is on it -- so the walk could never pick one up, every floor
-## carrying a lock was judged unwinnable, and the assigner retried until it produced a floor with
-## no locks. Exploring the whole reachable region and repeating until no new key turns up is the
-## same fixpoint `validate_definition` already runs against the finished floor.
+## A key is placed *off* the critical path by design -- `_find_key_room_layout` skips on-path rooms,
+## and the check above rejects a key room that is on it -- so a walk of the critical path alone could
+## never pick one up. Exploring the whole reachable region and repeating until no new key turns up is
+## the same fixpoint `validate_definition` runs against the finished floor.
 ##
-## RM-06: extended from a locks-only walk to the full traversability model. **The invariant: from
-## the entrance, using only capabilities obtainable from rooms already reached, the player must be
-## able to reach the stairs and the boss. A floor that cannot prove this does not ship.** Locks
-## block `to` until their key is held; shortcut gates (`RM-04`) grant passage into the locked side
+## **The invariant: from the entrance, using only capabilities obtainable from rooms already reached,
+## the player must be able to reach the stairs and the boss. A floor that cannot prove this does not
+## ship.** Locks block `to` until their key is held; shortcut gates grant passage into the locked side
 ## only once the open side has been reached (they "only open the other way," per their own design
 ## comment); a puzzle gate blocks its `gateRoomId` until the lever room has been visited. Every one
 ## of these is a monotonic capability -- once gained it is never lost -- which is exactly what the
-## existing collect/retry fixpoint already assumes, so extending it is additive.
+## collect/retry fixpoint assumes.
 static func _boss_reachable_with_keys(
 	graph: RoomGraph,
 	layout_to_semantic: Dictionary,
@@ -237,7 +228,7 @@ static func _boss_reachable_with_keys(
 
 
 ## Like `_boss_reachable_with_keys`, but for an arbitrary set of rooms the floor must be able to
-## prove reachable -- the boss, the stairs, and every key room (RM-06 item 3).
+## prove reachable -- the boss, the stairs, and every key room.
 static func _required_rooms_reachable(
 	graph: RoomGraph,
 	layout_to_semantic: Dictionary,
@@ -260,18 +251,11 @@ static func _required_rooms_reachable(
 				neighbors.append(neighbor_id)
 		adjacency[room_id] = neighbors
 	var keys_by_room := _keys_by_room_from_locks(content.get("locks", []))
-	var locks_by_to := {}
-	var required_by_to := {}
-	for lock in content.get("locks", []):
-		if not lock is Dictionary:
-			continue
-		var to_room := str((lock as Dictionary).get("to", ""))
-		locks_by_to[to_room] = str((lock as Dictionary).get("keyId", ""))
-		required_by_to[to_room] = maxi(1, int((lock as Dictionary).get("keysRequired", 1)))
-	var gate_by_locked_room := _shortcut_gate_targets(content.get("shortcutGates", []))
-	var puzzle_gates := _puzzle_gate_targets(content.get("puzzles", []))
+	var blocked_edges := _blocked_edges(
+		content.get("locks", []), content.get("shortcutGates", []), content.get("puzzles", [])
+	)
 	var reachable := _traverse_with_capabilities(
-		start_semantic, adjacency, keys_by_room, locks_by_to, required_by_to, gate_by_locked_room, puzzle_gates
+		start_semantic, adjacency, keys_by_room, blocked_edges
 	)
 	for required in required_semantics:
 		if not reachable.has(str(required)):
@@ -300,100 +284,104 @@ static func _keys_by_room_from_locks(locks: Array) -> Dictionary:
 	return keys_by_room
 
 
-## `roomA` (locked) becomes reachable once `roomB`/`openRoomId` (open) has been -- see
-## `RoomContentAssigner._add_shortcut_gates()` and `_guarantee_one_way_gate()`, both of which always
-## set `roomB == openRoomId`. Keyed by the locked room since that is what the walk needs to unlock.
-static func _shortcut_gate_targets(shortcut_gates: Array) -> Dictionary:
-	var by_locked_room := {}
+static func _edge_key(a: String, b: String) -> String:
+	return "%s>%s" % [a, b] if a < b else "%s>%s" % [b, a]
+
+
+## Every gate blocks one doorway, not the room behind it: a room with a second way in is not
+## locked, and a validator that treated it as locked would pass floors where the lock is walked
+## around. A shut door is shut from both sides, so an edge key does not depend on direction.
+##
+## - a key lock needs `keysRequired` of its key's fragments;
+## - a puzzle gate opens once the lever room has been visited (`roomId` holds the levers);
+## - a shortcut gate is a one-way door: open from `openRoomId` at any time, and from the locked
+##   side once the open side has been reached.
+static func _blocked_edges(locks: Array, shortcut_gates: Array, puzzles: Array) -> Dictionary:
+	var blocked := {}
+	for lock in locks:
+		if not lock is Dictionary:
+			continue
+		var key_id := str((lock as Dictionary).get("keyId", ""))
+		if key_id == "":
+			continue
+		blocked[_edge_key(str((lock as Dictionary).get("from", "")), str((lock as Dictionary).get("to", "")))] = {
+			"kind": "key",
+			"keyId": key_id,
+			"needed": maxi(1, int((lock as Dictionary).get("keysRequired", 1))),
+		}
 	for gate in shortcut_gates:
 		if not gate is Dictionary:
 			continue
-		var gate_dict: Dictionary = gate
-		var locked_room := str(gate_dict.get("roomA", ""))
-		var open_room := str(gate_dict.get("openRoomId", gate_dict.get("roomB", "")))
+		var locked_room := str((gate as Dictionary).get("roomA", ""))
+		var open_room := str((gate as Dictionary).get("openRoomId", (gate as Dictionary).get("roomB", "")))
 		if locked_room != "" and open_room != "":
-			by_locked_room[locked_room] = open_room
-	return by_locked_room
-
-
-## `gateRoomId` becomes reachable once `roomId` (the lever's room) has been -- pulling the lever(s)
-## is not separately modelled since the walk only cares whether the room holding them was visited.
-static func _puzzle_gate_targets(puzzles: Array) -> Dictionary:
-	var by_gated_room := {}
+			blocked[_edge_key(locked_room, open_room)] = {"kind": "oneway", "openRoom": open_room}
 	for puzzle in puzzles:
 		if not puzzle is Dictionary:
 			continue
-		var puzzle_dict: Dictionary = puzzle
-		var gate_room := str(puzzle_dict.get("gateRoomId", ""))
-		var lever_room := str(puzzle_dict.get("roomId", ""))
-		if gate_room != "" and lever_room != "":
-			by_gated_room[gate_room] = lever_room
-	return by_gated_room
+		var lever_room := str((puzzle as Dictionary).get("roomId", ""))
+		var gate_room := str((puzzle as Dictionary).get("gateRoomId", ""))
+		if lever_room != "" and gate_room != "":
+			blocked[_edge_key(lever_room, gate_room)] = {"kind": "lever", "leverRoom": lever_room}
+	return blocked
+
+
+static func _gate_open(
+	gate: Dictionary, current: String, visited: Dictionary, keys: Dictionary, levers: Dictionary
+) -> bool:
+	match str(gate.get("kind", "")):
+		"key":
+			var held := 0
+			for room_id in keys:
+				if str(keys[room_id]) == str(gate.get("keyId", "")):
+					held += 1
+			return held >= int(gate.get("needed", 1))
+		"oneway":
+			var open_room := str(gate.get("openRoom", ""))
+			return current == open_room or visited.has(open_room)
+		"lever":
+			return levers.has(str(gate.get("leverRoom", "")))
+	return true
 
 
 ## The shared fixpoint: walk, collect whatever capability the rooms reached this pass unlocked
-## (a key, a shortcut gate's open side, a puzzle's lever room), and repeat while the last pass found
-## something new. Capped at `adjacency.size()` passes -- a capability set can only grow, and there
-## are never more capabilities than rooms, so that bound is sound and this never spins forever on a
-## malformed floor.
+## (a key, a puzzle's lever room), and repeat while the last pass found something new. Capped at
+## `adjacency.size()` passes -- a capability set can only grow, and there are never more
+## capabilities than rooms, so that bound is sound and this never spins forever on a malformed
+## floor.
 static func _traverse_with_capabilities(
 	start_semantic: String,
 	adjacency: Dictionary,
 	keys_by_room: Dictionary,
-	locks_by_to: Dictionary,
-	required_by_to: Dictionary,
-	gate_by_locked_room: Dictionary,
-	puzzle_gate_by_room: Dictionary
+	blocked_edges: Dictionary
 ) -> Dictionary:
-	# Reverse of `gate_by_locked_room` (open room -> the locked rooms it unlocks), built once --
-	# a locked room's gate is checked whenever its open room is *in* the reachable set, not per
-	# BFS step, so this only needs computing the one time.
-	var locked_rooms_by_open_room := {}
-	for locked_room in gate_by_locked_room:
-		var open_room := str(gate_by_locked_room[locked_room])
-		if not locked_rooms_by_open_room.has(open_room):
-			locked_rooms_by_open_room[open_room] = []
-		(locked_rooms_by_open_room[open_room] as Array).append(locked_room)
+	var lever_rooms := {}
+	for edge_key in blocked_edges:
+		var gate: Dictionary = blocked_edges[edge_key]
+		if str(gate.get("kind", "")) == "lever":
+			lever_rooms[str(gate.get("leverRoom", ""))] = true
 	var keys := {}
-	var pulled_levers := {}
+	var levers := {}
 	var visited := {}
 	var iteration_cap := maxi(1, adjacency.size())
 	for _i in iteration_cap:
 		var found_new_capability := false
 		visited = {start_semantic: true}
 		var queue: Array[String] = [start_semantic]
-		var spent := {}
 		while not queue.is_empty():
 			var current: String = queue.pop_front()
 			if keys_by_room.has(current) and not keys.has(current):
 				keys[current] = str(keys_by_room[current])
 				found_new_capability = true
-			if puzzle_gate_by_room.has(current) and not pulled_levers.has(current):
-				pulled_levers[current] = true
+			if lever_rooms.has(current) and not levers.has(current):
+				levers[current] = true
 				found_new_capability = true
-			# A locked room's open side, once reached, always grants entry -- interacting is free,
-			# so this adds it in the same pass rather than waiting for the next one.
-			for locked_room in locked_rooms_by_open_room.get(current, []):
-				if not visited.has(locked_room):
-					visited[locked_room] = true
-					queue.append(locked_room)
 			for neighbor in adjacency.get(current, []):
 				var next_id := str(neighbor)
 				if visited.has(next_id):
 					continue
-				if locks_by_to.has(next_id):
-					var required_key := str(locks_by_to[next_id])
-					if required_key != "":
-						var needed: int = int(required_by_to.get(next_id, 1))
-						var held := 0
-						for room_id in keys:
-							if str(keys[room_id]) == required_key:
-								held += 1
-						held -= int(spent.get(required_key, 0))
-						if held < needed:
-							continue
-						spent[required_key] = int(spent.get(required_key, 0)) + needed
-				if puzzle_gate_by_room.has(next_id) and not pulled_levers.has(next_id):
+				var gate: Dictionary = blocked_edges.get(_edge_key(current, next_id), {})
+				if not gate.is_empty() and not _gate_open(gate, current, visited, keys, levers):
 					continue
 				visited[next_id] = true
 				queue.append(next_id)

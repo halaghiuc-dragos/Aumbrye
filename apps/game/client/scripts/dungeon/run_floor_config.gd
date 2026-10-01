@@ -5,10 +5,10 @@ class_name RunFloorConfig
 ## Floors in a tier-1 run, and the size of one seed block.
 ##
 ## A tier is made of blocks of this many floors: tier 1 is one block, tier 10 is ten, so the climb
-## runs 10 floors to 100. Each block carries its own seed and ends with a boss, which makes a block
-## the unit a player actually experiences -- nine floors and a fight -- and keeps tier 10 at ten
+## runs 5 floors to 50. Each block carries its own seed and ends with a boss, which makes a block
+## the unit a player actually experiences -- four floors and a fight -- and keeps tier 10 at ten
 ## bosses rather than a hundred.
-const FLOORS_PER_BLOCK := 10
+const FLOORS_PER_BLOCK := 5
 
 ## Retained as the tier-1 floor count, which is what every legacy caller meant by it.
 const MAX_FLOORS := FLOORS_PER_BLOCK
@@ -38,11 +38,6 @@ static func block_index(floor_index: int) -> int:
 ## Position within the block, 1..FLOORS_PER_BLOCK.
 static func floor_within_block(floor_index: int) -> int:
 	return ((maxi(1, floor_index) - 1) % FLOORS_PER_BLOCK) + 1
-
-
-## The last floor of a block, where that block's boss waits.
-static func is_block_boss_floor(floor_index: int) -> bool:
-	return floor_within_block(floor_index) == FLOORS_PER_BLOCK
 
 
 static func clamp_floor(floor_index: int, run_mode: String = "castle", tier: int = 1) -> int:
@@ -87,10 +82,10 @@ static func find_stairs_room_id(definition: Dictionary) -> String:
 	return "stairs"
 
 
-static func stairs_spawn_facing_y(stair_room: RoomTemplate) -> float:
+## Facing into the room from its real opening, which is not always the south wall.
+static func stairs_spawn_facing_y(stair_room: RoomTemplate, entry_socket: DoorwaySocket) -> float:
 	if stair_room == null:
 		return 0.0
-	var south_socket := stair_room.find_socket(CastleRoomConstants.Direction.SOUTH)
-	if south_socket:
-		return south_socket.global_rotation.y + PI
+	if entry_socket != null:
+		return entry_socket.global_rotation.y + PI
 	return stair_room.global_rotation.y + PI

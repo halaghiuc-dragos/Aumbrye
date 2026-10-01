@@ -227,13 +227,6 @@ static func soften_health_bonus(raw: float) -> float:
 	return HEALTH_BONUS_SOFT_CAP + HEALTH_BONUS_SOFTENING * excess / (excess + HEALTH_BONUS_SOFTENING)
 
 
-static func health_bonus(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
-	var raw := (
-		float(equipment_stats.get("maxHealth", 0.0)) + float(talent_stats.get("maxHealth", 0.0))
-	)
-	return soften_health_bonus(raw)
-
-
 static func defense_points(equipment_stats: Dictionary, talent_stats: Dictionary) -> float:
 	return (
 		float(equipment_stats.get("defense", 0.0))
@@ -284,12 +277,9 @@ static func health_regen(equipment_stats: Dictionary, talent_stats: Dictionary) 
 	)
 
 
-## Chance to slip a hit entirely.
-##
-## Fourteen items and a talent branch have advertised evasion since launch with nothing behind it.
-## The cap is deliberately low: this is a game about reading a telegraph and rolling, and a build
-## that could stack its way to never being hit would be playing a different one. Kept small, it
-## reads as the occasional lucky escape, which is what the word promises.
+## Evasion is not a dice roll: it lengthens the invulnerable part of a dodge roll, by up to
+## `EVASION_CAP * Dodge.EVASION_IFRAME_SECONDS`. This returns that share (0 to the cap). A build
+## cannot stack its way to never being hit, only to a more forgiving roll.
 const EVASION_PER_POINT := 0.004
 const EVASION_CAP := 0.25
 

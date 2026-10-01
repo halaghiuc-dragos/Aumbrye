@@ -179,8 +179,7 @@ func _add_road(points: PackedVector2Array, rank: int) -> void:
 
 func _build_streets() -> void:
 	# Ring roads, innermost first. The innermost one is held on to: the spokes start on
-	# it. They used to start at CLEARANCE + 4, four metres off the plateau cliff, which
-	# reads as a stone road beginning at nothing.
+	# it, so a stone road never begins at nothing off the plateau cliff.
 	var inner_ring: Dictionary = {}
 	for i in RING_RADII.size():
 		var wobble := 0.05 if i < 2 else 0.085
@@ -189,8 +188,7 @@ func _build_streets() -> void:
 			inner_ring = ring
 		_add_road(_ring_polyline(ring), 1 if i < 3 else 2)
 
-	# The perimeter lane. The spokes used to run past the last ring and stop, which left
-	# seven stone roads ending abruptly in open country; now they all meet this.
+	# The perimeter lane. Every spoke meets it, so none of them ends abruptly in open country.
 	var outer_ring := _ring_params(RING_RADII[RING_RADII.size() - 1] + OUTER_CIRCUIT_GAP, 0.075)
 	_add_road(_ring_polyline(outer_ring), 2)
 

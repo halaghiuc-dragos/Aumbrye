@@ -4,7 +4,6 @@ extends Control
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const ForgeServiceScript := preload("res://scripts/items/forge_service.gd")
-const EquipmentScript := preload("res://scripts/items/equipment.gd")
 const ItemListPresenterScript := preload("res://scripts/ui/item_list_presenter.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 
@@ -14,27 +13,12 @@ signal closed
 @onready var _item_list: ItemList = $Panel/Margin/VBox/ItemList
 @onready var _detail_label: Label = $Panel/Margin/VBox/DetailLabel
 @onready var _upgrade_button: Button = $Panel/Margin/VBox/Buttons/UpgradeButton
-@onready var _repair_button: Button = $Panel/Margin/VBox/Buttons/RepairButton
 @onready var _close_button: Button = $Panel/Margin/VBox/Buttons/CloseButton
 
 var _item_indices: Array = []
-var _forge_row: HBoxContainer
-var _forge_row_path: HBoxContainer
-var _forge_row_convert: HBoxContainer
+## Results (an error, "Salvaged for ...") live here, so choosing a row never wipes them.
+var _status_label: Label
 var _salvage_button: Button
-var _reroll_button: Button
-var _transmute_button: Button
-var _infuse_button: Button
-var _infuse_element := ""
-
-var _path_picker: OptionButton
-var _path_button: Button
-var _mark_source_button: Button
-var _transfer_button: Button
-var _conversion_picker: OptionButton
-var _convert_button: Button
-var _conversion_recipes: Array[Dictionary] = []
-var _rule_source_index := -1
 var _unlock_button: Button
 
 
@@ -45,15 +29,8 @@ func _ready() -> void:
 	GameUISkinScript.apply_modal_menu(self, "Panel", "Backdrop")
 	ItemListPresenterScript.configure(_item_list)
 	_upgrade_button.text = tr("SMITH_UPGRADE")
-	_repair_button.text = tr("SMITH_REPAIR")
 	_close_button.text = tr("SMITH_CLOSE")
 	_upgrade_button.pressed.connect(_on_upgrade_pressed)
-	_repair_button.pressed.connect(_on_repair_pressed)
-	var respec_button := GameUISkinScript.make_button(
-		tr("SMITH_RESPEC") % BlacksmithService.RESPEC_COST
-	)
-	respec_button.pressed.connect(_on_respec_pressed)
-	$Panel/Margin/VBox/Buttons.add_child(respec_button)
 	_close_button.pressed.connect(close)
 	_item_list.item_selected.connect(_on_item_selected)
 	_unlock_button = GameUISkinScript.make_button(tr("SMITH_UNLOCK_WEAPONS"))
@@ -62,196 +39,28 @@ func _ready() -> void:
 	$Panel/Margin/VBox/Buttons.move_child(_unlock_button, 0)
 	$Panel/Margin/VBox/Buttons.move_child(_close_button, -1)
 	_refresh_unlock_button()
-	_build_forge_row()
+	_status_label = Label.new()
+	_status_label.name = "StatusLabel"
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameUISkinScript.style_hint_label(_status_label)
+	_detail_label.get_parent().add_child(_status_label)
+	_detail_label.get_parent().move_child(_status_label, _detail_label.get_index() + 1)
+	_build_salvage_button()
 	CharacterService.gold_changed.connect(_on_gold_changed)
 	InventoryService.inventory_changed.connect(_refresh)
 
 
-## One `_forge_row` used to hold every smithing control the game has grown since launch --
-## salvage, reroll, transmute, infusion, upgrade paths, rule transfer, conversion -- all in a
-## single unwrapped HBoxContainer inside an 800px-wide fixed panel. Nothing here overflowed when
-## there were three buttons; past a certain count of controls, an HBoxContainer just keeps laying
-## children out past its own right edge rather than wrapping, so the row silently grew wider than
-## the panel (and the screen) as each feature bolted its own controls onto the end of it. Splitting
-## it into one row per feature group is the fix, not shrinking the buttons -- there was never
-## going to be a single row all of this fit into.
-func _build_forge_row() -> void:
-	var vbox := $Panel/Margin/VBox as VBoxContainer
-	var heading := Label.new()
-	GameUISkinScript.style_section_title(heading, tr("SMITH_FORGE_SECTION"))
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	vbox.add_child(heading)
-
-	_forge_row = _new_forge_row(vbox, "ForgeButtons")
-
-	var elements := ForgeServiceScript.infusions()
-	_infuse_element = str(elements[0]) if not elements.is_empty() else ""
-
+func _build_salvage_button() -> void:
 	_salvage_button = GameUISkinScript.make_button(tr("SMITH_SALVAGE"))
 	_salvage_button.pressed.connect(_on_salvage_pressed)
-	_forge_row.add_child(_salvage_button)
-
-	_reroll_button = GameUISkinScript.make_button(tr("SMITH_REROLL"))
-	_reroll_button.pressed.connect(_on_reroll_pressed)
-	_forge_row.add_child(_reroll_button)
-
-	_transmute_button = GameUISkinScript.make_button(tr("SMITH_TRANSMUTE"))
-	_transmute_button.pressed.connect(_on_transmute_pressed)
-	_forge_row.add_child(_transmute_button)
-
-	if _infuse_element != "":
-		var infuse_label := Label.new()
-		infuse_label.text = tr("SMITH_INFUSION_ELEMENT")
-		GameUISkinScript.style_hint_label(infuse_label)
-		infuse_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_forge_row.add_child(infuse_label)
-
-		var infuse_picker := OptionButton.new()
-		infuse_picker.name = "InfusionPicker"
-		for element in elements:
-			infuse_picker.add_item(str(element).capitalize())
-		infuse_picker.item_selected.connect(
-			func(index: int) -> void:
-				_infuse_element = str(elements[index])
-				_refresh_forge_buttons()
-		)
-		_forge_row.add_child(infuse_picker)
-
-		_infuse_button = GameUISkinScript.make_button(tr("SMITH_INFUSE"))
-		_infuse_button.pressed.connect(_on_infuse_pressed)
-		_forge_row.add_child(_infuse_button)
-
-	_build_upgrade_path_controls()
-	_build_transfer_controls()
-	_build_conversion_controls()
-
-	for row in [_forge_row, _forge_row_path, _forge_row_convert]:
-		if row == null:
-			continue
-		for child in row.get_children():
-			var control := child as Control
-			if control:
-				control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			if child is BaseButton:
-				GameUISkinScript.wire_button_sfx(child as BaseButton)
+	GameUISkinScript.wire_button_sfx(_salvage_button)
+	$Panel/Margin/VBox/Buttons.add_child(_salvage_button)
+	$Panel/Margin/VBox/Buttons.move_child(_close_button, -1)
 	for child in ($Panel/Margin/VBox/Buttons as HBoxContainer).get_children():
 		var button := child as Control
 		if button:
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-
-## A fresh row appended under the forge heading. Each feature group (salvage/reroll/infuse,
-## upgrade paths + rule transfer, conversion) gets its own so a panel-width's worth of controls is
-## the most any single row ever has to fit, instead of every feature added since launch competing
-## for space on one line.
-func _new_forge_row(vbox: VBoxContainer, row_name: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.name = row_name
-	row.add_theme_constant_override("separation", 8)
-	vbox.add_child(row)
-	return row
-
-
-func _build_upgrade_path_controls() -> void:
-	var paths := ForgeServiceScript.upgrade_paths()
-	if paths.is_empty():
-		return
-	_forge_row_path = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgePathButtons")
-	var label := Label.new()
-	label.text = tr("SMITH_UPGRADE_PATH")
-	GameUISkinScript.style_hint_label(label)
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_forge_row_path.add_child(label)
-
-	_path_picker = OptionButton.new()
-	_path_picker.name = "UpgradePathPicker"
-	for path in paths:
-		_path_picker.add_item(EquipmentScript.upgrade_path_label(path))
-	_path_picker.item_selected.connect(_on_upgrade_path_selected)
-	_forge_row_path.add_child(_path_picker)
-
-	_path_button = GameUISkinScript.make_button(tr("SMITH_SET_PATH"))
-	_path_button.pressed.connect(_on_set_path_pressed)
-	_forge_row_path.add_child(_path_button)
-
-
-func _build_transfer_controls() -> void:
-	if _forge_row_path == null:
-		_forge_row_path = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgePathButtons")
-	_mark_source_button = GameUISkinScript.make_button(tr("SMITH_MARK_RULE_SOURCE"))
-	_mark_source_button.pressed.connect(_on_mark_source_pressed)
-	_forge_row_path.add_child(_mark_source_button)
-
-	_transfer_button = GameUISkinScript.make_button(tr("SMITH_TRANSFER_RULE"))
-	_transfer_button.pressed.connect(_on_transfer_pressed)
-	_forge_row_path.add_child(_transfer_button)
-
-
-func _build_conversion_controls() -> void:
-	var recipes := ForgeServiceScript.conversion_recipes()
-	if recipes.is_empty():
-		return
-	_forge_row_convert = _new_forge_row($Panel/Margin/VBox as VBoxContainer, "ForgeConvertButtons")
-	_conversion_recipes = recipes
-	_conversion_picker = OptionButton.new()
-	_conversion_picker.name = "ConversionPicker"
-	for recipe in recipes:
-		_conversion_picker.add_item(str(recipe.get("name", recipe.get("id", "?"))))
-	_forge_row_convert.add_child(_conversion_picker)
-
-	_convert_button = GameUISkinScript.make_button(tr("SMITH_CONVERT"))
-	_convert_button.pressed.connect(_on_convert_pressed)
-	_forge_row_convert.add_child(_convert_button)
-
-
-func _on_upgrade_path_selected(_index: int) -> void:
-	_refresh_forge_buttons()
-
-
-func _selected_upgrade_path() -> String:
-	var paths := ForgeServiceScript.upgrade_paths()
-	if _path_picker == null or paths.is_empty():
-		return ""
-	return str(paths[clampi(_path_picker.selected, 0, paths.size() - 1)])
-
-
-func _on_set_path_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if inv_index == null:
-		return
-	_report_forge(
-		ForgeServiceScript.set_upgrade_path(inv_index, _selected_upgrade_path()),
-		tr("SMITH_SET_PATH")
-	)
-
-
-func _on_mark_source_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if not _is_grid_index(inv_index):
-		return
-	_rule_source_index = int(inv_index)
-	_refresh_forge_buttons()
-
-
-func _on_transfer_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if not _is_grid_index(inv_index) or _rule_source_index < 0:
-		return
-	_report_forge(
-		ForgeServiceScript.transfer_rule(_rule_source_index, int(inv_index)),
-		tr("SMITH_TRANSFER_RULE")
-	)
-	_rule_source_index = -1
-
-
-func _on_convert_pressed() -> void:
-	if _conversion_picker == null or _conversion_recipes.is_empty():
-		return
-	var index := clampi(_conversion_picker.selected, 0, _conversion_recipes.size() - 1)
-	var recipe: Dictionary = _conversion_recipes[index]
-	_report_forge(
-		ForgeServiceScript.convert_materials(str(recipe.get("id", ""))), tr("SMITH_CONVERT")
-	)
 
 
 func is_open() -> bool:
@@ -259,29 +68,53 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	_refresh()
 	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_refresh()
+	MenuStack.show_modal(self)
 	_item_list.grab_focus()
 
 
 func close() -> void:
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	_status_label.text = ""
+	MenuStack.hide_modal(self)
 	closed.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close()
+func _on_cancel_requested() -> void:
+	close()
+
+
+func _selection_key() -> Variant:
+	var key: Variant = _selected_inv_index()
+	if key is int and int(key) >= 0 and int(key) < InventoryService.inventory.slots.size():
+		return str(InventoryService.inventory.slots[int(key)].get("instanceId", ""))
+	return key
+
+
+func _row_for_key(key: Variant) -> int:
+	if key == null:
+		return -1
+	for row in _item_indices.size():
+		var entry: Variant = _item_indices[row]
+		if entry is int:
+			var slots := InventoryService.inventory.slots
+			if (
+				key is String
+				and int(entry) < slots.size()
+				and str((slots[int(entry)] as Dictionary).get("instanceId", "")) == key
+			):
+				return row
+		elif entry == key:
+			return row
+	return -1
 
 
 func _refresh() -> void:
+	if not visible:
+		return
+	var kept_key: Variant = _selection_key()
+	var kept_rows := _item_list.get_selected_items()
+	var kept_row: int = kept_rows[0] if not kept_rows.is_empty() else 0
 	_gold_label.text = tr("SMITH_COINS") % CharacterService.gold
 	_item_list.clear()
 	_item_indices.clear()
@@ -294,18 +127,14 @@ func _refresh() -> void:
 			continue
 		var level := BlacksmithService.get_slot_upgrade_level(slot)
 		var max_level := BlacksmithService.get_max_upgrade_level_for_slot(slot)
-		var dur := BlacksmithService.get_slot_durability(slot)
-		var max_dur := BlacksmithService.get_max_durability(item_id)
 		var rarity := inv.get_slot_rarity(slot)
 		var index := ItemListPresenterScript.add_row(
 			_item_list,
 			item_id,
 			def,
-			tr("SMITH_ITEM_ROW") % [def.get("name", item_id), level, max_level, dur, max_dur],
+			tr("SMITH_ITEM_ROW") % [def.get("name", item_id), level, max_level],
 			rarity
 		)
-		if dur <= 0:
-			_item_list.set_item_custom_fg_color(index, GameUISkinScript.DANGER_COLOR)
 		_item_list.set_item_tooltip(index, ItemListPresenterScript.slot_tooltip(slot))
 		_item_indices.append(i)
 	for slot_name in Equipment.SLOT_ORDER:
@@ -318,30 +147,26 @@ func _refresh() -> void:
 			continue
 		var eq_level := BlacksmithService.get_slot_upgrade_level(eq)
 		var eq_max_level := BlacksmithService.get_max_upgrade_level_for_slot(eq)
-		var eq_dur := BlacksmithService.get_slot_durability(eq)
-		var eq_max_dur := BlacksmithService.get_max_durability(eq_id)
 		var eq_index := ItemListPresenterScript.add_row(
 			_item_list,
 			eq_id,
 			eq_def,
-			tr("SMITH_ITEM_ROW_EQUIPPED") % [
-				eq_def.get("name", eq_id), eq_level, eq_max_level, eq_dur, eq_max_dur
-			],
+			tr("SMITH_ITEM_ROW_EQUIPPED") % [eq_def.get("name", eq_id), eq_level, eq_max_level],
 			inv.get_slot_rarity(eq)
 		)
-		if eq_dur <= 0:
-			_item_list.set_item_custom_fg_color(eq_index, GameUISkinScript.DANGER_COLOR)
 		_item_list.set_item_tooltip(eq_index, ItemListPresenterScript.slot_tooltip(eq))
 		_item_indices.append(slot_name)
 	if _item_indices.is_empty():
 		ItemListPresenterScript.add_plain_row(_item_list, tr("SMITH_NO_ITEMS"), false)
 		_detail_label.text = ""
 		_upgrade_button.disabled = true
-		_repair_button.disabled = true
 		_refresh_forge_buttons()
-	elif _item_list.get_selected_items().is_empty():
-		_item_list.select(0)
-		_on_item_selected(0)
+	else:
+		var row := _row_for_key(kept_key)
+		if row < 0:
+			row = clampi(kept_row, 0, _item_indices.size() - 1)
+		_item_list.select(row)
+		_on_item_selected(row)
 	_refresh_unlock_button()
 
 
@@ -363,7 +188,6 @@ func _on_item_selected(index: int) -> void:
 		tr("SMITH_UPGRADE_DETAIL") % [rarity, upgrade_cost, level, max_level]
 	)
 	_upgrade_button.disabled = not BlacksmithService.can_upgrade(inv_index)
-	_repair_button.disabled = not BlacksmithService.can_repair(inv_index)
 	_refresh_forge_buttons()
 
 
@@ -373,41 +197,7 @@ func _on_upgrade_pressed() -> void:
 		return
 	var result := BlacksmithService.upgrade_item(_item_indices[selected[0]])
 	if not result.get("ok", false):
-		_detail_label.text = str(result.get("error", tr("SMITH_UPGRADE_FAILED")))
-	_refresh()
-
-
-func _on_repair_pressed() -> void:
-	var selected := _item_list.get_selected_items()
-	if selected.is_empty():
-		return
-	var result := BlacksmithService.repair_item(_item_indices[selected[0]])
-	if not result.get("ok", false):
-		_detail_label.text = str(result.get("error", tr("SMITH_REPAIR_FAILED")))
-	_refresh()
-
-
-## Every gold-and-permanent action elsewhere in the game asks first -- character creation confirms
-## before starting the run, the merchant makes selling a deliberate two-step pick-then-sell. Respec
-## was the one action in the game that spent real gold and threw away an entire build on a single
-## misclick, with nothing else in its path to catch it.
-func _on_respec_pressed() -> void:
-	MenuShellScript.show_confirmation(
-		self,
-		tr("SMITH_RESPEC_CONFIRM_TITLE"),
-		tr("SMITH_RESPEC_CONFIRM_MESSAGE") % BlacksmithService.RESPEC_COST,
-		_do_respec,
-		Callable(),
-		tr("SMITH_RESPEC_CONFIRM_BUTTON"),
-		tr("UI_CANCEL")
-	)
-
-
-func _do_respec() -> void:
-	var result := BlacksmithService.respec_talents()
-	_detail_label.text = (
-		tr("SMITH_RESPEC_DONE") if result.get("ok", false) else str(result.get("error", tr("SMITH_RESPEC_FAILED")))
-	)
+		_status_label.text = str(result.get("error", tr("SMITH_UPGRADE_FAILED")))
 	_refresh()
 
 
@@ -418,9 +208,8 @@ func _next_unlock() -> Dictionary:
 	return {}
 
 
-## The button used to just say "Unlock Weapons" and silently pick whatever was next in line --
-## the player found out what they bought and what it cost only after the gold was already spent.
-## Naming the item and its price up front is what turns that into a choice instead of a surprise.
+## The button names the item and its price up front, so unlocking a weapon is a choice rather than
+## a surprise discovered after the gold is already spent.
 func _refresh_unlock_button() -> void:
 	if _unlock_button == null:
 		return
@@ -439,14 +228,14 @@ func _refresh_unlock_button() -> void:
 func _on_unlock_pressed() -> void:
 	var next := _next_unlock()
 	if next.is_empty():
-		_detail_label.text = tr("SMITH_NO_UNLOCKS")
+		_status_label.text = tr("SMITH_NO_UNLOCKS")
 		return
 	var item_id := str(next.get("itemId", ""))
 	var result := BlacksmithService.unlock_item(item_id)
 	if result.get("ok", false):
-		_detail_label.text = tr("SMITH_UNLOCKED") % ItemCatalog.get_definition(item_id).get("name", item_id)
+		_status_label.text = tr("SMITH_UNLOCKED") % ItemCatalog.get_definition(item_id).get("name", item_id)
 	else:
-		_detail_label.text = str(result.get("error", tr("SMITH_UNLOCK_FAILED")))
+		_status_label.text = str(result.get("error", tr("SMITH_UNLOCK_FAILED")))
 	_refresh()
 
 
@@ -460,49 +249,14 @@ func _selected_inv_index() -> Variant:
 	return _item_indices[row]
 
 
-static func _is_grid_index(key: Variant) -> bool:
-	return key is int and int(key) >= 0
-
-
 func _refresh_forge_buttons() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	var has_item: bool = inv_index != null
 	if _salvage_button:
-		_salvage_button.disabled = not has_item
-	if _reroll_button:
-		_reroll_button.disabled = not has_item or not ForgeServiceScript.can_reroll(inv_index)
-	if _transmute_button:
-		_transmute_button.disabled = not has_item or not ForgeServiceScript.can_transmute(inv_index)
-	if _infuse_button:
-		_infuse_button.disabled = (
-			not has_item
-			or _infuse_element == ""
-			or not ForgeServiceScript.can_infuse(inv_index, _infuse_element)
-		)
-	if _path_button:
-		_path_button.disabled = (
-			not has_item
-			or not ForgeServiceScript.can_set_upgrade_path(inv_index, _selected_upgrade_path())
-		)
-	if _mark_source_button:
-		_mark_source_button.disabled = not has_item or inv_index is String
-	if _transfer_button:
-		_transfer_button.disabled = (
-			not has_item
-			or inv_index is String
-			or _rule_source_index < 0
-			or not ForgeServiceScript.can_transfer_rule(_rule_source_index, int(inv_index))
-		)
-	if _convert_button and not _conversion_recipes.is_empty():
-		var index := clampi(_conversion_picker.selected, 0, _conversion_recipes.size() - 1)
-		_convert_button.disabled = not ForgeServiceScript.can_afford_recipe(
-			_conversion_recipes[index]
-		)
+		_salvage_button.disabled = _selected_inv_index() == null
 
 
 func _report_forge(result: Dictionary, failure_text: String) -> void:
 	if not result.get("ok", false):
-		_detail_label.text = str(result.get("error", failure_text))
+		_status_label.text = str(result.get("error", failure_text))
 	_refresh()
 
 
@@ -518,66 +272,30 @@ func _on_salvage_pressed() -> void:
 		return
 	var preview := ForgeServiceScript.salvage_preview(slot)
 	var item_name := str(ItemCatalog.get_definition(str(slot.get("itemId", ""))).get("name", slot.get("itemId", "")))
-	var parts: PackedStringArray = []
-	for material_id in preview:
-		parts.append("%s x%d" % [str(material_id), int(preview[material_id])])
-	var yield_text := ", ".join(parts) if parts.size() > 0 else tr("SMITH_SALVAGED")
-	MenuShellScript.show_confirmation(
-		self,
-		tr("SMITH_SALVAGE_CONFIRM_TITLE"),
-		tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
-		_do_salvage.bind(inv_index, yield_text),
-		Callable(),
-		tr("SMITH_SALVAGE"),
-		tr("UI_CANCEL")
+	var yield_text := ItemCatalog.display_amounts(preview)
+	if yield_text == "":
+		yield_text = tr("SMITH_SALVAGED")
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("SMITH_SALVAGE_CONFIRM_TITLE"),
+			tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
+			tr("SMITH_SALVAGE"),
+			tr("UI_CANCEL"),
+			_do_salvage.bind(inv_index, yield_text),
+			Callable(),
+			true
+		)
 	)
 
 
 func _do_salvage(inv_index: Variant, yield_text: String) -> void:
 	var result := ForgeServiceScript.salvage(inv_index)
 	if result.get("ok", false):
-		_detail_label.text = tr("SMITH_SALVAGED_FOR") % yield_text
+		_status_label.text = tr("SMITH_SALVAGED_FOR") % yield_text
 		_refresh()
 		return
 	_report_forge(result, tr("SMITH_SALVAGE_FAILED"))
 
-
-func _on_reroll_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if inv_index == null:
-		return
-	var result := ForgeServiceScript.reroll_affixes(inv_index)
-	if result.get("ok", false):
-		_detail_label.text = tr("SMITH_REROLLED")
-		_refresh()
-		return
-	_report_forge(result, tr("SMITH_REROLL_FAILED"))
-
-
-func _on_transmute_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if inv_index == null:
-		return
-	var result := ForgeServiceScript.transmute_rarity(inv_index)
-	if result.get("ok", false):
-		_detail_label.text = tr("SMITH_TRANSMUTED") % RarityRegistryScript.display_name(
-			str(result.get("rarity", ""))
-		)
-		_refresh()
-		return
-	_report_forge(result, tr("SMITH_TRANSMUTE_FAILED"))
-
-
-func _on_infuse_pressed() -> void:
-	var inv_index: Variant = _selected_inv_index()
-	if inv_index == null or _infuse_element == "":
-		return
-	var result := ForgeServiceScript.infuse(inv_index, _infuse_element)
-	if result.get("ok", false):
-		_detail_label.text = tr("SMITH_INFUSED") % _infuse_element.capitalize()
-		_refresh()
-		return
-	_report_forge(result, tr("SMITH_INFUSE_FAILED"))
 
 func _on_gold_changed(_amount: int) -> void:
 	_gold_label.text = tr("SMITH_COINS") % CharacterService.gold

@@ -2,7 +2,7 @@ extends RefCounted
 class_name SaveMigrator
 
 
-const CURRENT_VERSION := 13
+const CURRENT_VERSION := 15
 const NIL_ACCOUNT_ID := "00000000-0000-4000-8000-000000000000"
 const TALENT_TREE_PATH := "content/talents/tree.json"
 
@@ -25,17 +25,10 @@ const ACCOUNT_SCOPE_FLAG_IDS: Array[String] = [
 const ACCOUNT_SCOPE_FLAG_PREFIXES: Array[String] = [
 	"theme_",
 	"lore_",
+	# Achievement counters ("apply 500 statuses") belong to the account, like the unlocks they lead to.
+	"ach_ctr_",
 ]
 
-const WORLD_FLAG_NAMESPACES: Array[String] = [
-	"lock",
-	"lever",
-	"door",
-	"room",
-	"secret",
-	"chest",
-	"trap",
-]
 
 const STEPS: Array[Dictionary] = [
 	{"from": 1, "to": 2, "fn": "_migrate_v1_to_v2", "summary": "activeRun floor fields"},
@@ -105,6 +98,74 @@ const STEPS: Array[Dictionary] = [
 		"fn": "_migrate_v12_to_v13",
 		"summary": "activeRun retains versioned floor definitions for exact revisit restoration",
 	},
+	{
+		"from": 13,
+		"to": 14,
+		"fn": "_migrate_v13_to_v14",
+		"summary": "elemental-damage affixes removed from gear; merchant buyback flag dropped; lantern-oil bounty renamed; input replay dropped",
+	},
+	{
+		"from": 14,
+		"to": 15,
+		"fn": "_migrate_v14_to_v15",
+		"summary": "gloves, boots and amulets removed: saved copies leave the bag, the stash and the equipment slots",
+	},
+]
+
+## Gear that no longer exists: gloves, boots and amulets. A save that holds one loses it.
+const REMOVED_ITEM_IDS: Array[String] = [
+	"castle_amulet",
+	"castle_banner",
+	"castle_boots",
+	"castle_gauntlets",
+	"cathedral_gloves",
+	"cathedral_holy_charm",
+	"cathedral_pilgrim_boots",
+	"crystal_prism_amulet",
+	"ember_gauntlets",
+	"frost_amulet",
+	"frost_gauntlets",
+	"frost_raider_boots",
+	"graysteel_gauntlets",
+	"graysteel_greaves",
+	"graysteel_pendant",
+	"hoarfrost_gauntlets",
+	"hoarfrost_greaves",
+	"hoarfrost_pendant",
+	"iron_boots",
+	"iron_gauntlets",
+	"jade_amulet",
+	"mirebrass_greaves",
+	"mirebrass_pendant",
+	"pitiron_gauntlets",
+	"pitiron_greaves",
+	"reliquary_gauntlets",
+	"reliquary_pendant",
+	"ruby_amulet",
+	"spellglass_gauntlets",
+	"spellglass_greaves",
+	"spellglass_pendant",
+	"steel_boots",
+	"steel_gauntlets",
+	"swamp_bog_boots",
+	"swamp_mire_charm",
+	"tide_boots",
+	"unique_censer_of_small_mercies",
+	"unique_debtors_pendant",
+	"unique_foundry_gauntlets",
+	"unique_lector_gauntlets",
+	"unique_ledger_of_debts",
+	"unique_refraction_greaves",
+	"unique_rimeglass_pendant",
+	"unique_sallyport_greaves",
+	"unique_stiltwalkers_greaves",
+	"unique_the_quiet_hour",
+	"void_amulet",
+]
+
+## Affixes that were removed: a saved item that rolled one keeps the item and loses the affix.
+const REMOVED_AFFIX_IDS: Array[String] = [
+	"arcane", "blazing", "rimed", "septic", "of_flames", "of_frost", "of_poison"
 ]
 
 static func classify(data: Dictionary) -> int:
@@ -203,6 +264,10 @@ static func _run_step(step: Dictionary, data: Dictionary) -> Dictionary:
 			return _migrate_v11_to_v12(data)
 		"_migrate_v12_to_v13":
 			return _migrate_v12_to_v13(data)
+		"_migrate_v13_to_v14":
+			return _migrate_v13_to_v14(data)
+		"_migrate_v14_to_v15":
+			return _migrate_v14_to_v15(data)
 		_:
 			return data
 
@@ -382,13 +447,8 @@ static func _normalize_slot_entry(slot: Dictionary) -> Dictionary:
 		out["rollSeed"] = int(out.get("rollSeed", 0))
 	if out.has("upgradeLevel"):
 		out["upgradeLevel"] = int(out.get("upgradeLevel", 0))
-	if out.has("durability"):
-		out["durability"] = int(out.get("durability", 0))
-	else:
-		var def := ItemCatalog.get_definition(item_id)
-		var item_type: String = def.get("itemType", "")
-		if item_type in ["weapon", "armor", "accessory"]:
-			out["durability"] = int(def.get("maxDurability", 100))
+	out.erase("durability")
+	out.erase("quality")
 	if out.has("rarity"):
 		out["rarity"] = RarityRegistry.normalize(str(out.get("rarity", "common")))
 	var affixes: Variant = out.get("affixes", [])
@@ -757,6 +817,71 @@ static func _migrate_v12_to_v13(data: Dictionary) -> Dictionary:
 		run["floorDefinitions"] = definitions.duplicate(true) if definitions is Dictionary else {}
 		copy["activeRun"] = run
 	return copy
+
+
+static func _migrate_v13_to_v14(data: Dictionary) -> Dictionary:
+	var copy: Dictionary = data.duplicate(true)
+	copy["schemaVersion"] = 14
+	_strip_removed_affixes(copy)
+	var flags: Variant = copy.get("flags")
+	if flags is Dictionary:
+		(flags as Dictionary).erase("merchant_buyback")
+	var meta: Variant = copy.get("meta")
+	if meta is Dictionary:
+		(meta as Dictionary).erase("run_replay")
+	var quests: Variant = copy.get("quests")
+	if quests is Dictionary and (quests as Dictionary).has("bounty_lantern_oil"):
+		(quests as Dictionary)["bounty_lamp_iron"] = (quests as Dictionary)["bounty_lantern_oil"]
+		(quests as Dictionary).erase("bounty_lantern_oil")
+	return copy
+
+
+static func _migrate_v14_to_v15(data: Dictionary) -> Dictionary:
+	var copy := data.duplicate(true)
+	_strip_removed_items(copy)
+	return copy
+
+
+## Drops every slot, equipped piece and instance record that names a removed item.
+static func _strip_removed_items(node: Variant) -> void:
+	if node is Dictionary:
+		var record: Dictionary = node
+		for key in record.keys():
+			var value: Variant = record[key]
+			if value is Dictionary and str((value as Dictionary).get("itemId", "")) in REMOVED_ITEM_IDS:
+				if key in Equipment.SLOT_ORDER or key in ["gloves", "boots", "amulet"]:
+					record[key] = {}
+				else:
+					record.erase(key)
+			elif value is Array:
+				record[key] = (value as Array).filter(
+					func(entry: Variant) -> bool:
+						return not (entry is Dictionary and str((entry as Dictionary).get("itemId", "")) in REMOVED_ITEM_IDS)
+				)
+		if record.has("equipped") and record["equipped"] is Dictionary:
+			for slot_name in ["gloves", "boots", "amulet"]:
+				(record["equipped"] as Dictionary).erase(slot_name)
+		for key in record:
+			_strip_removed_items(record[key])
+	elif node is Array:
+		for entry in node:
+			_strip_removed_items(entry)
+
+
+static func _strip_removed_affixes(node: Variant) -> void:
+	if node is Dictionary:
+		var record: Dictionary = node
+		var affixes: Variant = record.get("affixes")
+		if affixes is Array:
+			record["affixes"] = (affixes as Array).filter(
+				func(entry: Variant) -> bool:
+					return not (entry is Dictionary and str((entry as Dictionary).get("affixId", "")) in REMOVED_AFFIX_IDS)
+			)
+		for key in record:
+			_strip_removed_affixes(record[key])
+	elif node is Array:
+		for entry in node:
+			_strip_removed_affixes(entry)
 
 
 static func is_account_scope_flag(flag_id: String) -> bool:

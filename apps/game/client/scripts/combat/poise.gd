@@ -8,7 +8,6 @@ signal poise_damaged(amount: float, remaining: float)
 const MAX_POISE := 50.0
 const REGEN_RATE := 20.0
 const REGEN_DELAY := 2.0
-const REGEN_REFILL_TIME := 1.0
 
 var max_poise: float = MAX_POISE
 var current: float = MAX_POISE
@@ -16,7 +15,7 @@ var _broken := false
 var _regen_timer := 0.0
 var _break_timer := 0.0
 var break_duration := 1.2
-## CB-04: true for exactly one execution per break -- without it a fast weapon (a dagger's 4-hit
+## True for exactly one execution per break -- without it a fast weapon (a dagger's 4-hit
 ## chain) could execute the same stagger repeatedly before it ends.
 var execution_available := false
 

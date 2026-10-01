@@ -1,6 +1,8 @@
 extends Node
 
 const PlayerRunState := preload("res://scripts/player/player_run_state.gd")
+const REGEN_TOLERANCE := 3.0
+
 var _failures := 0
 var _capture_dir := ""
 
@@ -88,13 +90,11 @@ func _run() -> void:
 	var player := castle.get("_player") as Node
 	var health := player.get_node("Health") as Health
 	var heal := player.get_node("PlayerHeal") as PlayerHeal
-	var arrows := player.get_node("PlayerArrows") as PlayerArrows
 	health.current = 43.0
 	heal.current_charges = 1
-	arrows.current_arrows = 3
 	castle.call("_persist_snapshot")
 	var state: Dictionary = LocalSave.get_active_run().get("snapshot", {}).get("player", {})
-	_check(int(state.get("flaskCharges", -1)) == 1 and int(state.get("arrows", -1)) == 3, "Run save contains depleted supplies")
+	_check(int(state.get("flaskCharges", -1)) == 1, "Run save contains depleted supplies")
 	var old_id := castle.get_instance_id()
 	RunFlow.continue_castle_run()
 	castle = await _wait_for_castle(old_id)
@@ -103,9 +103,10 @@ func _run() -> void:
 	player = castle.get("_player")
 	heal = player.get_node("PlayerHeal")
 	health = player.get_node("Health")
-	arrows = player.get_node("PlayerArrows")
-	_check(heal.current_charges == 1 and arrows.current_arrows == 3, "Continue does not refill supplies")
-	_check(is_equal_approx(health.current, 43.0), "Continue preserves health")
+	_check(heal.current_charges == 1, "Continue does not refill supplies")
+	# Passive regeneration ticks between the save and the check, so health may sit a little above the
+	# saved value, never at the full bar a refill would give.
+	_check(health.current >= 43.0 and health.current <= 43.0 + REGEN_TOLERANCE, "Continue preserves health")
 	_check(RunFlow._active_alternate_mode == "ember_expedition", "Continue preserves the selected mode")
 	RunFlow.rest_at_bonfire(player)
 	_check(heal.current_charges == heal.max_charges, "Bonfire refills flasks")
@@ -122,7 +123,7 @@ func _run() -> void:
 	heal = player.get_node("PlayerHeal")
 	health = player.get_node("Health")
 	_check(RunFlow.current_floor == 2, "Stairs reach floor two")
-	_check(heal.current_charges == 2 and is_equal_approx(health.current, 71.0), "Stairs preserve health and flasks")
+	_check(heal.current_charges == 2 and health.current >= 71.0 and health.current <= 71.0 + REGEN_TOLERANCE, "Stairs preserve health and flasks")
 	old_id = castle.get_instance_id()
 	RunFlow.on_player_died()
 	castle = await _wait_for_castle(old_id)

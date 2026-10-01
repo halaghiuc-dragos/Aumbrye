@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/enemy_attack_audit.gd" id="1_audit"]
+
+[node name="EnemyAttackAudit" type="Node"]
+script = ExtResource("1_audit")

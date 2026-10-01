@@ -1,7 +1,6 @@
 extends Control
 
-## UX-01: the achievements screen used to be a flat ItemList of "[Locked] Name — description"
-## rows. This renders it as a grid of cells grouped by `catalog.json`'s `category` field, with a
+## The achievements screen: a grid of cells grouped by `catalog.json`'s `category` field, with a
 ## locked/unlocked visual state and a progress bar per cell (binary full/empty -- the catalog and
 ## `AchievementService` only track unlocked/not, no fractional counters, so a fully-filled bar is
 ## the honest representation of "done" rather than fabricating a fake percentage).

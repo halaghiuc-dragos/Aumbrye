@@ -56,15 +56,6 @@ func start(
 	return StartResult.OPENED if _active else StartResult.COMPLETED
 
 
-func select_choice(index: int) -> void:
-	if not _active:
-		return
-	var choices: Array = _presented_choices.values()
-	if index < 0 or index >= choices.size():
-		return
-	select_choice_id(str((choices[index] as Dictionary).get("_choiceId", "")))
-
-
 func select_choice_id(choice_id: String) -> void:
 	if not _active or not _presented_choices.has(choice_id):
 		return
@@ -253,7 +244,7 @@ func _execute_action(action: Dictionary) -> void:
 			var amount: int = int(action.get("amount", 1))
 			CharacterService.set_flag(counter_id, DialogueConditions.flag_number(counter_id) + amount)
 		"add_gold":
-			CharacterService.add_gold(int(action.get("amount", 0)))
+			CharacterService.add_gold(int(action.get("amount", 0)), false)
 		"start_quest":
 			QuestService.accept_quest(str(action.get("questId", "")))
 		"complete_quest":

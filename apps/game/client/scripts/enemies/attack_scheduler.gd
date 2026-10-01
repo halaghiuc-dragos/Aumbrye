@@ -5,6 +5,10 @@ extends RefCounted
 ## Owns only authored-attack selection.  Enemy state machines retain responsibility for tokens,
 ## windups, animation and recovery; this contract makes a deterministic pattern or weighted choice
 ## independently reusable and prevents selection policy from being buried in a 2,000-line actor.
+const REPEAT_WEIGHT_MULT := 0.25
+const TAG_BOOST_MULT := 3.0
+
+
 static func choose(
 	attacks: Array,
 	ordered: bool,
@@ -12,13 +16,17 @@ static func choose(
 	distance: float,
 	max_range: float,
 	rng: RandomNumberGenerator,
-	fallback: Dictionary
+	fallback: Dictionary,
+	recent_ids: Array = [],
+	boosted_tags: Array = []
 ) -> Dictionary:
 	if attacks.is_empty():
 		return {"found": true, "attack": fallback, "next_index": ordered_index}
 	if ordered:
 		return _choose_ordered(attacks, ordered_index, distance, max_range)
-	return _choose_weighted(attacks, ordered_index, distance, max_range, rng)
+	return _choose_weighted(
+		attacks, ordered_index, distance, max_range, rng, recent_ids, boosted_tags
+	)
 
 
 static func _choose_ordered(
@@ -43,7 +51,9 @@ static func _choose_weighted(
 	ordered_index: int,
 	distance: float,
 	max_range: float,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator,
+	recent_ids: Array,
+	boosted_tags: Array
 ) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	var weights: Array[float] = []
@@ -55,6 +65,11 @@ static func _choose_weighted(
 		if not _in_range(attack, distance, max_range):
 			continue
 		var weight := maxf(0.01, float(attack.get("weight", 1.0)))
+		if recent_ids.has(str(attack.get("id", ""))):
+			weight *= REPEAT_WEIGHT_MULT
+		for tag in attack.get("tags", []):
+			if boosted_tags.has(tag):
+				weight *= TAG_BOOST_MULT
 		candidates.append(attack)
 		weights.append(weight)
 		total += weight

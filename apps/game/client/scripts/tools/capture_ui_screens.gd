@@ -10,7 +10,6 @@ const SCENES: Array[String] = [
 	"res://scenes/ui/umbral_endless_menu.tscn",
 	"res://scenes/ui/umbral_waves_menu.tscn",
 	"res://scenes/ui/results_screen.tscn",
-	"res://scenes/ui/loading_screen.tscn",
 	"res://scenes/ui/quest_board_ui.tscn",
 	"res://scenes/ui/storage_ui.tscn",
 	"res://scenes/ui/merchant_ui.tscn",

@@ -9,11 +9,12 @@ const ORBIT_RADIUS_BOSS_PAD := 1.8
 const ORBIT_RADIUS_BOSS_MIN := 3.5
 
 const ORBIT_INPUT_DEADZONE := 0.15
+## How hard strafing is pulled back toward the orbit radius, as a fraction of full stick.
+const ORBIT_CORRECTION_STRENGTH := 0.6
 
 const LOCKED_SPEED_APPROACH := 1.0
 const LOCKED_SPEED_ORBIT := 0.78
 const LOCKED_SPEED_RETREAT := 0.62
-const LOCKED_SPRINT_ALLOWED := false
 
 const FACING_TURN_RATE_DEG := 540.0
 const FACING_SNAP_DEG := 1.5
@@ -39,18 +40,6 @@ static func get_orbit_radius(lock_on: Node, target: Node3D = null) -> float:
 	if target and target.has_method("get_lock_orbit_radius"):
 		return float(target.call("get_lock_orbit_radius"))
 	return DEFAULT_ORBIT_RADIUS
-
-
-static func break_lock_on_sprint(lock_on: Node, sprint_requested: bool) -> bool:
-	if (
-		sprint_requested
-		and not LOCKED_SPRINT_ALLOWED
-		and lock_on is LockOn
-		and (lock_on as LockOn).is_locked
-	):
-		(lock_on as LockOn).break_lock()
-		return false
-	return sprint_requested
 
 
 static func get_locked_speed_scale(input_dir: Vector2) -> float:
@@ -92,6 +81,12 @@ static func get_move_direction(
 	var tangent := Vector3.UP.cross(radial).normalized()
 	var radial_forward := -radial
 
+	# A pure tangent step always lands a little further out, so strafing alone spirals away from
+	# the target. While the stick asks for no approach or retreat, pull back toward the orbit radius.
+	if absf(forward) < 0.001:
+		var orbit_radius := get_orbit_radius(lock_on, target)
+		var radius_error := clampf((offset.length() - orbit_radius) / orbit_radius, -1.0, 1.0)
+		forward = radius_error * ORBIT_CORRECTION_STRENGTH
 	var direction := tangent * stick_x + radial_forward * forward
 	if direction.length_squared() < 0.0001:
 		return Vector3.ZERO

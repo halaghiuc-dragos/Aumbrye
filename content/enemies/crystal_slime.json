@@ -31,6 +31,7 @@
   "attacks": [
     {
       "id": "snap",
+      "anim": "attack_light_1",
       "name": "Snap",
       "weight": 3,
       "windup_duration": 0.35,
@@ -42,10 +43,14 @@
       "max_range": 2.09,
       "telegraph_shape": "circle",
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "lunge",
+      "anim": "attack_thrust",
       "name": "Lunge",
       "weight": 2,
       "windup_duration": 0.81,
@@ -61,6 +66,7 @@
     },
     {
       "id": "worry",
+      "anim": "attack_light_1",
       "name": "Worry",
       "weight": 2,
       "windup_duration": 0.43,
@@ -104,10 +110,13 @@
         }
       ],
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "hold_fraction": 0.3,
+      "feint_chance": 0.2
     },
     {
       "id": "shard_bloom",
+      "anim": "attack_slam",
       "name": "Shard Bloom",
       "weight": 0.6,
       "windup_duration": 1.0,
@@ -127,7 +136,11 @@
         "radius": 4.5,
         "minRadiusFraction": 0.8,
         "lifetime": 4.8
-      }
+      },
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ]
 }

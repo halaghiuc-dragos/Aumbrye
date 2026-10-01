@@ -28,6 +28,7 @@
   "attacks": [
     {
       "id": "jab",
+      "anim": "attack_light_1",
       "name": "Short Thrust",
       "weight": 3,
       "windup_duration": 0.44,
@@ -39,10 +40,14 @@
       "max_range": 2.4,
       "telegraph_shape": "circle",
       "attackClass": "blockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "overhead",
+      "anim": "attack_sweep",
       "name": "Overhead Cleave",
       "weight": 2,
       "windup_duration": 1.04,
@@ -53,11 +58,12 @@
       "attack_poise_damage": 43,
       "max_range": 2.52,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "opening_cut",
+      "anim": "attack_light_3",
       "name": "Opening Cut",
       "weight": 2,
       "windup_duration": 0.62,
@@ -85,11 +91,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "sig_recitation",
+      "anim": "attack_heavy",
       "name": "Recitation",
       "weight": 1.1,
       "windup_duration": 1.45,
@@ -119,7 +126,12 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     }
   ]
 }

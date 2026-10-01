@@ -5,7 +5,7 @@ const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
-## HD-01: this UI owns only the lobby/reward/cash-out flows -- combat status (wave, enemies
+## This UI owns only the lobby/reward/cash-out flows -- combat status (wave, enemies
 ## remaining) is HUD territory, shown via combat_hud.gd's region title / objective text.
 var _panel: PanelContainer
 var _label: Label
@@ -112,7 +112,7 @@ func _on_choose_starter(instance_id: String) -> void:
 		refresh_lobby()
 
 
-## HD-01: wave/enemy-count status now lives on the HUD (`show_region_title`/`set_objective_text`
+## Wave/enemy-count status now lives on the HUD (`show_region_title`/`set_objective_text`
 ## in combat_hud.gd); this panel just gets out of the way during combat.
 func show_combat(_wave: int) -> void:
 	_panel.visible = false
@@ -147,7 +147,7 @@ func show_reward_pick() -> void:
 	_confirm_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_body_label(_confirm_hint)
 	_reward_box.add_child(_confirm_hint)
-	_confirm_button = MenuShellScript.make_menu_button("Confirm selection", _on_confirm_rewards)
+	_confirm_button = MenuShellScript.make_menu_button(tr("WAVES_CONFIRM_SELECTION"), _on_confirm_rewards)
 	_reward_box.add_child(_confirm_button)
 	_refresh_confirm_state()
 

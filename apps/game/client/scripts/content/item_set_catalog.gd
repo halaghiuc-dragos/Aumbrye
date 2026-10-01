@@ -1,7 +1,7 @@
 extends RefCounted
 class_name ItemSetCatalog
 
-## IV-02: content/items/sets.json keyed by setId -> {name, bonuses: {"2": [rules], "4": [...], ...}}.
+## Content/items/sets.json keyed by setId -> {name, bonuses: {"2": [rules], "4": [...], ...}}.
 
 const SETS_PATH := "content/items/sets.json"
 

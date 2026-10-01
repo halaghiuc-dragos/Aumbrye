@@ -3,14 +3,11 @@
   "name": "Drowned Procession",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "They walked into the fen in single file, carrying one of these each. Nobody counted them out.",
   "value": 780,
   "lootValue": 390,
-  "maxDurability": 105,
   "unique": true,
   "baseId": "spear",
   "biome": "poison_swamp",
@@ -30,8 +27,7 @@
     }
   ],
   "stats": {
-    "poisonDamage": 18,
-    "physicalDamage": 18
+    "physicalDamage": 36
   },
   "weaponId": "spear"
 }

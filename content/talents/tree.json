@@ -828,12 +828,16 @@
           "requires": [
             "vigil_2"
           ],
-          "effects": [
+          "rules": [
             {
-              "stat": "fireDamage",
-              "valuePerRank": 4
+              "event": "onHit",
+              "effect": "apply_status",
+              "statusId": "burn",
+              "stacks": 1,
+              "chance": 0.15
             }
-          ]
+          ],
+          "description": "Your hits sometimes leave the page burning."
         },
         {
           "id": "vigil_keystone",
@@ -843,12 +847,6 @@
           "costPerRank": 3,
           "requires": [
             "vigil_3"
-          ],
-          "effects": [
-            {
-              "stat": "arcaneDamage",
-              "valuePerRank": 8
-            }
           ],
           "keystone": true,
           "description": "A critical strike returns the study it cost.",
@@ -883,10 +881,6 @@
             "vigil_3"
           ],
           "effects": [
-            {
-              "stat": "fireDamage",
-              "valuePerRank": 12
-            },
             {
               "stat": "manaMax",
               "valuePerRank": -25
@@ -1198,12 +1192,16 @@
           "maxRank": 1,
           "costPerRank": 1,
           "requires": [],
-          "effects": [
+          "rules": [
             {
-              "stat": "poisonDamage",
-              "valuePerRank": 5
+              "event": "onHit",
+              "effect": "apply_status",
+              "statusId": "poison",
+              "stacks": 1,
+              "chance": 0.2
             }
-          ]
+          ],
+          "description": "Your hits sometimes leave rot behind."
         },
         {
           "id": "tide_2",
@@ -1214,12 +1212,17 @@
           "requires": [
             "tide_1"
           ],
-          "effects": [
+          "rules": [
             {
-              "stat": "fireDamage",
-              "valuePerRank": 4
+              "event": "onHit",
+              "effect": "apply_status",
+              "statusId": "burn",
+              "stacks": 1,
+              "ifTargetHasStatus": "poison",
+              "chance": 0.3
             }
-          ]
+          ],
+          "description": "Whatever is already poisoned runs a fever."
         },
         {
           "id": "tide_3",
@@ -1245,12 +1248,6 @@
           "costPerRank": 3,
           "requires": [
             "tide_3"
-          ],
-          "effects": [
-            {
-              "stat": "poisonDamage",
-              "valuePerRank": 8
-            }
           ],
           "keystone": true,
           "description": "What one of them carries, the room carries.",
@@ -1289,10 +1286,6 @@
             "tide_3"
           ],
           "effects": [
-            {
-              "stat": "poisonDamage",
-              "valuePerRank": 14
-            },
             {
               "stat": "manaRegen",
               "valuePerRank": -0.06

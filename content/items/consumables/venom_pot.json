@@ -2,8 +2,6 @@
   "id": "venom_pot",
   "name": "Venom Pot",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 8,
   "rarity": "common",
   "description": "Fen-brewed. The seal is wax and the wax is not reliable -- thrown before it lets go on its own.",

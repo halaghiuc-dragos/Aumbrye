@@ -38,6 +38,7 @@
   "attacks": [
     {
       "id": "bash",
+      "anim": "attack_shield_bash",
       "name": "Shield Bash",
       "weight": 3,
       "windup_duration": 0.64,
@@ -48,11 +49,15 @@
       "attack_poise_damage": 24,
       "max_range": 2.2,
       "telegraph_shape": "circle",
-      "attackClass": "parryable",
-      "knockback": 2.5
+      "attackClass": "blockable",
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "guard_thrust",
+      "anim": "attack_thrust",
       "name": "Guarded Thrust",
       "weight": 2,
       "windup_duration": 0.98,
@@ -63,11 +68,12 @@
       "attack_poise_damage": 18,
       "max_range": 2.86,
       "telegraph_shape": "line",
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "shove",
+      "anim": "attack_heavy",
       "name": "Shove",
       "weight": 2,
       "windup_duration": 1.16,
@@ -96,10 +102,15 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "sig_two_stage_overhead",
+      "anim": "attack_sweep",
       "name": "The Second Beat",
       "weight": 1.4,
       "windup_duration": 1.05,
@@ -128,8 +139,11 @@
           "knockback": 3.5
         }
       ],
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "parryable",
+      "knockback": 3.5,
+      "tags": [
+        "gap_close"
+      ]
     }
   ],
   "guard_chance": 0.4,

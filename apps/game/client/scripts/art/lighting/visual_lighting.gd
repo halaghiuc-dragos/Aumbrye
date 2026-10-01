@@ -16,7 +16,6 @@ const TORCH_OMNI_ENERGY := 0.92
 const WALL_TORCH_ENERGY := 0.78
 const WALL_TORCH_RANGE := 10.0
 const ROOM_FILL_ENERGY := 0.88
-const SHELL_TORCH_SPACING := 16.0
 
 const SKY_SHADER_PATH := "res://assets/shared/pixel_sky.gdshader"
 const SKY_BIRDS_SCRIPT := "res://scripts/art/world/sky_birds.gd"
@@ -34,23 +33,6 @@ const ARENA_PROBE_EXTENTS := Vector3(17.0, 9.0, 17.0)
 const ARENA_PROBE_ORIGIN := Vector3(0.0, 4.5, 0.0)
 const LIGHTING_DATA_PATH := "content/art/lighting.json"
 
-const SKY_UNIFORM_NAMES: PackedStringArray = [
-	"zenith_color",
-	"horizon_color",
-	"ground_color",
-	"apex_color",
-	"bands",
-	"band_softness",
-	"horizon_falloff",
-	"sun_color",
-	"sun_size",
-	"sun_glow",
-	"cloud_amount",
-	"cloud_color",
-	"cloud_shadow_color",
-	"cloud_drift",
-	"cloud_ceiling",
-]
 
 static var _data_cache: Dictionary = {}
 static var _atmosphere_root: WeakRef
@@ -507,14 +489,13 @@ static func _add_ambient_particles(
 		Vector3(-range_size, -fall_distance - 3.0, -range_size),
 		Vector3(range_size * 2.0, fall_distance + 9.0, range_size * 2.0)
 	)
-	var chunk := BoxMesh.new()
-	chunk.size = Vector3(0.12, 0.12, 0.12)
+	var chunk := PropLibrary.scaled_mesh("fx/mote", Vector3.ONE).duplicate() as ArrayMesh
 	var mote_material := StandardMaterial3D.new()
 	mote_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mote_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mote_material.vertex_color_use_as_albedo = true
 	mote_material.albedo_color = Color.WHITE
-	chunk.material = mote_material
+	chunk.surface_set_material(0, mote_material)
 	particles.draw_pass_1 = chunk
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX

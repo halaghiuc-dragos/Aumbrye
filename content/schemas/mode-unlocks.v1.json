@@ -26,6 +26,7 @@
         "displayName": { "type": "string", "minLength": 1 },
         "lockedLabel": { "type": "string" },
         "announce": { "type": "string" },
+        "parked": { "type": "boolean", "description": "Shipped but switched off: no portal, no entry." },
         "requirements": {
           "type": "array",
           "items": { "$ref": "#/$defs/requirement" }

@@ -3,8 +3,6 @@
   "name": "Castle Signet Ring",
   "itemType": "accessory",
   "equipmentSlot": "ring",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 1,
   "rarity": "rare",
   "description": "A signet ring with a faint magical aura.",

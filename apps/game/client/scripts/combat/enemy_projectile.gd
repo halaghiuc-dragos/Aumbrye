@@ -73,7 +73,7 @@ func _ready() -> void:
 ## `target_pos` (`Vector3.INF` when absent) enables a solved low-arc launch: given the horizontal
 ## distance and height difference to the target, the elevation that puts the shot through that
 ## point is closed-form (see `_solved_launch_velocity()`). Without a target -- a shot fired blind
-## down a facing direction -- the old fixed-lift approximation is still the right fallback.
+## down a facing direction -- a fixed-lift approximation is the right fallback.
 func launch(
 	direction: Vector3,
 	speed: float,
@@ -246,9 +246,7 @@ static func _visual_variant(dmg_type: String, archetype: String = "arrow") -> Di
 	var element := MaterialFlashScript.tint_for_damage_type(dmg_type)
 	var parts: Array = []
 	if archetype == "bolt_orb":
-		var orb := SphereMesh.new()
-		orb.radius = 0.18
-		orb.height = 0.36
+		var orb := PropLibrary.bare_mesh("fx/bolt_orb")
 		var orb_mat := PixelStyleScript.make_glow_material(element.lightened(0.2), element.darkened(0.4), 1.5)
 		parts.append({"mesh": orb, "position": Vector3.ZERO, "material": orb_mat})
 	else:
@@ -256,10 +254,9 @@ static func _visual_variant(dmg_type: String, archetype: String = "arrow") -> Di
 		var head_mat := PixelStyleScript.make_glow_material(element, element.darkened(0.35), 1.9)
 		var fletch_mat := PixelStyleScript.make_material(element.lightened(0.25))
 		parts = [
-			_part_variant(Vector3(0.05, 0.05, 0.62), Vector3(0.0, 0.0, 0.06), shaft_mat),
-			_part_variant(Vector3(0.09, 0.09, 0.18), Vector3(0.0, 0.0, -0.32), head_mat),
-			_part_variant(Vector3(0.16, 0.02, 0.16), Vector3(0.0, 0.0, 0.3), fletch_mat),
-			_part_variant(Vector3(0.02, 0.16, 0.16), Vector3(0.0, 0.0, 0.3), fletch_mat),
+			_part_variant("fx/arrow_shaft", Vector3(0.0, 0.0, 0.06), shaft_mat),
+			_part_variant("fx/arrow_head", Vector3(0.0, 0.0, -0.32), head_mat),
+			_part_variant("fx/arrow_fletch", Vector3(0.0, 0.0, 0.3), fletch_mat),
 		]
 	var variant := {"element": element, "parts": parts}
 	_visual_variants[cache_key] = variant
@@ -282,10 +279,8 @@ static func metrics() -> Dictionary:
 	}
 
 
-static func _part_variant(size: Vector3, part_position: Vector3, material: Material) -> Dictionary:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	return {"mesh": mesh, "position": part_position, "material": material}
+static func _part_variant(mesh_id: String, part_position: Vector3, material: Material) -> Dictionary:
+	return {"mesh": PropLibrary.bare_mesh(mesh_id), "position": part_position, "material": material}
 
 
 func _on_hit_landed(_target: Node) -> void:
@@ -295,15 +290,15 @@ func _on_hit_landed(_target: Node) -> void:
 	_finish_lifecycle()
 
 
-## `RG-04`: the hook a `ThrowableProjectile` overrides to explode on terrain instead of silently
-## vanishing -- the default here is exactly the old inline `queue_free()` so every other shot
-## (enemy arrows included) behaves unchanged.
+## The hook a `ThrowableProjectile` overrides to explode on terrain instead of silently
+## vanishing -- the default is a plain `queue_free()`, so every other shot (enemy arrows
+## included) just ends.
 func _on_world_impact(contact: Dictionary = {}) -> void:
 	var impact_position: Variant = contact.get("position")
 	if impact_position is Vector3:
 		global_position = impact_position
 	# Character impacts are voiced by HitFeedback through Hurtbox; terrain impacts have no
-	# corresponding receiver, so close the projectile's contact with the authored stone cue here.
+	# corresponding receiver, so the projectile closes its own contact with the stone cue.
 	var audio_director := get_node_or_null("/root/AudioDirector")
 	if audio_director and audio_director.has_method("play_sfx"):
 		audio_director.call("play_sfx", "hit_stone", global_position)

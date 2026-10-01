@@ -37,6 +37,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_light_1",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.36,
@@ -51,10 +52,14 @@
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
       "attackClass": "blockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.88,
@@ -68,11 +73,12 @@
       "damage_type": "poison",
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "chain",
+      "anim": "attack_light_3",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.52,
@@ -106,11 +112,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "sig_drag",
+      "anim": "attack_thrust_3",
       "name": "The Long Drag",
       "weight": 1.2,
       "windup_duration": 1.15,
@@ -126,7 +133,11 @@
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -249,7 +260,7 @@
           "damage_type": "poison",
           "status_on_hit": "poison",
           "status_stacks_on_hit": 2,
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {
@@ -267,7 +278,7 @@
           "damage_type": "poison",
           "status_on_hit": "poison",
           "status_stacks_on_hit": 2,
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {
@@ -394,7 +405,7 @@
           "damage_type": "poison",
           "status_on_hit": "poison",
           "status_stacks_on_hit": 2,
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {

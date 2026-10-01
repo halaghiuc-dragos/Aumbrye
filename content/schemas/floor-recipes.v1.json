@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/floor-recipes.v1.json",
+  "title": "FloorRecipes",
+  "description": "One authored recipe per floor slot of a block. `path` beats cycle down the critical path and `tail` beats close it, `branches` deal out to dead ends and `side` to every other off-path room.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "floors"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "floors": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/recipe" }
+    }
+  },
+  "$defs": {
+    "beat": { "enum": ["fight", "choice", "rest", "lore", "reward", "trial", "merchant"] },
+    "beats": { "type": "array", "items": { "$ref": "#/$defs/beat" } },
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "tail", "branches", "side"],
+      "properties": {
+        "path": { "$ref": "#/$defs/beats" },
+        "tail": { "$ref": "#/$defs/beats" },
+        "branches": { "$ref": "#/$defs/beats" },
+        "side": { "$ref": "#/$defs/beats" }
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@
   "nodes": {
     "start": {
       "speaker": "Aldric",
-      "text": "Steel needs seeing to? I upgrade, I repair. Gold only. I stopped taking promises the year the promises stopped arriving.",
+      "text": "Steel needs seeing to? I upgrade. Gold only. I stopped taking promises the year the promises stopped arriving.",
       "choices": [
         {
           "text": "Open the forge",

@@ -2,8 +2,6 @@
   "id": "cathedral_shadow_cloak",
   "name": "Cathedral Umbral Cloak",
   "itemType": "armor",
-  "gridWidth": 2,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "epic",
   "description": "Cathedral black wool that drinks torchlight at the edges.",

@@ -38,38 +38,6 @@
     ],
     "secret": [
       {
-        "itemId": "unique_censer_of_small_mercies",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 1
-      },
-      {
-        "itemId": "unique_foundry_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "unique_lector_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
-        "itemId": "unique_sallyport_greaves",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "unique_the_singing_stone",
         "quantity": [
           1,
@@ -120,14 +88,6 @@
           1
         ],
         "weight": 4
-      },
-      {
-        "itemId": "steel_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
       }
     ]
   }

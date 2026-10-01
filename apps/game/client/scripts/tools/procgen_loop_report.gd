@@ -1,4 +1,4 @@
-extends SceneTree
+extends Node
 
 
 const RoomGraphGeneratorScript := preload("res://scripts/dungeon/procgen/room_graph_generator.gd")
@@ -20,7 +20,7 @@ const BIOME_IDS: PackedStringArray = [
 ]
 
 
-func _initialize() -> void:
+func _ready() -> void:
 	var from := 1
 	var count := 200
 	var args := OS.get_cmdline_user_args()
@@ -31,6 +31,7 @@ func _initialize() -> void:
 			count = int(args[i + 1])
 	print("Biome              Seeds  loopless  mean loops  mean detour  max detour")
 	var total_loopless := 0
+	var failed_layouts := 0
 	for biome_id in BIOME_IDS:
 		var biome := _fetch_biome(biome_id)
 		var config := RoomGraphConfigScript.from_biome(biome)
@@ -41,6 +42,7 @@ func _initialize() -> void:
 		for offset in count:
 			var report := RoomGraphGeneratorScript.generate_reported(config, from + offset)
 			if not report.ok or report.graph == null:
+				failed_layouts += 1
 				continue
 			var loops: Array = report.graph.loop_edges
 			if loops.is_empty():
@@ -59,7 +61,8 @@ func _initialize() -> void:
 		)
 	print()
 	print("loopless layouts overall: %d of %d" % [total_loopless, count * BIOME_IDS.size()])
-	quit(0)
+	print("LOOP REPORT RESULT %d layouts failed to generate" % failed_layouts)
+	get_tree().quit(0 if failed_layouts == 0 else 1)
 
 
 static func _fetch_biome(biome_id: String) -> Dictionary:

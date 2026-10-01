@@ -25,7 +25,8 @@ const TOGGLE_COOLDOWN := 0.2
 var _prev_stick_x := 0.0
 var _switch_blend_boost := 0.0
 var _break_grace_timer := 0.0
-const LOS_GRACE_TIME := 0.75
+const LOS_GRACE_TIME := 2.5
+const DEFAULT_AIM_OFFSET := Vector3(0.0, 1.2, 0.0)
 const LOCK_PICK_CONE_DEG := 75.0
 
 signal lock_changed(target: Node3D, locked: bool)
@@ -45,14 +46,7 @@ var _target_health: Health
 var _los_grace_timer := 0.0
 var _was_occluded := false
 var _camera_spring: OrbitCamera
-var _lockable_refs: Array[WeakRef] = []
-var _lockables_dirty := true
-var _lockables_refresh_at_msec := 0
-var _lockable_group_scan_count := 0
-var _candidate_score_count := 0
-var _line_of_sight_query_count := 0
-
-const LOCKABLE_REFRESH_MSEC := 250
+var _prev_stick_y := 0.0
 
 
 func _ready() -> void:
@@ -65,53 +59,6 @@ func _ready() -> void:
 		_facing = _player.get_node_or_null(facing_path) as Node3D
 	if _player:
 		_camera_spring = _player.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
-	if not get_tree().node_added.is_connected(_on_tree_node_added):
-		get_tree().node_added.connect(_on_tree_node_added)
-	if not get_tree().node_removed.is_connected(_on_tree_node_removed):
-		get_tree().node_removed.connect(_on_tree_node_removed)
-
-
-func _exit_tree() -> void:
-	if get_tree().node_added.is_connected(_on_tree_node_added):
-		get_tree().node_added.disconnect(_on_tree_node_added)
-	if get_tree().node_removed.is_connected(_on_tree_node_removed):
-		get_tree().node_removed.disconnect(_on_tree_node_removed)
-
-
-func _on_tree_node_added(node: Node) -> void:
-	if node.is_in_group("lockable"):
-		_lockables_dirty = true
-	_invalidate_aim_mesh_cache_for_node(node)
-	if node is Node3D:
-		call_deferred("_check_added_node_lockable", weakref(node))
-
-
-func _on_tree_node_removed(node: Node) -> void:
-	if node.is_in_group("lockable"):
-		_lockables_dirty = true
-	_invalidate_aim_mesh_cache_for_node(node)
-
-
-func _check_added_node_lockable(node_ref: WeakRef) -> void:
-	var node := node_ref.get_ref() as Node
-	if node and is_instance_valid(node) and node.is_inside_tree() and node.is_in_group("lockable"):
-		_lockables_dirty = true
-
-
-func _invalidate_aim_mesh_cache_for_node(node: Node) -> void:
-	for root_id in _aim_mesh_cache.keys():
-		var entry: Dictionary = _aim_mesh_cache[root_id]
-		var root_ref: Variant = entry.get("root")
-		var root := root_ref.get_ref() as Node if root_ref is WeakRef else null
-		if root == null or root == node or root.is_ancestor_of(node):
-			_aim_mesh_cache.erase(root_id)
-			var ancestor := root
-			while ancestor:
-				if ancestor is Node3D and ancestor.is_in_group("lockable"):
-					_aim_offset_cache.erase(ancestor.get_instance_id())
-					_aim_offset_frame.erase(ancestor.get_instance_id())
-					break
-				ancestor = ancestor.get_parent()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -233,8 +180,6 @@ func _disconnect_target_death() -> void:
 
 func _on_lock_target_died() -> void:
 	if is_locked:
-		refresh_target_aim_cache(current_target)
-		_lockables_dirty = true
 		_advance_lock_after_defeat()
 
 
@@ -317,13 +262,16 @@ func _handle_target_switch() -> void:
 	if _switch_cooldown > 0.0:
 		return
 	var stick := Input.get_vector("look_left", "look_right", "look_up", "look_down")
+	# Each switch is an edge: the stick has to come back before it can switch again.
+	var crossed_y := absf(stick.y) >= SWITCH_THRESHOLD and absf(_prev_stick_y) < SWITCH_THRESHOLD
 	if _prev_stick_x < SWITCH_THRESHOLD and stick.x >= SWITCH_THRESHOLD:
 		_switch_target(1)
 	elif _prev_stick_x > -SWITCH_THRESHOLD and stick.x <= -SWITCH_THRESHOLD:
 		_switch_target(-1)
-	elif absf(stick.y) >= SWITCH_THRESHOLD and absf(stick.x) < 0.2:
+	elif crossed_y and absf(stick.x) < 0.2:
 		_switch_target_vertical(stick.y)
 	_prev_stick_x = stick.x
+	_prev_stick_y = stick.y
 
 
 func _switch_target_vertical(stick_y: float) -> void:
@@ -361,36 +309,34 @@ func _vertical_delta_to(target: Node3D) -> float:
 	return absf(get_target_aim_point(target).y - _player.global_position.y)
 
 
+## The nearest candidate on screen in `direction` (1 right, -1 left) from the current target.
+## There is no wrapping: with nothing further that way, the lock stays.
 func _switch_target(direction: int) -> bool:
-	if direction == 0:
+	if direction == 0 or current_target == null:
 		return false
-	var candidates := _get_acquisition_candidates()
-	if candidates.size() < 2:
+	var camera := PixelDioramaViewport.get_gameplay_camera()
+	if camera == null:
 		return false
-	var ordered := candidates.duplicate()
-	ordered.sort_custom(
-		func(a: Node3D, b: Node3D) -> bool:
-			var offset_a := a.global_position - _player.global_position
-			var offset_b := b.global_position - _player.global_position
-			offset_a.y = 0.0
-			offset_b.y = 0.0
-			var local_a := offset_a.rotated(Vector3.UP, -_get_facing_yaw())
-			var local_b := offset_b.rotated(Vector3.UP, -_get_facing_yaw())
-			return atan2(local_a.x, local_a.z) < atan2(local_b.x, local_b.z)
-	)
-	var current_idx := ordered.find(current_target)
-	if current_idx < 0:
-		current_idx = 0
-	var next_idx := (current_idx + direction) % ordered.size()
-	if next_idx < 0:
-		next_idx = ordered.size() - 1
-	var best: Node3D = ordered[next_idx]
-	if best and best != current_target:
-		_set_lock(best)
-		_switch_cooldown = SWITCH_COOLDOWN_WHEEL
-		_switch_blend_boost = 1.0
-		return true
-	return false
+	var current_x := camera.unproject_position(get_target_aim_point(current_target)).x
+	var best: Node3D
+	var best_delta := INF
+	for candidate in _get_acquisition_candidates():
+		if candidate == current_target:
+			continue
+		var point := get_target_aim_point(candidate)
+		if camera.is_position_behind(point):
+			continue
+		var delta_x := (camera.unproject_position(point).x - current_x) * float(direction)
+		if delta_x <= 0.0 or delta_x >= best_delta:
+			continue
+		best_delta = delta_x
+		best = candidate
+	if best == null:
+		return false
+	_set_lock(best)
+	_switch_cooldown = SWITCH_COOLDOWN_WHEEL
+	_switch_blend_boost = 1.0
+	return true
 
 
 func _resolve_player() -> void:
@@ -412,7 +358,6 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 	var aim_dir := _get_lock_search_direction()
 	var best: Node3D
 	var best_score := INF
-	_candidate_score_count = 0
 	for enemy in _get_registered_lockables():
 		if _is_defeated(enemy):
 			continue
@@ -446,7 +391,6 @@ func _find_best_target(require_los: bool = true, ignore_cone: bool = false) -> N
 			- SCORE_THREAT_WEIGHT * threat
 			- SCORE_PRIORITY_WEIGHT * priority
 		)
-		_candidate_score_count += 1
 		if score < best_score:
 			best_score = score
 			best = enemy
@@ -461,18 +405,11 @@ func _has_line_of_sight_to(target: Node3D) -> bool:
 		return true
 	var from := _player.global_position + Vector3(0.0, 1.0, 0.0)
 	var to := get_target_aim_point(target)
-	_line_of_sight_query_count += 1
+	# Enemy bodies are not on the world layer, so only geometry can occlude.
 	var params := PhysicsRayQueryParameters3D.create(from, to)
-	params.collision_mask = 1
+	params.collision_mask = CombatLayers.WORLD_OCCLUDERS
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
-	var excludes: Array[RID] = _defeated_exclude_rids().duplicate()
-	if _player is CollisionObject3D:
-		excludes.append((_player as CollisionObject3D).get_rid())
-	if target is CollisionObject3D:
-		excludes.erase((target as CollisionObject3D).get_rid())
-		excludes.append((target as CollisionObject3D).get_rid())
-	params.exclude = excludes
 	return space.intersect_ray(params).is_empty()
 
 
@@ -488,26 +425,7 @@ func _get_lockable_targets() -> Array[Node3D]:
 
 
 func _get_registered_lockables() -> Array[Node3D]:
-	var now := Time.get_ticks_msec()
-	if _lockables_dirty or now >= _lockables_refresh_at_msec:
-		_lockables_dirty = false
-		_lockables_refresh_at_msec = now + LOCKABLE_REFRESH_MSEC
-		_lockable_refs.clear()
-		_lockable_group_scan_count += 1
-		for node in get_tree().get_nodes_in_group("lockable"):
-			if node is Node3D and is_instance_valid(node):
-				_lockable_refs.append(weakref(node))
-	var result: Array[Node3D] = []
-	var live_refs: Array[WeakRef] = []
-	for node_ref in _lockable_refs:
-		var node := node_ref.get_ref() as Node3D
-		if node == null or not is_instance_valid(node) or not node.is_inside_tree():
-			_lockables_dirty = true
-			continue
-		result.append(node)
-		live_refs.append(node_ref)
-	_lockable_refs = live_refs
-	return result
+	return LockOnRegistry.targets()
 
 
 func _get_acquisition_candidates(require_los: bool = true) -> Array[Node3D]:
@@ -525,119 +443,12 @@ func _is_defeated(node: Node) -> bool:
 	return health != null and health.is_dead()
 
 
-static var _aim_offset_cache: Dictionary = {}
-static var _aim_offset_frame: Dictionary = {}
-static var _aim_mesh_cache: Dictionary = {}
-static var _aim_mesh_tree_scan_count := 0
-static var _aim_mesh_node_visit_count := 0
-
-
 static func get_target_aim_point(target: Node3D) -> Vector3:
 	if target == null or not is_instance_valid(target):
 		return Vector3.ZERO
 	if target.has_method("get_lock_aim_point"):
 		return target.call("get_lock_aim_point")
-	var id := target.get_instance_id()
-	var frame := Engine.get_physics_frames()
-	if int(_aim_offset_frame.get(id, -1)) == frame:
-		return target.global_position + (_aim_offset_cache[id] as Vector3)
-	var offset := Vector3(0.0, 1.2, 0.0)
-	var visual := target.get_node_or_null("DioramaVisual") as Node3D
-	var point := Vector3.INF
-	if visual:
-		point = _aim_point_from_meshes(visual)
-	if point == Vector3.INF:
-		point = _aim_point_from_meshes(target)
-	if point != Vector3.INF:
-		offset = point - target.global_position
-	_aim_offset_cache[id] = offset
-	_aim_offset_frame[id] = frame
-	_prune_aim_cache()
-	return target.global_position + offset
-
-
-static func _prune_aim_cache() -> void:
-	if _aim_offset_cache.size() <= 64:
-		return
-	var frame := Engine.get_physics_frames()
-	for id in _aim_offset_cache.keys():
-		if frame - int(_aim_offset_frame.get(id, 0)) > 600:
-			_aim_offset_cache.erase(id)
-			_aim_offset_frame.erase(id)
-
-
-static func _mesh_aabb_from_root(root: Node) -> AABB:
-	var combined := AABB()
-	var found := false
-	var root_id := root.get_instance_id()
-	var entry: Dictionary = _aim_mesh_cache.get(root_id, {})
-	var root_ref: Variant = entry.get("root")
-	var cached_root := root_ref.get_ref() as Node if root_ref is WeakRef else null
-	if cached_root != root:
-		var mesh_refs: Array[WeakRef] = []
-		_aim_mesh_tree_scan_count += 1
-		for node in root.find_children("*", "MeshInstance3D", true, false):
-			_aim_mesh_node_visit_count += 1
-			var mesh := node as MeshInstance3D
-			if mesh and not _should_skip_lock_aim_mesh(mesh):
-				mesh_refs.append(weakref(mesh))
-		_aim_mesh_cache[root_id] = {"root": weakref(root), "meshes": mesh_refs}
-	entry = _aim_mesh_cache[root_id]
-	var live_mesh_refs: Array[WeakRef] = []
-	for mesh_ref in entry.get("meshes", []) as Array:
-		var visual := mesh_ref.get_ref() as MeshInstance3D
-		if visual == null or not is_instance_valid(visual):
-			continue
-		live_mesh_refs.append(mesh_ref)
-		if not visual.visible:
-			continue
-		var local_aabb := visual.get_aabb()
-		if local_aabb.size.length_squared() < 0.0001:
-			continue
-		var global_aabb := visual.global_transform * local_aabb
-		if not found:
-			combined = global_aabb
-			found = true
-		else:
-			combined = combined.merge(global_aabb)
-	entry["meshes"] = live_mesh_refs
-	_aim_mesh_cache[root_id] = entry
-	if found:
-		return combined
-	return AABB()
-
-
-static func refresh_target_aim_cache(target: Node3D) -> void:
-	if target == null or not is_instance_valid(target):
-		return
-	var target_id := target.get_instance_id()
-	_aim_offset_cache.erase(target_id)
-	_aim_offset_frame.erase(target_id)
-	_aim_mesh_cache.erase(target_id)
-	var visual := target.get_node_or_null("DioramaVisual") as Node3D
-	if visual:
-		_aim_mesh_cache.erase(visual.get_instance_id())
-
-
-static func _aim_point_from_meshes(root: Node) -> Vector3:
-	var combined := _mesh_aabb_from_root(root)
-	if combined.size.length_squared() > 0.0001:
-		return combined.get_center()
-	return Vector3.INF
-
-
-static func _should_skip_lock_aim_mesh(mesh: MeshInstance3D) -> bool:
-	match mesh.name:
-		"TelegraphMesh":
-			return true
-	var parent := mesh.get_parent()
-	while parent:
-		if parent is Hitbox or parent is Hurtbox:
-			return true
-		if parent.name in ["AttackPivot", "Hitbox", "Hurtbox", "WeaponPivot"]:
-			return true
-		parent = parent.get_parent()
-	return false
+	return target.global_position + DEFAULT_AIM_OFFSET
 
 
 func _get_lock_search_direction() -> Vector3:
@@ -667,25 +478,6 @@ func _is_ui_focused() -> bool:
 		return true
 	var focus := get_viewport().gui_get_focus_owner()
 	return focus != null and focus is Control
-
-
-var _defeated_rids: Array[RID] = []
-var _defeated_rids_frame := -1
-
-
-func _defeated_exclude_rids() -> Array[RID]:
-	var frame := Engine.get_physics_frames()
-	if frame == _defeated_rids_frame:
-		return _defeated_rids
-	_defeated_rids_frame = frame
-	var rids: Array[RID] = []
-	for node in _get_registered_lockables():
-		if not (node is CollisionObject3D):
-			continue
-		if _is_defeated(node):
-			rids.append((node as CollisionObject3D).get_rid())
-	_defeated_rids = rids
-	return _defeated_rids
 
 
 func _is_lock_candidate_valid(target: Node3D, require_los: bool = true) -> bool:

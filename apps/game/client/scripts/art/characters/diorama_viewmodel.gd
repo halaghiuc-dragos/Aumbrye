@@ -37,16 +37,8 @@ static func build(camera: Camera3D, theme: int) -> Node3D:
 		shoulder.rotation = Vector3(ARM_REST_ROTATION.x, 0.0, ARM_REST_ROLL * -side)
 		view_root.add_child(shoulder)
 
-		PixelStyle.add_box(
-			shoulder, ARM_SIZE, Vector3(0.0, -ARM_SIZE.y * 0.5, 0.0), mats["body"], "Mesh"
-		)
-		PixelStyle.add_box(
-			shoulder,
-			Vector3(ARM_SIZE.x * 1.12, 0.12, ARM_SIZE.z * 1.12),
-			Vector3(0.0, -ARM_SIZE.y * 0.9, 0.0),
-			mats["accent"],
-			"Glove"
-		)
+		_add_part(shoulder, "Mesh", "fx/fp_arm", Vector3.ZERO, mats["body"])
+		_add_part(shoulder, "Glove", "fx/fp_glove", Vector3(0.0, -ARM_SIZE.y * 0.9, 0.0), mats["accent"])
 
 		var mount := Node3D.new()
 		mount.name = CharacterSkin.SHIELD_MOUNT if side < 0.0 else CharacterSkin.WEAPON_MOUNT
@@ -76,6 +68,15 @@ static func retint(camera: Camera3D, theme: int) -> void:
 		return
 	var mats := _materials(theme)
 	_apply_materials(root, mats)
+
+
+static func _add_part(parent: Node3D, part_name: String, mesh_id: String, at: Vector3, material: Material) -> void:
+	var part := MeshInstance3D.new()
+	part.name = part_name
+	part.mesh = PropLibrary.bare_mesh(mesh_id)
+	part.position = at
+	part.material_override = material
+	parent.add_child(part)
 
 
 static func _apply_materials(node: Node, mats: Dictionary) -> void:

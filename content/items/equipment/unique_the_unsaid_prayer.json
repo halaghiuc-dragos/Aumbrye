@@ -3,14 +3,11 @@
   "name": "The Unsaid Prayer",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "The last line was struck out of every copy in the library, in the same hand.",
   "value": 810,
   "lootValue": 405,
-  "maxDurability": 90,
   "unique": true,
   "baseId": "staff",
   "biome": "dark_cathedral",
@@ -27,9 +24,9 @@
     }
   ],
   "stats": {
-    "arcaneDamage": 23,
     "manaMax": 59,
-    "manaRegen": 0.117
+    "manaRegen": 0.117,
+    "physicalDamage": 23
   },
   "weaponId": "staff"
 }

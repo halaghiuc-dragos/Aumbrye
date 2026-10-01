@@ -1,7 +1,7 @@
 class_name ItemCell
 extends RefCounted
 
-## UX-03: the inventory grid's cell renderer (icon + rarity frame + stack + upgrade badge +
+## The inventory grid's cell renderer (icon + rarity frame + stack + upgrade badge +
 ## durability bar), factored out so the shop, the stash and the forge can build the same cell
 ## instead of inventing their own. Extracted verbatim from inventory_ui.gd's
 ## _make_item_cell()/_set_cell_content() -- no behavior changed, only the home address.
@@ -47,14 +47,6 @@ static func make_cell(cell_size: int, rarity: String, upgrade_level: int) -> Pan
 	upgrade_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""
 	cell.add_child(upgrade_label)
-	var durability := TextureProgressBar.new()
-	durability.name = "DurabilityBar"
-	durability.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	durability.offset_top = -2
-	durability.custom_minimum_size = Vector2(0, 2)
-	durability.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	durability.visible = false
-	cell.add_child(durability)
 	return cell
 
 
@@ -72,7 +64,6 @@ static func set_cell_content(
 	var icon: TextureRect = cell.get_node("Icon")
 	var upgrade_label: Label = cell.get_node("UpgradeLabel")
 	var stack_label: Label = cell.get_node("StackLabel")
-	var durability_bar: TextureProgressBar = cell.get_node("DurabilityBar")
 	if filled:
 		var item_id: String = str(slot.get("itemId", ""))
 		var def := ItemCatalog.get_definition(item_id)
@@ -80,20 +71,10 @@ static func set_cell_content(
 		var qty: int = int(slot.get("quantity", 1))
 		stack_label.text = str(qty) if qty > 1 else ""
 		stack_label.visible = qty > 1
-		var max_dur := BlacksmithServiceScript.get_max_durability(item_id)
-		var current_dur := BlacksmithServiceScript.get_slot_durability(slot)
-		if max_dur > 0 and def.get("itemType", "") in BlacksmithServiceScript.UPGRADEABLE_TYPES:
-			durability_bar.max_value = max_dur
-			durability_bar.value = current_dur
-			durability_bar.visible = current_dur < max_dur
-		else:
-			durability_bar.visible = false
 	elif empty_slot_name != "":
 		icon.texture = ItemIconAtlasScript.get_slot_icon(empty_slot_name)
 		stack_label.visible = false
-		durability_bar.visible = false
 	else:
 		icon.texture = null
 		stack_label.visible = false
-		durability_bar.visible = false
 	upgrade_label.text = ("+%d" % upgrade_level) if upgrade_level > 0 else ""

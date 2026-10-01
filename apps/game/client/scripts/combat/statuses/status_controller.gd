@@ -65,6 +65,9 @@ func _physics_process(delta: float) -> void:
 		lifecycle_dirty = true
 	if modifiers_dirty or not expired.is_empty():
 		_recalc_modifiers(false)
+	# Stun is a function of each status's elapsed time, so it has to be re-read every tick or a
+	# pulsing stun would stay on from the first pulse to the last.
+	_stunned = _compute_stun()
 	if lifecycle_dirty:
 		statuses_changed.emit()
 	for expired_id in expired:
@@ -126,7 +129,10 @@ func apply_status(
 	_recalc_modifiers(false)
 	statuses_changed.emit()
 	if CombatEvents:
-		var actor := instigator if instigator != null and is_instance_valid(instigator) else get_parent()
+		# Player rules only see statuses the player applied; an enemy's or a trap's are not theirs.
+		var actor: Node = null
+		if instigator != null and is_instance_valid(instigator) and instigator.is_in_group("player"):
+			actor = instigator
 		CombatEvents.dispatch(
 			CombatEvents.ON_STATUS_APPLIED,
 			{
@@ -353,10 +359,6 @@ func _get_resistances() -> Dictionary:
 	return {}
 
 
-func remove_status(status_id: String) -> bool:
-	return cleanse_status(status_id)
-
-
 ## Removes an active effect and its partial buildup independently while preserving acquired
 ## resistance. This is the targeted cleanse contract; lifecycle reset remains `clear_all()`.
 func cleanse_status(status_id: String) -> bool:
@@ -374,6 +376,23 @@ func _remove_status(status_id: String) -> void:
 	_active.erase(status_id)
 
 
+func _compute_stun() -> bool:
+	for status_id in _active:
+		var entry: Dictionary = _active[status_id]
+		var def := StatusCatalog.get_definition(status_id)
+		var stun_dur := float(def.get("stunDuration", 0.0))
+		if stun_dur <= 0.0:
+			continue
+		var elapsed := float(entry.get("elapsed", 0.0))
+		var stacks := float(int(entry.get("stacks", 1)))
+		if bool(def.get("stunPulse", false)):
+			if fmod(elapsed, maxf(0.1, float(def.get("tickInterval", 1.0)))) < stun_dur * stacks:
+				return true
+		elif elapsed < stun_dur:
+			return true
+	return false
+
+
 func _recalc_modifiers(emit_change: bool = true) -> void:
 	var prev_slow := _slow_multiplier
 	var prev_stun := _stunned
@@ -381,23 +400,15 @@ func _recalc_modifiers(emit_change: bool = true) -> void:
 	var prev_stats: Dictionary = _stat_totals.duplicate()
 	var slow := 1.0
 	var haste := 1.0
-	_stunned = false
+	_stunned = _compute_stun()
 	_damage_taken_multiplier = 1.0
 	_stat_totals.clear()
 	for status_id in _active:
 		var entry: Dictionary = _active[status_id]
 		var def := StatusCatalog.get_definition(status_id)
 		var stacks := float(int(entry.get("stacks", 1)))
-		var elapsed := float(entry.get("elapsed", 0.0))
 		slow = minf(slow, float(def.get("slowMultiplier", 1.0)))
 		haste *= float(def.get("speedMultiplier", 1.0))
-		var stun_dur := float(def.get("stunDuration", 0.0))
-		if stun_dur > 0.0:
-			if bool(def.get("stunPulse", false)):
-				if fmod(elapsed, maxf(0.1, float(def.get("tickInterval", 1.0)))) < stun_dur * stacks:
-					_stunned = true
-			elif elapsed < stun_dur:
-				_stunned = true
 		_damage_taken_multiplier *= pow(float(def.get("damageTakenMultiplier", 1.0)), stacks)
 		var stats: Dictionary = def.get("stats", {})
 		for stat in stats:

@@ -12,4 +12,4 @@ func get_hp_bar_height() -> float:
 func _ready() -> void:
 	super._ready()
 	_apply_mesh_tint(Color(0.4, 0.65, 0.9, 1.0))
-	scale = Vector3(1.2, 1.2, 1.2)
+	scale_physical_size(Vector3(1.2, 1.2, 1.2))

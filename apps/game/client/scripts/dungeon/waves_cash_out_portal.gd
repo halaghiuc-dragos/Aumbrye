@@ -6,15 +6,15 @@ extends Node3D
 ## The offer grows with the reached milestone, and the run ends when it is accepted. Everything
 ## else the player is carrying is left behind.
 
-const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 
 const DISPLAY_NAME := "The Summoner"
+const INTERACT_RANGE := 3.4
 const PORTAL_POSITION := Vector3(-9.5, 0.0, 0.0)
 const PORTAL_TINT := Color(0.62, 0.42, 0.95)
 
 var _label: Label3D
-var _player: Node3D
+var _selected := false
 var _run: Node
 var _phase := 0.0
 var _glow: Node3D
@@ -24,29 +24,28 @@ func setup(run: Node) -> void:
 	_run = run
 	position = PORTAL_POSITION
 	_build_visual()
-	_build_zone()
 	_build_label()
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		4,
+		Callable(self, "_interact"),
+		Callable(),
+		Callable(self, "_set_selected_prompt")
+	)
 
 
 func _build_visual() -> void:
-	var theme := PixelStyle.theme_from_biome(BiomeRegistry.BIOME_UMBRAL)
-	var stone := PixelStyle.make_wall_material(theme)
-	var robe := PixelStyle.make_metal_material(Color(0.19, 0.16, 0.28), 0.2)
 	var root := Node3D.new()
 	root.name = "Visual"
 	add_child(root)
-
-	# Arch.
-	PixelStyle.add_box(root, Vector3(3.4, 0.3, 1.4), Vector3(0.0, 0.15, 0.0), stone, "Base")
-	PixelStyle.add_box(root, Vector3(0.5, 3.6, 0.7), Vector3(-1.35, 1.9, 0.0), stone, "PillarL")
-	PixelStyle.add_box(root, Vector3(0.5, 3.6, 0.7), Vector3(1.35, 1.9, 0.0), stone, "PillarR")
-	PixelStyle.add_box(root, Vector3(3.2, 0.5, 0.7), Vector3(0.0, 3.9, 0.0), stone, "Lintel")
+	PropLibrary.attach(root, "waves/summoner_arch", BiomeRegistry.BIOME_UMBRAL)
 
 	_glow = Node3D.new()
 	_glow.name = "PortalGlow"
 	root.add_child(_glow)
-	var sheet := PixelStyle.make_custom_emissive(PORTAL_TINT, 2.2)
-	PixelStyle.add_box(_glow, Vector3(2.3, 3.3, 0.14), Vector3(0.0, 1.95, 0.0), sheet, "Sheet")
+	PropLibrary.attach(_glow, "waves/summoner_sheet", BiomeRegistry.BIOME_UMBRAL)
 	var light := OmniLight3D.new()
 	light.name = "PortalLight"
 	light.light_color = PORTAL_TINT
@@ -61,38 +60,7 @@ func _build_visual() -> void:
 	wizard.name = "Summoner"
 	wizard.position = Vector3(1.9, 0.0, 0.6)
 	root.add_child(wizard)
-	PixelStyle.add_box(wizard, Vector3(0.7, 1.15, 0.55), Vector3(0.0, 0.58, 0.0), robe, "Robe")
-	PixelStyle.add_box(wizard, Vector3(0.5, 0.42, 0.45), Vector3(0.0, 1.36, 0.0), robe, "Cowl")
-	PixelStyle.add_box(
-		wizard,
-		Vector3(0.1, 1.9, 0.1),
-		Vector3(0.42, 0.95, 0.0),
-		PixelStyle.make_metal_material(Color(0.32, 0.27, 0.2), 0.3),
-		"Staff"
-	)
-	PixelStyle.add_box(
-		wizard,
-		Vector3(0.22, 0.22, 0.22),
-		Vector3(0.42, 1.98, 0.0),
-		PixelStyle.make_custom_emissive(Color(0.85, 0.72, 1.0), 2.8),
-		"StaffLight"
-	)
-
-
-func _build_zone() -> void:
-	var area := Area3D.new()
-	area.name = "InteractArea"
-	area.collision_layer = 0
-	area.collision_mask = 2
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(5.0, 3.5, 4.0)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.75, 0.0)
-	area.add_child(shape)
-	add_child(area)
-	area.body_entered.connect(_on_body_entered)
-	area.body_exited.connect(_on_body_exited)
+	PropLibrary.attach(wizard, "waves/summoner", BiomeRegistry.BIOME_UMBRAL)
 
 
 func _build_label() -> void:
@@ -107,25 +75,15 @@ func _build_label() -> void:
 	add_child(_label)
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if not body.is_in_group("player"):
-		return
-	_player = body
+func _set_selected_prompt(active: bool) -> void:
+	_selected = active
 	_refresh_label()
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body != _player:
-		return
-	_player = null
-	if _label:
-		_label.visible = false
 
 
 func _refresh_label() -> void:
 	if _label == null or not is_instance_valid(_label):
 		return
-	if _player == null:
+	if not _selected:
 		_label.visible = false
 		return
 	_label.visible = true
@@ -143,12 +101,7 @@ static func _interact_glyph() -> String:
 	return glyph if glyph != "" else "E"
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _player == null:
-		return
-	if not PlayerInput.interact_just_pressed(event):
-		return
-	get_viewport().set_input_as_handled()
+func _interact() -> void:
 	AudioDirector.play_sfx("ui_interact_near", global_position)
 	if _run and is_instance_valid(_run) and _run.has_method("open_cash_out_picker"):
 		_run.call("open_cash_out_picker")

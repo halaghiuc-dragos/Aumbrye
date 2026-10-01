@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from generated_manifest import load_manifest, record_write, write_generated_bytes_set
+from asset_io import write_bytes_set
 
 UI_DIR = ROOT / "apps" / "game" / "client" / "assets" / "ui"
 FONT_DIR = UI_DIR / "fonts"
@@ -85,13 +85,10 @@ def validate_png(data: bytes, width: int, height: int) -> None:
         raise ValueError("Generated paperdoll has no terminal IEND chunk")
 
 
-def generate(
-    *, font_source: Path | None, force: bool, dry_run: bool, adopt_identical: bool = False
-) -> list[Path]:
+def generate(*, font_source: Path | None, dry_run: bool) -> list[Path]:
     paperdoll = make_paperdoll_png()
     validate_png(paperdoll, 96, 160)
     outputs: list[tuple[Path, bytes]] = [(PNG_PATH, paperdoll)]
-    sources: list[Path] = []
     if font_source is not None:
         if not font_source.is_file():
             raise FileNotFoundError(f"Pixel font source does not exist: {font_source}")
@@ -99,35 +96,18 @@ def generate(
         if not font_data.startswith(b"\x00\x01\x00\x00"):
             raise ValueError(f"Pixel font source is not a TrueType font: {font_source}")
         outputs.append((FONT_PATH, font_data))
-        sources.append(font_source)
-    written = write_generated_bytes_set(
-        outputs,
-        generator=Path(__file__).resolve(),
-        sources=sources,
-        force=force,
-        dry_run=dry_run,
-    )
-    if adopt_identical and not dry_run:
-        manifest = load_manifest()
-        for path, content in outputs:
-            key = path.resolve().relative_to(ROOT).as_posix()
-            if path.is_file() and path.read_bytes() == content and key not in manifest:
-                record_write(path, content, generator=Path(__file__).resolve(), sources=sources)
+    written = write_bytes_set(outputs, dry_run=dry_run)
     return written
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--font-source", type=Path, help="existing in-repository licensed TTF source to stage as the UI font")
-    parser.add_argument("--force", action="store_true", help="allow replacing outputs that differ from their registered generator owner")
     parser.add_argument("--dry-run", action="store_true", help="preflight without publishing outputs")
-    parser.add_argument("--adopt-identical", action="store_true", help="register an existing byte-identical output without rewriting it")
     args = parser.parse_args()
     written = generate(
         font_source=args.font_source,
-        force=args.force,
         dry_run=args.dry_run,
-        adopt_identical=args.adopt_identical,
     )
     print(f"UI-skin candidates: 2" if args.font_source else "UI-skin candidates: 1")
     print(f"published: {len(written)}")

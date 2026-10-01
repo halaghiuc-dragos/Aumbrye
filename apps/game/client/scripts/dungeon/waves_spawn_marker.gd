@@ -4,14 +4,9 @@ extends Node3D
 ## so the player can turn, reposition, or decide to meet it — the arena mode's whole readability
 ## rests on never being surprised from behind.
 
-const RING_INNER := 0.75
-const RING_OUTER := 1.35
 const PULSE_HZ := 3.2
 const BASE_ENERGY := 1.4
 const PULSE_ENERGY := 2.6
-
-static var _shared_ring_mesh: TorusMesh
-static var _shared_role_meshes: Dictionary = {}
 
 var _material: StandardMaterial3D
 var _icon_material: StandardMaterial3D
@@ -41,7 +36,7 @@ func setup(
 		return
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Ring"
-	mesh.mesh = _get_shared_ring_mesh()
+	mesh.mesh = PropLibrary.bare_mesh("waves/marker_ring")
 	_material = StandardMaterial3D.new()
 	_material.albedo_color = tint
 	_material.emission_enabled = true
@@ -85,57 +80,11 @@ func _set_role_icon(role: String, tint: Color) -> void:
 		return
 	var key := role if role in ["melee", "ranged", "fast", "control", "boss"] else "melee"
 	_role_icon_key = key
-	_role_icon.mesh = _get_shared_role_mesh(key)
+	_role_icon.mesh = PropLibrary.bare_mesh("waves/marker_%s" % key)
 	if _icon_material:
 		_icon_material.albedo_color = tint
 		_icon_material.emission = tint
 	_role_icon.visible = true
-
-
-static func _get_shared_role_mesh(role: String) -> Mesh:
-	if _shared_role_meshes.has(role):
-		return _shared_role_meshes[role] as Mesh
-	var mesh: Mesh
-	match role:
-		"ranged":
-			var orb := SphereMesh.new()
-			orb.radius = 0.32
-			orb.height = 0.64
-			orb.radial_segments = 6
-			orb.rings = 3
-			mesh = orb
-		"fast":
-			var spike := PrismMesh.new()
-			spike.size = Vector3(0.62, 0.8, 0.46)
-			mesh = spike
-		"control":
-			var guard := BoxMesh.new()
-			guard.size = Vector3(0.72, 0.62, 0.28)
-			mesh = guard
-		"boss":
-			var crown := SphereMesh.new()
-			crown.radius = 0.48
-			crown.height = 0.78
-			crown.radial_segments = 5
-			crown.rings = 2
-			mesh = crown
-		_:
-			var blade := CapsuleMesh.new()
-			blade.radius = 0.22
-			blade.height = 0.82
-			mesh = blade
-	_shared_role_meshes[role] = mesh
-	return mesh
-
-
-static func _get_shared_ring_mesh() -> TorusMesh:
-	if _shared_ring_mesh == null:
-		_shared_ring_mesh = TorusMesh.new()
-		_shared_ring_mesh.inner_radius = RING_INNER
-		_shared_ring_mesh.outer_radius = RING_OUTER
-		_shared_ring_mesh.rings = 24
-		_shared_ring_mesh.ring_segments = 8
-	return _shared_ring_mesh
 
 
 func _process(delta: float) -> void:

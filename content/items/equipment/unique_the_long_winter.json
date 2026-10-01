@@ -3,14 +3,11 @@
   "name": "The Long Winter",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 2,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "Drawn once at the start of a season that has not yet ended.",
   "value": 860,
   "lootValue": 430,
-  "maxDurability": 130,
   "unique": true,
   "baseId": "greatsword",
   "biome": "frozen_fortress",
@@ -30,8 +27,7 @@
     }
   ],
   "stats": {
-    "frostDamage": 23,
-    "physicalDamage": 21
+    "physicalDamage": 44
   },
   "weaponId": "greatsword"
 }

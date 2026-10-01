@@ -36,15 +36,31 @@ func _ready() -> void:
 	var generation_failures := 0
 	for biome in BIOMES:
 		var biome_failures := 0
+		var biome_locks := 0
+		var ungated_floors := 0
 		for seed_offset in GENERATION_SEEDS:
 			var seed_value := 1 + seed_offset * 7919 + biome.hash()
 			var result: Dictionary = DungeonProcgenScript.generate(biome, seed_value, 1, 1, 1, false, false)
 			if bool(result.get("ok", false)):
+				var definition: Dictionary = result.get("definition", {})
+				var lock_check := RoomContentValidator.validate_definition(definition)
+				if not bool(lock_check.get("ok", false)):
+					generation_failures += 1
+					biome_failures += 1
+					print("BIOME_LOCK_INVALID: %s seed=%d reason=%s" % [biome, seed_value, lock_check.get("reason", "unknown")])
+					continue
+				var locks: Array = definition.get("locks", [])
+				biome_locks += locks.size()
+				if locks.is_empty():
+					ungated_floors += 1
+					generation_failures += 1
+					biome_failures += 1
+					print("BIOME_UNGATED: %s seed=%d" % [biome, seed_value])
 				continue
 			generation_failures += 1
 			biome_failures += 1
 			print("BIOME_FAILED: %s seed=%d error=%s reason=%s" % [biome, seed_value, result.get("error", "unknown"), result.get("reason", "")])
-		print("BIOME_RESULT: %s %d/%d generated" % [biome, GENERATION_SEEDS - biome_failures, GENERATION_SEEDS])
+		print("BIOME_RESULT: %s %d/%d generated, %d locks, %d ungated" % [biome, GENERATION_SEEDS - biome_failures, GENERATION_SEEDS, biome_locks, ungated_floors])
 	var failed := load_failures > 0 or generation_failures > 0
 	for key in catalog_counts:
 		if int(catalog_counts[key]) <= 0:

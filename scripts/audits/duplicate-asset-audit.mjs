@@ -83,7 +83,6 @@ function referenceAliases(path) {
 const candidateAliases = new Map([...candidates].map((path) => [path, referenceAliases(path)]));
 const filesToScan = walk(root).filter((path) =>
   path !== coveragePath
-  && !["GAME_IMPROVEMENT_PLAN.md", "GAME_REVIEW_FILE_COVERAGE.csv"].includes(relative(root, path))
   && textExtensions.has(path.slice(path.lastIndexOf(".")).toLowerCase()),
 );
 for (const sourcePath of filesToScan) {

@@ -4,8 +4,8 @@
   "templatePrefix": "castle",
   "assetFolder": "castle",
   "roomCount": {
-    "min": 22,
-    "max": 28
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "castle_entrance",
@@ -56,28 +56,28 @@
     "rubble": [
       "res://scenes/props/castle/rubble_a.tscn",
       "res://scenes/props/castle/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/castle/banner.tscn",
-    "statue": "res://scenes/props/castle/statue.tscn",
-    "altar": "res://scenes/props/castle/altar.tscn",
-    "debrisPile": "res://scenes/props/castle/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "castle_grunt",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "castle_archer",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "castle_shield",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "castle_hound",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "miniboss_castle_captain",
@@ -141,11 +141,11 @@
   "maxHeightLevel": 1,
   "maxSecrets": 2,
   "generator": {
-    "bossMinDistance": 4,
-    "minDeadEnds": 4,
-    "branchMaxDepth": 8,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -170,5 +170,6 @@
     "contrast": 1.1,
     "lift": 0,
     "vignette": 0.2
-  }
+  },
+  "floorSurface": "stone"
 }

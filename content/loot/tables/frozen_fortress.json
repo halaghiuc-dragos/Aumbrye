@@ -38,14 +38,6 @@
         "weight": 2
       },
       {
-        "itemId": "tide_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "unique_deep_cut",
         "quantity": [
           1,
@@ -55,14 +47,6 @@
       },
       {
         "itemId": "unique_inventory_of_the_dead",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
-        "itemId": "unique_refraction_greaves",
         "quantity": [
           1,
           1
@@ -114,23 +98,7 @@
         "weight": 6
       },
       {
-        "itemId": "hoarfrost_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
         "itemId": "hoarfrost_greatsword",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "hoarfrost_greaves",
         "quantity": [
           1,
           1
@@ -178,14 +146,6 @@
         "weight": 6
       },
       {
-        "itemId": "hoarfrost_pendant",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
         "itemId": "hoarfrost_towershield",
         "quantity": [
           1,
@@ -208,30 +168,6 @@
           1
         ],
         "weight": 10
-      },
-      {
-        "itemId": "cathedral_pilgrim_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "iron_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "ruby_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
       }
     ]
   }

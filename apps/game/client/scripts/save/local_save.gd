@@ -1,15 +1,11 @@
 extends Node
 
 
-const SAVE_PATH := "user://aumbrye_save.json"
-const STEAM_CLOUD_SAVE_NAME := "aumbrye_save.json"
-const ROSTER_PATH := "user://character_roster.json"
-const ACCOUNT_PATH := "user://account.json"
-const SAVE_SET_JOURNAL_PATH := "user://save_set_journal.json"
+const DEFAULT_SAVE_ROOT := "user://"
+## Diagnostics keep their saves here instead of in the player's folder.
+const AUDIT_SAVE_ROOT := "user://audit/"
 const ACCOUNT_SCHEMA_VERSION := 1
 const MAX_CHARACTER_SLOTS := 5
-const CHARACTERS_DIR := "user://characters/"
-const BACKUP_DIR := "user://backups/"
 const BACKUP_COUNT := 5
 
 const BACKUP_MIN_INTERVAL_SEC := 300
@@ -25,6 +21,9 @@ signal save_recovery_required(reason: String, quarantine_path: String)
 
 enum SavePriority { IMMEDIATE, DEFERRED }
 
+## Where every save file lives. A diagnostic run moves it under `AUDIT_SAVE_ROOT`, so no audit can
+## ever create characters in, or change, the player's real saves.
+var _root := DEFAULT_SAVE_ROOT
 var _cached_state: Dictionary = {}
 var _cloud_updated_at: String = ""
 
@@ -40,46 +39,109 @@ var _character_loaded := false
 var _autosave_pending := false
 var _force_backup_rotation := false
 
+## Set when a backup replaced an unreadable save; the hub tells the player once, then clears it.
+var restore_notice := ""
 var recovery_required := false
+var recovery_character_id := ""
 var recovery_reason := ""
 var recovery_quarantine_path := ""
 var _last_quarantine_path := ""
 var _autosave_timer: Timer
+## The deferred save a worker is serialising right now (empty when none).
+var _async_write: Dictionary = {}
 var _character_id_counter := 0
 
 
+func _save_path() -> String:
+	return _root + "aumbrye_save.json"
+
+
+func _roster_path() -> String:
+	return _root + "character_roster.json"
+
+
+func _account_path() -> String:
+	return _root + "account.json"
+
+
+func _journal_path() -> String:
+	return _root + "save_set_journal.json"
+
+
+func _characters_dir() -> String:
+	return _root + "characters/"
+
+
+func _backup_dir() -> String:
+	return _root + "backups/"
+
+
+## Empties a diagnostic save root. Refuses any path outside `AUDIT_SAVE_ROOT`.
+static func _wipe_isolated_root(root: String) -> void:
+	if not root.begins_with(AUDIT_SAVE_ROOT):
+		return
+	var dir := DirAccess.open(root)
+	if dir == null:
+		return
+	for sub_dir in dir.get_directories():
+		_wipe_isolated_root("%s%s/" % [root, sub_dir])
+		DirAccess.remove_absolute("%s%s" % [root, sub_dir])
+	for file_name in dir.get_files():
+		DirAccess.remove_absolute("%s%s" % [root, file_name])
+
+
+## A `scenes/debug/` scene launched from the command line is a diagnostic: its saves are its own.
+static func _diagnostic_scene_name() -> String:
+	for arg in OS.get_cmdline_args():
+		if str(arg).begins_with("res://scenes/debug/"):
+			return str(arg).get_file().get_basename()
+	return ""
+
+
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return FileAccess.file_exists(_save_path())
 
 
 func load_into_services() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(_save_path()):
 		return false
-	return _load_document(SAVE_PATH)
+	return _load_document(_save_path())
+
+
+func is_character_loaded() -> bool:
+	return _character_loaded and not _cached_state.is_empty()
 
 
 func get_active_character_id() -> String:
 	return _active_character_id
 
 
+## Anything queued on the deferred timer is written first: the file on disk is older than memory
+## until then, and reading it back would throw the change away.
 func reload_active_into_services() -> bool:
+	if _autosave_pending:
+		autosave()
 	if _active_character_id != "" and FileAccess.file_exists(_character_path(_active_character_id)):
 		return load_character(_active_character_id)
 	return load_into_services()
 
 
 func _ready() -> void:
+	var diagnostic := _diagnostic_scene_name()
+	if diagnostic != "":
+		_root = "%s%s/" % [AUDIT_SAVE_ROOT, diagnostic]
+		_wipe_isolated_root(_root)
+		DirAccess.make_dir_recursive_absolute(_root)
 	_ensure_backup_dir()
 	_ensure_characters_dir()
 	_recover_save_set_journal()
 	_load_roster()
 	_load_account()
 	_migrate_legacy_save_if_needed()
-	_try_adopt_steam_cloud_save()
 	if _active_character_id != "" and FileAccess.file_exists(_character_path(_active_character_id)):
 		_warm_load_path(_character_path(_active_character_id))
-	elif FileAccess.file_exists(SAVE_PATH):
-		_warm_load_path(SAVE_PATH)
+	elif FileAccess.file_exists(_save_path()):
+		_warm_load_path(_save_path())
 
 
 func is_first_person_camera() -> bool:
@@ -173,6 +235,8 @@ func format_playtime(seconds: float) -> String:
 
 
 func _process(delta: float) -> void:
+	if not _async_write.is_empty() and WorkerThreadPool.is_task_completed(int(_async_write["task"])):
+		_finish_async_write()
 	if not _character_loaded or _cached_state.is_empty():
 		return
 	var character: Dictionary = _character()
@@ -222,10 +286,10 @@ func _default_account() -> Dictionary:
 
 
 func _load_account() -> void:
-	if not FileAccess.file_exists(ACCOUNT_PATH):
+	if not FileAccess.file_exists(_account_path()):
 		_account = _default_account()
 		return
-	var parsed = JSON.parse_string(_read_raw_text(ACCOUNT_PATH))
+	var parsed = JSON.parse_string(_read_raw_text(_account_path()))
 	if parsed is Dictionary:
 		_account = _default_account()
 		for key in parsed as Dictionary:
@@ -236,7 +300,7 @@ func _load_account() -> void:
 
 
 func _save_account() -> void:
-	_write_json_atomic(ACCOUNT_PATH, _account)
+	_write_json_atomic(_account_path(), _account)
 
 
 func _merge_account_flag(flag_id: String, value: Variant) -> void:
@@ -409,7 +473,8 @@ func get_last_creation_profile() -> Dictionary:
 func set_last_creation_profile(profile: Dictionary) -> void:
 	var meta := get_meta_data().duplicate(true)
 	meta["lastCreationProfile"] = profile.duplicate(true)
-	set_meta_data(meta)
+	patch_meta(meta)
+	request_autosave()
 
 
 func queue_boot_new_game(class_id: String, character_name: String, appearance: Dictionary) -> void:
@@ -629,6 +694,7 @@ func _adopt_document_file(path: String, character_id: String) -> bool:
 		return false
 	if not _validate_save(data):
 		return false
+	SaveValidator.repair(data)
 	var target_path := _active_save_path(character_id)
 	if character_id != "":
 		_active_character_id = character_id
@@ -639,6 +705,9 @@ func _adopt_document_file(path: String, character_id: String) -> bool:
 	_apply_save_data(data)
 	_character_loaded = true
 	_write_save(_build_save_payload(), false)
+	restore_notice = tr("SAVE_RESTORED_NOTICE").format(
+		{"time": str(data.get("cloudUpdatedAt", data.get("savedAt", "?")))}
+	)
 	return true
 
 
@@ -808,26 +877,10 @@ func _retry_failed_autosave(priority: SavePriority) -> void:
 	save_failed.emit("write_failed")
 
 
-func delete_save() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(SAVE_PATH)
-	if _active_character_id != "":
-		var char_path := _character_path(_active_character_id)
-		if FileAccess.file_exists(char_path):
-			DirAccess.remove_absolute(char_path)
-	_cached_state.clear()
-	_cloud_updated_at = ""
-	_active_character_id = ""
-	_character_loaded = false
-	_roster = {
-		"characters": [], "activeId": "", "localAccountId": str(_roster.get("localAccountId", ""))
-	}
-	_save_roster()
-
-
 func delete_character(character_id: String) -> bool:
 	if character_id == "":
 		return false
+	_finish_async_write()
 	var path := _character_path(character_id)
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
@@ -851,6 +904,8 @@ func delete_character(character_id: String) -> bool:
 
 
 func sync_from_cloud() -> Dictionary:
+	if not ApiConfig.cloud_calls_enabled():
+		return {"ok": false, "error": "offline"}
 	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
 			ApiConfig.set_cloud_state(ApiConfig.CloudState.SIGNED_OUT, "")
@@ -888,6 +943,8 @@ func sync_from_cloud() -> Dictionary:
 
 
 func push_to_cloud() -> Dictionary:
+	if not ApiConfig.cloud_calls_enabled():
+		return {"ok": false, "error": "offline"}
 	if is_instance_valid(ApiConfig) and ApiConfig.access_token == "":
 		if not await ApiClient.require_session():
 			ApiConfig.set_cloud_state(ApiConfig.CloudState.SIGNED_OUT, "")
@@ -1095,6 +1152,7 @@ func _reset_to_defaults() -> void:
 
 
 func _load_document(path: String, character_id: String = "") -> bool:
+	_finish_async_write()
 	var raw := _read_raw_text(path)
 	if raw.strip_edges().is_empty():
 		return _recover_from_corruption(path, character_id, "empty_file")
@@ -1123,12 +1181,21 @@ func _load_document(path: String, character_id: String = "") -> bool:
 		return _recover_from_corruption(
 			path, character_id, "corrupt_schema: %s" % ", ".join(problems)
 		)
+	# Anything smaller than that is fixed in place and logged, and the fixed file is written back.
+	var repairs := SaveValidator.repair(data)
+	if not repairs.is_empty():
+		if CrashLogger:
+			CrashLogger.log_warning("local_save.repaired", {"path": path, "repairs": "; ".join(repairs)})
+		else:
+			push_warning("LocalSave: repaired %s — %s" % [path, "; ".join(repairs)])
 	if character_id != "":
 		_active_character_id = character_id
 		_roster["activeId"] = character_id
 		_save_roster()
 	_apply_save_data(data)
 	_character_loaded = true
+	if not repairs.is_empty():
+		request_autosave()
 	save_loaded.emit()
 	return true
 
@@ -1142,7 +1209,7 @@ func _snapshot_before_migration(
 	var target := (
 		"%s%s.premigrate_v%d_%s.json"
 		% [
-			BACKUP_DIR,
+			_backup_dir(),
 			prefix,
 			from_version,
 			Time.get_datetime_string_from_system().replace(":", "-"),
@@ -1155,7 +1222,7 @@ func _snapshot_before_migration(
 
 func _prune_premigrate_artefacts(prefix: String) -> void:
 	var matches: Array[String] = []
-	var dir := DirAccess.open(BACKUP_DIR)
+	var dir := DirAccess.open(_backup_dir())
 	if dir == null:
 		return
 	dir.list_dir_begin()
@@ -1168,7 +1235,7 @@ func _prune_premigrate_artefacts(prefix: String) -> void:
 	matches.sort()
 	while matches.size() > BACKUP_COUNT:
 		var oldest: String = matches.pop_front()
-		DirAccess.remove_absolute("%s%s" % [BACKUP_DIR, oldest])
+		DirAccess.remove_absolute("%s%s" % [_backup_dir(), oldest])
 
 
 func _recover_from_corruption(path: String, character_id: String, reason: String) -> bool:
@@ -1191,12 +1258,12 @@ func _recover_from_corruption(path: String, character_id: String, reason: String
 			return true
 	if _restore_from_premigrate(character_id):
 		return true
-	if character_id == "":
-		print_verbose("LocalSave: %s — awaiting player recovery decision" % reason)
-		recovery_required = true
-		recovery_reason = reason
-		recovery_quarantine_path = _last_quarantine_path
-		save_recovery_required.emit(reason, _last_quarantine_path)
+	print_verbose("LocalSave: %s — awaiting player recovery decision" % reason)
+	recovery_required = true
+	recovery_reason = reason
+	recovery_character_id = character_id
+	recovery_quarantine_path = _last_quarantine_path
+	save_recovery_required.emit(reason, _last_quarantine_path)
 	return false
 
 
@@ -1204,6 +1271,13 @@ func resolve_recovery_start_fresh() -> void:
 	if not recovery_required:
 		return
 	recovery_required = false
+	if recovery_character_id != "":
+		# A warden whose file is unreadable is discarded: the file itself was kept at the
+		# quarantine path, so nothing is lost that was not already unreadable.
+		var discarded := recovery_character_id
+		recovery_character_id = ""
+		delete_character(discarded)
+		return
 	_reset_to_defaults()
 	_write_save(_build_save_payload(), false)
 	save_loaded.emit()
@@ -1211,12 +1285,13 @@ func resolve_recovery_start_fresh() -> void:
 
 func resolve_recovery_dismiss() -> void:
 	recovery_required = false
+	recovery_character_id = ""
 
 
 func _restore_from_premigrate(character_id: String) -> bool:
 	var prefix := character_id if character_id != "" else "legacy"
 	var matches: Array[String] = []
-	var dir := DirAccess.open(BACKUP_DIR)
+	var dir := DirAccess.open(_backup_dir())
 	if dir == null:
 		return false
 	dir.list_dir_begin()
@@ -1229,7 +1304,7 @@ func _restore_from_premigrate(character_id: String) -> bool:
 	matches.sort()
 	matches.reverse()
 	for roster_name in matches:
-		if _adopt_document_file("%s%s" % [BACKUP_DIR, roster_name], character_id):
+		if _adopt_document_file("%s%s" % [_backup_dir(), roster_name], character_id):
 			print_verbose("LocalSave: recovered from premigrate artefact %s" % roster_name)
 			return true
 	return false
@@ -1259,7 +1334,7 @@ func _backup_local_save() -> String:
 	var target := (
 		"%s%s.conflict_%s.json"
 		% [
-			BACKUP_DIR,
+			_backup_dir(),
 			prefix,
 			Time.get_datetime_string_from_system().replace(":", "-"),
 		]
@@ -1283,7 +1358,7 @@ func _active_save_path(character_id: String = "") -> String:
 		character_id = _active_character_id
 	if character_id != "":
 		return _character_path(character_id)
-	return SAVE_PATH
+	return _save_path()
 
 
 func _adopt_foreign_document(parsed: Dictionary, source: String) -> Dictionary:
@@ -1323,6 +1398,8 @@ func _adopt_foreign_document(parsed: Dictionary, source: String) -> Dictionary:
 func _write_save(
 	data: Dictionary, rotate_backups: bool = true, priority: SavePriority = SavePriority.IMMEDIATE
 ) -> bool:
+	# A deferred write may still be in flight; settle it so every write starts from a finished file.
+	_finish_async_write()
 	var normalized := _normalize_save_integers(data.duplicate(true))
 	normalized["itemInstances"] = _build_item_instances()
 	normalized["accountId"] = _resolve_account_id()
@@ -1333,52 +1410,60 @@ func _write_save(
 		roster_changed = true
 	var target_path := _active_save_path()
 	var temp_path := "%s.tmp" % target_path
-	var file := FileAccess.open(temp_path, FileAccess.WRITE)
-	if not file:
-		if CrashLogger:
-			CrashLogger.log_error("local_save.write_failed", {"path": temp_path})
-		else:
-			push_warning("LocalSave: could not write %s" % temp_path)
+	if priority == SavePriority.DEFERRED:
+		# Serialising 120-220 KB is the expensive part, so it happens on a worker, on a copy the
+		# worker owns; `_finish_async_write()` commits the verified file on the main thread.
+		_start_async_write(normalized.duplicate(true), target_path, temp_path, rotate_backups, roster_changed)
+		return true
+	var verified := _serialise_and_verify(normalized, temp_path)
+	if not bool(verified.get("ok", false)):
+		_log_write_failure(temp_path, str(verified.get("reason", "unknown")))
+		DirAccess.remove_absolute(temp_path)
 		return false
-	var json_text := (
-		JSON.stringify(normalized, "\t") if OS.is_debug_build() else JSON.stringify(normalized)
+	return _commit_written_file(
+		temp_path, target_path, str(verified.get("sha", "")), rotate_backups, roster_changed
 	)
-	file.store_string(json_text)
+
+
+## Writes `payload` to `temp_path`, reads it back and validates it. Touches no shared state, so it
+## is safe on a worker thread.
+static func _serialise_and_verify(payload: Dictionary, temp_path: String) -> Dictionary:
+	var file := FileAccess.open(temp_path, FileAccess.WRITE)
+	if file == null:
+		return {"ok": false, "reason": "open_failed"}
+	var json_text := (
+		JSON.stringify(payload, "\t") if OS.is_debug_build() else JSON.stringify(payload)
+	)
+	var stored := file.store_string(json_text)
+	var write_error := file.get_error()
 	file.close()
-	if priority == SavePriority.IMMEDIATE:
-		var verified = JSON.parse_string(_read_raw_text(temp_path))
-		if not verified is Dictionary:
-			if CrashLogger:
-				CrashLogger.log_error(
-					"local_save.readback_unparseable", {"path": temp_path}
-				)
-			DirAccess.remove_absolute(temp_path)
-			return false
-		var problems := SaveValidator.validate(verified)
-		if not problems.is_empty():
-			if CrashLogger:
-				CrashLogger.log_error(
-					"local_save.readback_validate_failed",
-					{"path": temp_path, "problems": ", ".join(problems)}
-				)
-			else:
-				push_error("LocalSave: read-back validation failed — %s" % ", ".join(problems))
-			DirAccess.remove_absolute(temp_path)
-			return false
+	if not stored or write_error != OK:
+		return {"ok": false, "reason": "write_error_%d" % write_error}
+	var verified: Variant = JSON.parse_string(FileAccess.get_file_as_string(temp_path))
+	if not verified is Dictionary:
+		return {"ok": false, "reason": "readback_unparseable"}
+	var problems := SaveValidator.validate(verified as Dictionary)
+	if not problems.is_empty():
+		return {"ok": false, "reason": "readback_validate_failed: %s" % ", ".join(problems)}
+	return {"ok": true, "sha": json_text.sha256_text()}
+
+
+func _log_write_failure(path: String, reason: String) -> void:
+	if CrashLogger:
+		CrashLogger.log_error("local_save.write_failed", {"path": path, "reason": reason})
 	else:
-		var deferred_problems := SaveValidator.validate(normalized)
-		if not deferred_problems.is_empty():
-			DirAccess.remove_absolute(temp_path)
-			if CrashLogger:
-				CrashLogger.log_error(
-					"local_save.deferred_validate_failed",
-					{"path": temp_path, "problems": ", ".join(deferred_problems)}
-				)
-			else:
-				push_error(
-					"LocalSave: deferred validation failed — %s" % ", ".join(deferred_problems)
-				)
-			return false
+		push_warning("LocalSave: could not write %s (%s)" % [path, reason])
+
+
+## The half of a save that has to stay on the main thread: backups, the journal, the rename that
+## makes the new file live, and the roster.
+func _commit_written_file(
+	temp_path: String,
+	target_path: String,
+	checksum: String,
+	rotate_backups: bool,
+	roster_changed: bool
+) -> bool:
 	if rotate_backups and FileAccess.file_exists(target_path):
 		if _force_backup_rotation or _backup_slot_is_stale(_active_character_id):
 			_rotate_backups(target_path, _active_character_id)
@@ -1387,25 +1472,74 @@ func _write_save(
 	if roster_changed:
 		journal = {
 			"savePath": target_path,
-			"saveChecksum": json_text.sha256_text(),
+			"saveChecksum": checksum,
 			"roster": _roster.duplicate(true),
 		}
-		if not _write_json_atomic(SAVE_SET_JOURNAL_PATH, journal):
+		if not _write_json_atomic(_journal_path(), journal):
 			DirAccess.remove_absolute(temp_path)
 			return false
 	if DirAccess.rename_absolute(temp_path, target_path) != OK:
 		DirAccess.remove_absolute(temp_path)
 		if not journal.is_empty():
-			DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+			DirAccess.remove_absolute(_journal_path())
 		if CrashLogger:
 			CrashLogger.log_error("local_save.rename_failed", {"path": target_path})
 		return false
 	if roster_changed:
 		if not _save_roster():
 			return false
-		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
-	_mirror_to_steam_cloud(normalized)
+		DirAccess.remove_absolute(_journal_path())
 	return true
+
+
+func _start_async_write(
+	payload: Dictionary,
+	target_path: String,
+	temp_path: String,
+	rotate_backups: bool,
+	roster_changed: bool
+) -> void:
+	var outcome := {}
+	var task_id := WorkerThreadPool.add_task(
+		func() -> void:
+			outcome.merge(_serialise_and_verify(payload, temp_path))
+	)
+	_async_write = {
+		"task": task_id,
+		"outcome": outcome,
+		"payload": payload,
+		"target": target_path,
+		"temp": temp_path,
+		"rotate": rotate_backups,
+		"roster": roster_changed,
+	}
+
+
+## Completes the in-flight deferred write, if any, waiting for the worker when it has not finished.
+## A failure is reported like any other failed save and retried on the next deferred tick.
+func _finish_async_write() -> void:
+	if _async_write.is_empty():
+		return
+	var job := _async_write
+	_async_write = {}
+	WorkerThreadPool.wait_for_task_completion(int(job["task"]))
+	var outcome: Dictionary = job["outcome"]
+	var temp_path := str(job["temp"])
+	if not bool(outcome.get("ok", false)):
+		_log_write_failure(temp_path, str(outcome.get("reason", "unknown")))
+		DirAccess.remove_absolute(temp_path)
+		save_failed.emit("write_failed")
+		request_autosave()
+		return
+	if not _commit_written_file(
+		temp_path,
+		str(job["target"]),
+		str(outcome.get("sha", "")),
+		bool(job["rotate"]),
+		bool(job["roster"])
+	):
+		save_failed.emit("write_failed")
+		request_autosave()
 
 
 func _utc_now_iso() -> String:
@@ -1416,43 +1550,6 @@ func _save_stamp_unix(stamp: String) -> int:
 	if stamp.strip_edges().is_empty():
 		return 0
 	return int(Time.get_unix_time_from_datetime_string(stamp))
-
-
-func _try_adopt_steam_cloud_save() -> void:
-	if has_save() or has_playable_character():
-		return
-	if SteamService == null or not SteamService.cloud_enabled:
-		return
-	var cloud_text := SteamService.read_cloud_file(STEAM_CLOUD_SAVE_NAME)
-	if cloud_text.strip_edges().is_empty():
-		return
-	var parsed = JSON.parse_string(cloud_text)
-	if not parsed is Dictionary:
-		return
-	var cloud_updated := str(parsed.get("cloudUpdatedAt", parsed.get("savedAt", "")))
-	var local_updated := str(_cached_state.get("cloudUpdatedAt", _cached_state.get("savedAt", "")))
-	if local_updated != "":
-		var cloud_unix := _save_stamp_unix(cloud_updated)
-		var local_unix := _save_stamp_unix(local_updated)
-		if cloud_unix == 0 or local_unix == 0:
-			push_warning(
-				"LocalSave: unparseable save timestamp (cloud='%s', local='%s'); keeping local."
-				% [cloud_updated, local_updated]
-			)
-			return
-		if cloud_unix <= local_unix:
-			return
-	_apply_save_data(parsed)
-	_cloud_updated_at = cloud_updated
-	_cached_state["cloudUpdatedAt"] = cloud_updated
-
-
-func _mirror_to_steam_cloud(payload: Dictionary) -> void:
-	if SteamService == null or not SteamService.cloud_enabled:
-		return
-	var json_text := JSON.stringify(payload, "\t")
-	if not SteamService.write_cloud_file(STEAM_CLOUD_SAVE_NAME, json_text) and CrashLogger:
-		CrashLogger.log_warning("local_save.steam_cloud_write", {"file": STEAM_CLOUD_SAVE_NAME})
 
 
 func _normalize_save_integers(data: Dictionary) -> Dictionary:
@@ -1519,8 +1616,6 @@ func _index_instance(out: Dictionary, slot: Variant) -> void:
 		"affixes": slot.get("affixes", []),
 		"rollSeed": int(slot.get("rollSeed", 0)),
 	}
-	if slot.has("durability"):
-		entry["durability"] = slot.get("durability")
 	out[instance_id] = entry
 
 
@@ -1588,27 +1683,27 @@ func _rotate_backups(source_path: String, character_id: String = "") -> void:
 
 func _rotating_backup_path(index: int, character_id: String = "") -> String:
 	if character_id == "":
-		return "%saumbrye_save_%d.json" % [BACKUP_DIR, index]
-	return "%s%s_%d.json" % [BACKUP_DIR, character_id, index]
+		return "%saumbrye_save_%d.json" % [_backup_dir(), index]
+	return "%s%s_%d.json" % [_backup_dir(), character_id, index]
 
 
 func _ensure_backup_dir() -> void:
-	if not DirAccess.dir_exists_absolute(BACKUP_DIR):
-		DirAccess.make_dir_recursive_absolute(BACKUP_DIR)
+	if not DirAccess.dir_exists_absolute(_backup_dir()):
+		DirAccess.make_dir_recursive_absolute(_backup_dir())
 
 
 func _ensure_characters_dir() -> void:
-	if not DirAccess.dir_exists_absolute(CHARACTERS_DIR):
-		DirAccess.make_dir_recursive_absolute(CHARACTERS_DIR)
+	if not DirAccess.dir_exists_absolute(_characters_dir()):
+		DirAccess.make_dir_recursive_absolute(_characters_dir())
 
 
 func _load_roster() -> void:
-	if not FileAccess.file_exists(ROSTER_PATH):
+	if not FileAccess.file_exists(_roster_path()):
 		_roster = {"characters": [], "activeId": "", "localAccountId": ""}
 		_active_character_id = ""
 		_character_loaded = false
 		return
-	var parsed = JSON.parse_string(_read_raw_text(ROSTER_PATH))
+	var parsed = JSON.parse_string(_read_raw_text(_roster_path()))
 	if parsed is Dictionary:
 		_roster = parsed
 		if not _roster.has("localAccountId"):
@@ -1695,27 +1790,27 @@ func _class_id_in_document(path: String) -> String:
 
 
 func _save_roster() -> bool:
-	return _write_json_atomic(ROSTER_PATH, _roster)
+	return _write_json_atomic(_roster_path(), _roster)
 
 
 func _recover_save_set_journal() -> void:
-	if not FileAccess.file_exists(SAVE_SET_JOURNAL_PATH):
+	if not FileAccess.file_exists(_journal_path()):
 		return
-	var parsed: Variant = JSON.parse_string(_read_raw_text(SAVE_SET_JOURNAL_PATH))
+	var parsed: Variant = JSON.parse_string(_read_raw_text(_journal_path()))
 	if not parsed is Dictionary:
-		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+		DirAccess.remove_absolute(_journal_path())
 		return
 	var journal: Dictionary = parsed
 	var save_path := str(journal.get("savePath", ""))
 	var expected_checksum := str(journal.get("saveChecksum", ""))
 	var roster: Variant = journal.get("roster", {})
 	if save_path == "" or expected_checksum == "" or not roster is Dictionary:
-		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+		DirAccess.remove_absolute(_journal_path())
 		return
 	if _read_raw_text(save_path).sha256_text() != expected_checksum:
 		return
-	if _write_json_atomic(ROSTER_PATH, roster as Dictionary):
-		DirAccess.remove_absolute(SAVE_SET_JOURNAL_PATH)
+	if _write_json_atomic(_roster_path(), roster as Dictionary):
+		DirAccess.remove_absolute(_journal_path())
 
 
 func _write_json_atomic(path: String, data: Dictionary) -> bool:
@@ -1735,7 +1830,7 @@ func _write_json_atomic(path: String, data: Dictionary) -> bool:
 
 
 func _character_path(character_id: String) -> String:
-	return "%s%s.json" % [CHARACTERS_DIR, character_id]
+	return "%s%s.json" % [_characters_dir(), character_id]
 
 
 func _generate_character_id() -> String:
@@ -1798,13 +1893,13 @@ func _migrate_legacy_save_if_needed() -> void:
 	var characters: Array = _roster.get("characters", [])
 	if not characters.is_empty():
 		return
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(_save_path()):
 		return
-	var summary := _read_character_summary(SAVE_PATH)
+	var summary := _read_character_summary(_save_path())
 	if not bool(summary.get("hasCharacter", false)):
 		return
 	var character_id := _generate_character_id()
-	var parsed = JSON.parse_string(_read_raw_text(SAVE_PATH))
+	var parsed = JSON.parse_string(_read_raw_text(_save_path()))
 	if not parsed is Dictionary:
 		return
 	var char_file := FileAccess.open(_character_path(character_id), FileAccess.WRITE)

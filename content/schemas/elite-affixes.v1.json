@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aumbrye.dev/schemas/elite-affixes.v1.json",
+  "title": "EliteAffixes",
+  "description": "What makes one elite play differently from another: multipliers on top of the elite's own scaling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "affixes"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "affixes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "hpMult", "moveSpeedMult", "attackCooldownMult", "damageMult", "poiseMult"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "hpMult": { "type": "number", "exclusiveMinimum": 0 },
+          "moveSpeedMult": { "type": "number", "exclusiveMinimum": 0 },
+          "attackCooldownMult": { "type": "number", "exclusiveMinimum": 0 },
+          "damageMult": { "type": "number", "exclusiveMinimum": 0 },
+          "poiseMult": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    }
+  }
+}

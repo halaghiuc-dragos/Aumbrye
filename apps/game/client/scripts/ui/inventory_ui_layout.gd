@@ -11,18 +11,14 @@ const GRID_GAP := GameUISkinScript.GRID_GAP
 const EQUIP_LAYOUT: Array = [
 	["", "helmet", ""],
 	["weapon", "chest", "secondary"],
-	["gloves", "amulet", "ring"],
-	["", "boots", "relic"],
+	["", "ring", "relic"],
 ]
 
 const SLOT_LABELS: Dictionary = {
 	"helmet": "Head",
 	"chest": "Chest",
-	"gloves": "Hands",
-	"boots": "Feet",
 	"weapon": "Main",
 	"secondary": "Off",
 	"ring": "Ring",
-	"amulet": "Neck",
 	"relic": "Relic",
 }

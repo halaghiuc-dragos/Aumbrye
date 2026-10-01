@@ -1,7 +1,7 @@
 class_name WavesArenaMutator
 extends Node3D
 
-## MD-01: "every fifth wave, change the arena" -- kept to lighting/hazard/fog changes rather than
+## "every fifth wave, change the arena" -- kept to lighting/hazard/fog changes rather than
 ## new solid geometry (a raised platform, pillars) because the Vigil arena has no baked
 ## `NavigationRegion3D`: `castle_enemy_base.gd`'s `NavigationAgent3D` has nothing to route through
 ## here, so a new solid obstacle would just get walked straight through rather than navigated
@@ -151,14 +151,12 @@ func _build_pillars(block_index: int) -> void:
 		shape.shape = cyl
 		shape.position = Vector3(0.0, 1.5, 0.0)
 		area.add_child(shape)
-		var visual := MeshInstance3D.new()
+		var visual := Node3D.new()
 		visual.name = "PillarVisual"
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = PILLAR_HAZARD_RADIUS
-		mesh.bottom_radius = PILLAR_HAZARD_RADIUS
-		mesh.height = PILLAR_HEIGHT
-		visual.mesh = mesh
-		visual.position = Vector3(0.0, PILLAR_HEIGHT * 0.5, 0.0)
-		visual.material_override = DioramaSkin.make_telegraph_material(Color(0.9, 0.2, 0.12, 0.45))
+		visual.scale = Vector3(PILLAR_HAZARD_RADIUS, PILLAR_HEIGHT, PILLAR_HAZARD_RADIUS)
 		area.add_child(visual)
+		PropLibrary.attach_themed(
+			visual, "fx/energy_pillar", PixelDioramaStyle.PaletteTheme.HUB,
+			{"materials": {"mesh": DioramaSkin.make_telegraph_material(Color(0.9, 0.2, 0.12, 0.45))}}
+		)
 		area.call_deferred("set_damage_active", true)

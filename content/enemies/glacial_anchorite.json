@@ -5,7 +5,7 @@
   "loreText": "It asked to be sealed here. Nobody remembers agreeing.",
   "scene": "res://scenes/enemies/glacial_anchorite.tscn",
   "threat_cost": 90,
-  "isBoss": true,
+  "isElite": true,
   "health": 594,
   "poise": 297,
   "move_speed": 3.6,
@@ -34,6 +34,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_heavy",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.39,
@@ -47,11 +48,15 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "blockable",
+      "knockback": 3.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.94,
@@ -65,11 +70,12 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "chain",
+      "anim": "attack_heavy",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.55,
@@ -103,11 +109,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
+      "attackClass": "blockable",
       "knockback": 3.0
     },
     {
       "id": "sig_keening",
+      "anim": "attack_thrust_3",
       "name": "Keening",
       "weight": 1.2,
       "windup_duration": 1.5,
@@ -123,7 +130,11 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -147,7 +158,7 @@
           "damage_type": "frost",
           "status_on_hit": "freeze",
           "status_stacks_on_hit": 1,
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -203,7 +214,7 @@
               "knockback": 3.0
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         }
       ]
@@ -228,7 +239,7 @@
           "damage_type": "frost",
           "status_on_hit": "freeze",
           "status_stacks_on_hit": 1,
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -246,7 +257,7 @@
           "damage_type": "frost",
           "status_on_hit": "freeze",
           "status_stacks_on_hit": 1,
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.5
         },
         {
@@ -264,7 +275,7 @@
           "damage_type": "frost",
           "status_on_hit": "freeze",
           "status_stacks_on_hit": 1,
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {

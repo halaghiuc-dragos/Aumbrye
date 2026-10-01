@@ -29,6 +29,7 @@
   "attacks": [
     {
       "id": "jab",
+      "anim": "attack_light_1",
       "name": "Short Thrust",
       "weight": 3,
       "windup_duration": 0.44,
@@ -42,10 +43,14 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "overhead",
+      "anim": "attack_sweep",
       "name": "Overhead Cleave",
       "weight": 2,
       "windup_duration": 1.04,
@@ -59,10 +64,15 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "opening_cut",
+      "anim": "attack_light_3",
       "name": "Opening Cut",
       "weight": 2,
       "windup_duration": 0.62,
@@ -94,11 +104,12 @@
           "knockback": 2.5
         }
       ],
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "sig_shatter_cone",
+      "anim": "attack_sweep",
       "name": "Shatterbreath",
       "weight": 1.3,
       "windup_duration": 0.9,
@@ -112,8 +123,11 @@
       "damage_type": "frost",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "parryable",
+      "knockback": 3.0,
+      "tags": [
+        "gap_close"
+      ]
     }
   ],
   "sidestep_chance": 0.3,

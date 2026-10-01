@@ -29,6 +29,20 @@ func _ready() -> void:
 	add_child(_confirm_layer)
 
 
+## Shows a self-managed modal and puts it on the stack; `hide_modal` undoes both. Screens call these
+## from `open()`/`close()` instead of repeating the visibility, mouse filter and push/pop lines.
+func show_modal(modal: Control, owns_pause: bool = false) -> void:
+	modal.visible = true
+	modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	push(modal, owns_pause)
+
+
+func hide_modal(modal: Control) -> void:
+	modal.visible = false
+	modal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pop(modal)
+
+
 func push(modal: Control, owns_pause: bool = false) -> void:
 	if modal == null or modal in _stack:
 		return
@@ -44,6 +58,18 @@ func push(modal: Control, owns_pause: bool = false) -> void:
 	_stack.append(modal)
 	_recompute_pause()
 	stack_changed.emit(depth())
+	_focus_if_unfocused.call_deferred(modal)
+
+
+## A modal that hands focus to one of its own controls keeps it; one that never does gets its first
+## focusable control, so a controller can always move.
+func _focus_if_unfocused(modal: Control) -> void:
+	if top() != modal or not is_instance_valid(modal) or not modal.is_inside_tree():
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null and (focused == modal or modal.is_ancestor_of(focused)):
+		return
+	_focus_top_modal()
 
 
 func pop(modal: Control) -> void:
@@ -112,6 +138,10 @@ func _find_focusable(node: Control) -> Control:
 	return null
 
 
+func is_confirming() -> bool:
+	return _active_confirm != null
+
+
 func top() -> Control:
 	if _active_confirm != null:
 		return _active_confirm
@@ -140,6 +170,8 @@ func confirm(spec: ConfirmSpec) -> void:
 		_confirm_saved_mouse_mode = Input.mouse_mode
 		_confirm_saved_paused = get_tree().paused
 	_focus_before_confirm = get_viewport().gui_get_focus_owner() as Control
+	if spec.pause_game:
+		get_tree().paused = true
 	_active_spec = spec
 	_active_confirm = _build_confirm_overlay(spec)
 	_confirm_layer.add_child(_active_confirm)
@@ -156,7 +188,9 @@ func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
 	var overlay := Control.new()
 	overlay.name = "ConfirmOverlay"
 	GameUISkinScript.ensure_full_rect(overlay)
-	var title := tr(String(spec.title_key)) if spec.title_key != &"" else ""
+	var title := spec.title_text
+	if title == "" and spec.title_key != &"":
+		title = tr(String(spec.title_key))
 	var shell: Dictionary = MenuShellScript.build_modal(overlay, title, 340.0, 155.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
 	var msg := Label.new()
@@ -166,12 +200,12 @@ func _build_confirm_overlay(spec: ConfirmSpec) -> Control:
 	GameUISkinScript.style_body_label(msg)
 	vbox.add_child(msg)
 	var cancel := MenuShellScript.make_menu_button(
-		tr(String(spec.cancel_key)),
+		spec.cancel_text if spec.cancel_text != "" else tr(String(spec.cancel_key)),
 		func() -> void:
 			_dismiss_confirm(false, true)
 	)
 	var confirm_btn := MenuShellScript.make_menu_button(
-		tr(String(spec.confirm_key)),
+		spec.confirm_text if spec.confirm_text != "" else tr(String(spec.confirm_key)),
 		func() -> void:
 			_dismiss_confirm(true, true)
 	)
@@ -240,12 +274,16 @@ func _dismiss_confirm(confirmed: bool, run_callbacks: bool) -> void:
 	stack_changed.emit(depth())
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("ui_cancel"):
-		return
-	if _active_confirm != null:
+## A question takes Cancel before any screen behind it can see it, so Esc or B never closes the
+## screen underneath.
+func _input(event: InputEvent) -> void:
+	if _active_confirm != null and event.is_action_pressed("ui_cancel"):
 		_dismiss_confirm(false, true)
 		get_viewport().set_input_as_handled()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
 		return
 	var modal := top()
 	if modal == null:

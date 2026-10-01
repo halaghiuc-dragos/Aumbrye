@@ -19,7 +19,8 @@ static func get_all() -> Array[Dictionary]:
 	_ensure_loaded()
 	var out: Array[Dictionary] = []
 	for mode_id in _order:
-		out.append(_modes[mode_id])
+		if not bool((_modes[mode_id] as Dictionary).get("parked", false)):
+			out.append(_modes[mode_id])
 	return out
 
 
@@ -80,6 +81,8 @@ static func unlock_condition(mode_id: String) -> Dictionary:
 
 
 static func is_unlocked(mode_id: String, counters: Dictionary = {}) -> bool:
+	if bool(get_mode(mode_id).get("parked", false)):
+		return false
 	return ProgressCounters.meets(unlock_condition(mode_id), counters)
 
 

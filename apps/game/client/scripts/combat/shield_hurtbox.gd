@@ -15,8 +15,7 @@ func _ready() -> void:
 
 ## Same shape `Guard._parse_block_reduction()` accepts: a per-type dictionary, or a flat number
 ## applied to every type. Without this, every damage type fell back to the flat `block_mitigation`,
-## so a fire infusion mitigated exactly as well as a physical hit -- there was no reason to carry
-## one against a shield enemy.
+## so a fire hit mitigated exactly as well as a physical one.
 func set_block_reduction(value: Variant) -> void:
 	_reduction_by_type = _parse_block_reduction(value)
 
@@ -40,14 +39,14 @@ func _reduction_for(damage_type: String) -> float:
 	return block_mitigation
 
 
-## `EN-02`: an `unblockable` attack skips the shield's mitigation the same way it skips the
-## player's `Guard` in `modify_incoming_hit()` -- without this a shield enemy would absorb a red
+## An `unblockable` attack skips the shield's mitigation the same way it skips the
+## player's `Guard` in `modify_incoming_hit()` -- otherwise a shield enemy would absorb a red
 ## telegraph just as well as any other hit, which is the exact lie the attack class exists to fix.
 ##
-## `EN-07`: mitigation used to apply to every frontal hit unconditionally regardless of what the
-## enemy was doing, which is passive, not a defensive verb. `is_guarding` (public on
-## `CastleEnemyBase`) is the deliberate raise-the-shield decision `_try_defensive_reaction()` rolls;
-## a body with no such property (nothing to gate on) keeps the old always-on behaviour.
+## Mitigation applies only while the enemy is deliberately guarding: `is_guarding` (public on
+## `CastleEnemyBase`) is the raise-the-shield decision `_try_defensive_reaction()` rolls, so the shield
+## is a defensive verb rather than a passive. A body with no such property (nothing to gate on) is
+## always guarding.
 func receive_hit(info: DamageInfo) -> RefCounted:
 	if _owner_body == null or not is_instance_valid(_owner_body):
 		_owner_body = CombatGroups.owning_body(self)

@@ -3,14 +3,11 @@
   "name": "Mire-Tongue",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 1,
   "rarity": "epic",
   "description": "The edge was never sharpened. It did not need to be.",
   "value": 450,
   "lootValue": 225,
-  "maxDurability": 80,
   "unique": true,
   "baseId": "dagger",
   "biome": "poison_swamp",
@@ -29,8 +26,8 @@
     }
   ],
   "stats": {
-    "poisonDamage": 10,
-    "critChance": 0.051
+    "critChance": 0.051,
+    "physicalDamage": 10
   },
   "weaponId": "dagger"
 }

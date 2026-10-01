@@ -1,34 +1,9 @@
-# Biome audio
+# Audio
 
-Each biome folder holds procedurally generated placeholder `.ogg` loops (unique per-biome
-frequency profile). Generation uses a reproducible PRNG (`--seed N`), stages and validates the full
-candidate set before publishing, and records source/output hashes in `tools/.generated-manifest.json`.
-An unregistered or manually changed existing file is never overwritten silently; inspect the
-candidate and pass `--force` only when replacement is intentional. Check references without writing:
+Each biome folder holds its ambience, explore and combat loops and boss theme; `shared/` holds the hub theme and the stingers; sound effects are `.ogg` files under
+`sfx/`, wired through `content/audio/sfx.json` (the single cue table `AudioDirector` plays from).
+Effects are mono and loudness-normalised; the weather loops stay stereo.
 
-```bash
-node scripts/tools/generate-game-audio.mjs --check
-```
-
-Generate with an explicit seed; pass `--force` only after reviewing the complete candidate set:
-
-```bash
-node scripts/tools/generate-biome-audio.mjs --seed 20260923 --force
-```
-
-Combat SFX are authored as `.ogg`/`.wav` under `res://assets/audio/sfx/` and wired through
-`content/audio/sfx.json` and `AudioDirector.SFX_PROFILES`. Generation is seeded and uses the same
-staged, provenance-tracked publication path. It refuses to overwrite unregistered or manually
-changed assets unless `--force` is explicit. Its no-output FFmpeg smoke check is:
-
-```bash
-node scripts/tools/generate-combat-sfx.mjs --self-test --seed 20260923
-```
-
-After reviewing candidates, publish them with:
-
-```bash
-node scripts/tools/generate-combat-sfx.mjs --seed 20260923 --force
-```
-
-Replace per-biome files when real stems are ready.
+`node scripts/validate.mjs --layer content` fails when a cue in `sfx.json` names a file that does not
+exist or two cues share one file; `res://scenes/debug/audio_voice_lifecycle_audit.tscn` checks that
+pooled voices release their listeners.

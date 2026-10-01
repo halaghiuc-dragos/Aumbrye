@@ -1,7 +1,7 @@
 class_name EnemyPreviewRig
 extends Node3D
 
-## UX-01 (bestiary): renders one enemy's diorama body into a SubViewport, the same framing
+## (bestiary): renders one enemy's diorama body into a SubViewport, the same framing
 ## approach `warden_preview_rig.gd` uses for the player's character-creation preview -- a stage
 ## node holding the built body, a camera auto-distanced to fit it in frame, and two static
 ## lights. Built specifically for small grid-cell portraits, so it skips the rotate controls and

@@ -106,6 +106,19 @@ func consume(amount: float) -> bool:
 	return true
 
 
+## The Souls convention for a dodge: any stamina at all starts it, and it takes what is left if that
+## is less than its full cost. Running dry mid-roll is the price, not a refusal.
+func can_start_action() -> bool:
+	return not _exhausted and current > 0.0
+
+
+func consume_up_to(amount: float) -> bool:
+	if not can_start_action():
+		_emit_insufficient()
+		return false
+	return consume(minf(amount, current))
+
+
 func drain(amount: float) -> bool:
 	if not is_finite(amount) or amount <= 0.0:
 		return false

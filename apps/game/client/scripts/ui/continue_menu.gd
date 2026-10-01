@@ -23,6 +23,7 @@ var _slot_buttons: Array[Button] = []
 var _slot_group: ButtonGroup
 var _selected_index := -1
 var _detail_label: Label
+var _back_button: Button
 var _play_button: Button
 var _delete_button: Button
 var _slots: Array[Dictionary] = []
@@ -37,7 +38,7 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var shell: Dictionary = MenuShellScript.build_modal(self, "Continue", 420.0, 360.0)
 	var vbox: VBoxContainer = shell["content_vbox"]
-	MenuShellScript.add_subtitle(vbox, "Choose a warden to enter Aumbrye Tower.")
+	MenuShellScript.add_subtitle(vbox, tr("CONTINUE_SUBTITLE"))
 
 	var casket := PanelContainer.new()
 	casket.name = "Roster"
@@ -80,27 +81,34 @@ func _build_ui() -> void:
 	_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameUISkinScript.style_body_label(_detail_label)
 	vbox.add_child(_detail_label)
-	var back := MenuShellScript.make_menu_button(tr("CONTINUE_BACK"), _on_back_pressed)
+	_back_button = MenuShellScript.make_menu_button(tr("CONTINUE_BACK"), _on_back_pressed)
 	_play_button = MenuShellScript.make_menu_button(tr("CONTINUE_PLAY"), _on_play_pressed)
 	_delete_button = MenuShellScript.make_menu_button(tr("CONTINUE_DELETE"), _on_delete_pressed)
-	MenuShellScript.add_button_row(vbox, [back, _play_button])
+	MenuShellScript.add_button_row(vbox, [_back_button, _play_button])
 	MenuShellScript.add_button_row(vbox, [_delete_button])
 
 
 func open_menu() -> void:
 	GameUISkinScript.ensure_full_rect(self)
 	_reload_slots()
-	visible = true
 	move_to_front()
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if not _slot_buttons.is_empty():
-		_slot_buttons[0].button_pressed = true
-		_slot_buttons[0].grab_focus()
-		_on_slot_selected(0)
+	MenuStack.show_modal(self)
+	_select_first_slot()
+
+
+## Selects and focuses the first warden, or Back when there are none, so a controller is never left
+## on a button that was just freed.
+func _select_first_slot() -> void:
+	if _slot_buttons.is_empty():
+		_back_button.grab_focus()
+		return
+	_slot_buttons[0].button_pressed = true
+	_slot_buttons[0].grab_focus()
+	_on_slot_selected(0)
 
 
 func close_menu() -> void:
-	visible = false
+	MenuStack.hide_modal(self)
 
 
 func is_open() -> bool:
@@ -187,22 +195,22 @@ func _on_delete_pressed() -> void:
 	if character_id == "":
 		return
 	var slot_name := str(entry.get("label", "this warden"))
-	MenuShellScript.show_confirmation(
-		self,
-		"Delete Warden",
-		(
-			"Permanently delete %s?\nAll progress, inventory, and hub state for this warden will be erased."
-			% slot_name
-		),
-		func() -> void:
-			if LocalSave.delete_character(character_id):
-				slot_deleted.emit(character_id)
-				_reload_slots()
-				if _slots.is_empty():
-					_on_back_pressed(),
-		Callable(),
-		"Delete Forever",
-		"Keep Warden"
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("CONTINUE_DELETE"),
+			tr("CONTINUE_DELETE_CONFIRM") % slot_name,
+			tr("CONTINUE_DELETE_FOREVER"),
+			tr("CONTINUE_KEEP"),
+			func() -> void:
+				if LocalSave.delete_character(character_id):
+					slot_deleted.emit(character_id)
+					_reload_slots()
+					_select_first_slot()
+					if _slots.is_empty():
+						_on_back_pressed(),
+			Callable(),
+			true
+		)
 	)
 
 
@@ -211,9 +219,7 @@ func _on_back_pressed() -> void:
 	cancelled.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		_on_back_pressed()
-		get_viewport().set_input_as_handled()
+func _on_cancel_requested() -> void:
+	_on_back_pressed()
+
+

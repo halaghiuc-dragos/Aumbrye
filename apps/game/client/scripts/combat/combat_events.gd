@@ -18,7 +18,7 @@ const ON_FLOOR_ENTER := &"onFloorEnter"
 const ON_STATUS_APPLIED := &"onStatusApplied"
 const ON_RUN_START := &"onRunStart"
 const ON_ACQUIRED := &"onAcquired"
-## CB-06: five events the rules bus never carried -- most of what makes a build feel like a build
+## Five events the rules bus never carried -- most of what makes a build feel like a build
 ## ("on death, explode"; "a dodge that actually avoided a hit"; "on guard break, ...") had nowhere
 ## to hook in.
 const ON_DEATH := &"onDeath"
@@ -243,6 +243,12 @@ func _try_rule(rule: Dictionary, ctx: Dictionary) -> void:
 	var rule_key := "%s/%s" % [str(rule.get("sourceId", "")), str(rule.get("ruleId", ""))]
 	if _active_rule_keys.has(rule_key):
 		return
+	# Every rule is registered by the player's gear, class, talents or relics, so it acts for the
+	# player and nobody else.
+	if not bool(rule.get("allowNonPlayerActor", false)):
+		var rule_actor := ctx.get("actor") as Node
+		if rule_actor == null or not is_instance_valid(rule_actor) or not rule_actor.is_in_group("player"):
+			return
 	var cooldown := float(rule.get("cooldown", 0.0))
 	var cooldown_identity := str(rule.get("cooldownGroup", rule.get("ruleId", "")))
 	var key := "%s/%s" % [
@@ -366,7 +372,7 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> Dictionary:
 				self_health.heal(base * (pct if pct > 0.0 else 1.0))
 				contribution["healthRestored"] = maxf(0.0, self_health.current - before)
 		"apply_status":
-			# CB-08: self-buffs (the four buff statuses) target the actor, not the usual debuff
+			# Self-buffs (the four buff statuses) target the actor, not the usual debuff
 			# target -- `onGuardBreak` and other actor-only events carry no `target` at all.
 			var status_target: Variant = (
 				ctx.get("actor") if bool(rule.get("applyToActor", false)) else ctx.get("target")
@@ -380,7 +386,7 @@ func _apply_effect(rule: Dictionary, ctx: Dictionary) -> Dictionary:
 			_stacks[stack_key] = mini(maximum, int(_stacks.get(stack_key, 0)) + 1)
 		"bonus_gold":
 			if CharacterService:
-				CharacterService.add_gold(int(amount))
+				CharacterService.add_gold(int(amount), false)
 		"refund_flask":
 			var heal_node := _node_child(ctx.get("actor"), "PlayerHeal") as PlayerHeal
 			if heal_node:

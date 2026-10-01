@@ -138,14 +138,6 @@
         "weight": 4
       },
       {
-        "itemId": "reliquary_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "reliquary_greatsword",
         "quantity": [
           1,
@@ -171,14 +163,6 @@
       },
       {
         "itemId": "reliquary_longsword",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "reliquary_pendant",
         "quantity": [
           1,
           1
@@ -218,36 +202,12 @@
         "weight": 4
       },
       {
-        "itemId": "castle_banner",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "cathedral_gloves",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
         "itemId": "crystal_shard_blade",
         "quantity": [
           1,
           1
         ],
         "weight": 6
-      },
-      {
-        "itemId": "swamp_mire_charm",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
       },
       {
         "itemId": "venom_dagger",

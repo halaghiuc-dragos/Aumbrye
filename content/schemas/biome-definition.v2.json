@@ -163,6 +163,10 @@
       "type": "string",
       "minLength": 1
     },
+    "floorSurface": {
+      "type": "string",
+      "enum": ["stone", "wood", "water", "snow"]
+    },
     "propKit": {
       "type": "object",
       "additionalProperties": false,
@@ -223,6 +227,11 @@
           "weight": {
             "type": "integer",
             "minimum": 1
+          },
+          "minFloor": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "First floor of a five-floor block on which this enemy can appear, so enemies are introduced one at a time."
           }
         }
       }

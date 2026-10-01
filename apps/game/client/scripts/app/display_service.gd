@@ -185,13 +185,6 @@ func set_ui_scale(scale: float) -> void:
 	display_changed.emit(&"ui_scale", ui_scale)
 
 
-func set_hud_safe_area(value: float) -> void:
-	hud_safe_area = clampf(value, 0.0, HUD_SAFE_AREA_MAX)
-	apply_all()
-	save()
-	display_changed.emit(&"hud_safe_area", hud_safe_area)
-
-
 func set_integer_pixel_scaling(enabled: bool) -> void:
 	if integer_pixel_scaling == enabled:
 		return

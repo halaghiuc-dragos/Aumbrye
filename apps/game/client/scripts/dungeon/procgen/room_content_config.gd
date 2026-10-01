@@ -27,16 +27,20 @@ var min_off_path_distance := 2
 var enable_locked_door := true
 var enable_npc_quest := true
 var min_locks_per_floor := 1
-var max_locks_per_floor := 3
+var max_locks_per_floor := 1
 var min_reward_rooms := 1
 var min_lore_rooms := 2
 var min_rest_rooms := 1
 var min_shrine_rooms := 0
 var rest_within_of_boss := 3
 var max_consecutive_combat := 2
+var block_floor := 1
 var floor_theme_id := "plain"
 var floor_theme_label := ""
 var dead_end_reward_ratio := 0.3
+## The run's `GenerationInputs`: chest rolls read the vault and the loot-quality stat from here, not
+## from the live save.
+var generation_inputs: Dictionary = {}
 
 
 static func default() -> RoomContentConfig:
@@ -49,6 +53,7 @@ static func reload() -> void:
 
 static func for_floor(floor_index: int, max_floors: int, run_seed: int) -> RoomContentConfig:
 	var config := RoomContentConfig.new()
+	config.block_floor = RunFloorConfig.floor_within_block(floor_index)
 	var pacing := _load_pacing()
 	if pacing.is_empty():
 		return config

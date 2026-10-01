@@ -10,5 +10,16 @@
   "hitInterval": 0.5,
   "statusId": "torpor",
   "statusBuildUp": 26,
-  "enemyDamageMultiplier": 0.8
+  "enemyDamageMultiplier": 0.8,
+  "damage": 25,
+  "poiseDamage": 20,
+  "active": 0.9,
+  "cooldown": 2,
+  "size": [
+    2,
+    1.5,
+    2
+  ],
+  "color": "#4a4a4a",
+  "visual": "falling"
 }

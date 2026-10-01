@@ -13,6 +13,7 @@ const RoomContentConfigScript := preload("res://scripts/dungeon/procgen/room_con
 const RoomTemplateCatalogScript := preload("res://scripts/dungeon/procgen/room_template_catalog.gd")
 
 const MAX_ASSIGNMENT_ATTEMPTS := 12
+const MAX_GRAPH_RETRIES := 4
 
 
 static func generate(
@@ -22,7 +23,9 @@ static func generate(
 	player_level: int = 1,
 	floor_index: int = 1,
 	is_final_floor: bool = false,
-	debug_ascii: bool = false
+	debug_ascii: bool = false,
+	graph_retry: int = 0,
+	inputs: Dictionary = {}
 ) -> Dictionary:
 	if is_final_floor:
 		return _generate_final_floor(biome_id, run_seed, tier, player_level, floor_index)
@@ -30,11 +33,17 @@ static func generate(
 	if biome.is_empty():
 		return {"ok": false, "error": "Unknown biome '%s'" % biome_id}
 	var config := RoomGraphConfigScript.from_biome(biome)
-	config.apply_discovery_budget(RunHistoryService.run_count(), floor_index)
+	config.apply_discovery_budget(floor_index)
 	config.debug_ascii = debug_ascii
 	var graph_seed := ProcgenRng.stream(run_seed, "graph").seed
+	if graph_retry > 0:
+		graph_seed = FloorSeedMix.mix(graph_seed, graph_retry * 1_000_003)
 	var graph_result := RoomGraphGeneratorScript.generate(config, graph_seed)
 	if not graph_result.get("ok", false):
+		if graph_retry < MAX_GRAPH_RETRIES:
+			return generate(
+				biome_id, run_seed, tier, player_level, floor_index, false, debug_ascii, graph_retry + 1, inputs
+			)
 		return {
 			"ok": false,
 			"error": str(graph_result.get("reason", "Room graph generation failed")),
@@ -45,24 +54,29 @@ static func generate(
 	var edges: Array = []
 	var layout: Dictionary = {}
 	var assign_rng := ProcgenRng.stream(run_seed, "assign")
+	var attempt_failures := {"door_topology": 0, "layout": 0, "empty_rooms": 0, "overlap": 0, "required_rooms": 0}
 	for attempt in MAX_ASSIGNMENT_ATTEMPTS:
 		if attempt > 0:
 			assign_rng.seed = FloorSeedMix.mix(assign_rng.seed, attempt * 1_000_003)
 		assignment = RoomGraphAssignerScript.assign(biome, graph, assign_rng, config)
 		var door_check := RoomGraphGeometryScript.validate_door_topology(graph, assignment)
 		if not door_check.get("ok", false):
+			attempt_failures["door_topology"] += 1
 			continue
 		layout = RoomGraphLayoutScript.solve(graph, assignment)
 		if not layout.get("ok", false):
+			attempt_failures["layout"] += 1
 			continue
 		rooms = RoomGraphGeometryScript.build_rooms(graph, assignment, layout)
 		if rooms.is_empty():
+			attempt_failures["empty_rooms"] += 1
 			continue
 		# The same test the definition validator will apply in a moment. Checking it here is the
 		# difference between this attempt being discarded and the whole floor failing: the loop
 		# already exists to throw away layouts that do not work, and an overlapping one does not
 		# work. Rejecting it costs one more assignment; letting it through costs the player a run.
 		if DungeonDefinitionValidator.has_room_overlap(rooms):
+			attempt_failures["overlap"] += 1
 			rooms = []
 			continue
 		# A lattice can solve successfully while leaving required rooms disconnected from the
@@ -83,11 +97,16 @@ static func generate(
 			and reachable_ids.has(str(assignment.get("treasure_layout_id", "")))
 		)
 		if reachable_main_count < config.min_rooms or not required_rooms_reachable:
+			attempt_failures["required_rooms"] += 1
 			rooms = []
 			continue
 		edges = RoomGraphGeometryScript.build_edges(graph, assignment, layout)
 		break
 	if rooms.is_empty():
+		# A valid abstract graph can be impossible to seat as physical rooms. Rebuild the graph
+		# from a deterministic alternate stream rather than giving the player a failed floor.
+		if graph_retry < MAX_GRAPH_RETRIES:
+			return generate(biome_id, run_seed, tier, player_level, floor_index, false, debug_ascii, graph_retry + 1)
 		return {
 			"ok": false,
 			"error":
@@ -95,11 +114,12 @@ static func generate(
 				"Geometry build failed after %d assignment attempts"
 				% MAX_ASSIGNMENT_ATTEMPTS
 			),
+			"reason": JSON.stringify(attempt_failures),
 		}
 	# The lattice may leave an optional room unplaced when its branch folds back on ground another
 	# branch already took. Prune those out of the assignment before anything downstream reads it:
 	# enemies, loot and traps are addressed by room id, and a placement pointing at a room the floor
-	# no longer contains is exactly the `placement_in_room` the validator rejects the whole floor for.
+	# does not contain is exactly the `placement_in_room` the validator rejects the whole floor for.
 	var pruned := _prune_to_placed(graph, assignment, layout)
 	assignment = pruned["assignment"]
 	layout = pruned["layout"]
@@ -121,7 +141,7 @@ static func generate(
 			str(assignment_room.get("semantic_id", "")), {}
 		)
 	var placements := ProcgenPlacementsScript.place(
-		biome, assignment, run_seed, tier, player_level, floor_index, graph
+		biome, assignment, run_seed, tier, player_level, floor_index, graph, inputs
 	)
 	if not placements.get("ok", true):
 		return {
@@ -142,6 +162,7 @@ static func generate(
 		floor_index, RunFloorConfig.MAX_FLOORS, run_seed
 	)
 	content_config.dead_end_reward_ratio = config.dead_end_reward_ratio
+	content_config.generation_inputs = inputs
 	var content_result := RoomContentAssignerScript.assign(
 		graph, assignment, content_rng, content_config, biome_id, tier
 	)
@@ -160,6 +181,7 @@ static func generate(
 	if bool(content_result.get("used_fallback", false)):
 		content_warnings.append("content_assignment_fallback")
 	content_warnings.append_array(content_result.get("warnings", []))
+	_seal_largest_pack_room(content.get("roomContent", []), placements.get("enemies", []))
 	_annotate_minimap_rooms(rooms, content.get("roomContent", []), content.get("locks", []))
 	_annotate_one_way_edges(edges, content.get("shortcutGates", []))
 	var landmarks := _build_landmark_hints(rooms, graph, assignment)
@@ -555,8 +577,8 @@ static func _build_final_floor_layout(prefix: String, approach: String = "direct
 		],
 		"edges":
 		[
-			{"from": "entrance", "to": "arena", "kind": "door"},
-			{"from": "arena", "to": "boss", "kind": "door"},
+			{"from": "entrance", "to": "arena", "kind": "door", "dir": "south"},
+			{"from": "arena", "to": "boss", "kind": "door", "dir": "south"},
 		],
 	}
 
@@ -701,10 +723,32 @@ const MINIMAP_KIND_BY_CONTENT := {
 const MINIMAP_RESERVED_KINDS := ["boss", "entrance", "stairs", "secret"]
 
 
-## RM-05: `locks` carries the actual lock/key relationship (`to` is the room behind the door,
+## `locks` carries the actual lock/key relationship (`to` is the room behind the door,
 ## `keyRoomIds` are where its key(s) sit, `keyColor` is `FloorKeyring`'s colour string) -- reading
 ## it here, rather than a `roomContent`-entry field nothing ever wrote, is what lets the minimap
 ## draw the lock mark and the key room in the same colour instead of a colourless generic mark.
+
+## The floor's biggest set-piece fight (three or more enemies) is a sealed arena: its doorways close
+## behind the player and open once the room is cleared, the way the pre-boss room already does.
+static func _seal_largest_pack_room(room_content: Array, enemies: Array) -> void:
+	var counts := {}
+	for placement in enemies:
+		var room_id := str((placement as Dictionary).get("roomId", ""))
+		counts[room_id] = int(counts.get(room_id, 0)) + 1
+	var best: Dictionary = {}
+	var best_count := 2
+	for entry in room_content:
+		if not entry is Dictionary or str((entry as Dictionary).get("contentType", "")) != RoomContentTypes.COMBAT:
+			continue
+		if bool((entry as Dictionary).get("lockIn", false)):
+			continue
+		var count := int(counts.get(str((entry as Dictionary).get("roomId", "")), 0))
+		if count > best_count:
+			best_count = count
+			best = entry
+	if not best.is_empty():
+		best["lockIn"] = true
+
 static func _annotate_minimap_rooms(rooms: Array, room_content: Array, locks: Array = []) -> void:
 	var content_kind := {}
 	for entry in room_content:
@@ -740,7 +784,7 @@ static func _annotate_minimap_rooms(rooms: Array, room_content: Array, locks: Ar
 			room["keyColor"] = key_room_colors[room_id]
 
 
-## RM-04: `shortcutGates` (the barred-door content) and `edges` (the minimap's own connection list)
+## `shortcutGates` (the barred-door content) and `edges` (the minimap's own connection list)
 ## are built by two separate systems and only meet here. This tags the matching `edges` entry so
 ## `minimap.gd` can draw a chevron toward `openRoomId` instead of a plain line, without minimap.gd
 ## needing to know the gate/content schema at all.

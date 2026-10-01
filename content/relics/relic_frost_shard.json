@@ -4,8 +4,8 @@
   "description": "Three armour left brittle with the cold. Cold enough to slow a wound — backstabs leave frost in the bone.",
   "maxStacks": 1,
   "stats": {
-    "frostDamage": 4,
-    "armor": -3
+    "armor": -3,
+    "physicalDamage": 4
   },
   "tags": [
     "frost"

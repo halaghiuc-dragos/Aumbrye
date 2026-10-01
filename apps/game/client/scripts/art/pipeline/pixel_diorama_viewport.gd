@@ -74,7 +74,7 @@ var _menu_hidden := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# `VS-02`: this node's own `_process` reads the source camera's transform and snaps it for the
+	# This node's own `_process` reads the source camera's transform and snaps it for the
 	# pixel render. `OrbitCamera._apply_camera_effects_transform()` (shake, punch, landing dip) also
 	# writes that transform in its own `_process`, on a sibling node, at default priority -- so
 	# without an explicit ordering, which one runs first in a given frame is scene-tree-order
@@ -323,6 +323,18 @@ func get_gameplay_camera() -> Camera3D:
 	if tree == null:
 		return null
 	return tree.root.get_camera_3d()
+
+
+## Where a world point lands on the HUD canvas. The render camera answers in the internal
+## viewport's pixels; the container scales and offsets that image onto the window.
+func world_to_hud(world_position: Vector3) -> Vector2:
+	var camera := get_gameplay_camera()
+	if camera == null:
+		return Vector2.ZERO
+	var render_pos := camera.unproject_position(world_position)
+	if PixelDioramaSettings.low_res_viewport_enabled and _container != null:
+		return _container.position + render_pos * _container.scale
+	return render_pos
 
 
 func _apply_internal_size() -> void:

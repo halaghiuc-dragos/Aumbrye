@@ -22,6 +22,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scriptsRoot = join(repoRoot, "apps/game/client/scripts");
 
 const TEXT_PROPS = ["text", "tooltip_text"];
+const TEXT_CALLS = [
+  "show_hub_message",
+  "emit_run_warning",
+  "_emit_run_warning",
+  "return_to_hub",
+  "make_menu_button",
+  "make_button",
+];
 const MIN_LENGTH = 2;
 
 // A literal assignment whose right-hand side is one of these is not prose a player reads.
@@ -44,7 +52,8 @@ function collectGdFiles(dir) {
     const st = statSync(full);
     if (st.isDirectory()) {
       out.push(...collectGdFiles(full));
-    } else if (entry.endsWith(".gd")) {
+    } else if (entry.endsWith(".gd") && !full.includes("/scripts/tools/")) {
+      // Diagnostics under scripts/tools/ are developer output, not player text.
       out.push(full);
     }
   }
@@ -57,11 +66,16 @@ function checkFile(path) {
   const assignRe = new RegExp(
     `\\.(?:${TEXT_PROPS.join("|")})\\s*=\\s*"([^"]*)"`,
   );
+  // A literal handed straight to something that shows it: a hub message, a run warning, a run
+  // result line, or a button built with its label inline.
+  const callRe = new RegExp(
+    `(?:${TEXT_CALLS.join("|")})\\(\\s*"([^"]*)"`,
+  );
   lines.forEach((line, index) => {
     const trimmed = line.trim();
     if (trimmed.startsWith("#") || trimmed.startsWith("##")) return;
     if (line.includes("tr(") || line.includes("TranslationServer.translate")) return;
-    const match = assignRe.exec(line);
+    const match = assignRe.exec(line) ?? callRe.exec(line);
     if (!match) return;
     const literal = match[1];
     if (literal.length <= MIN_LENGTH) return;

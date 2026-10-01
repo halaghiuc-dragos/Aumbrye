@@ -90,7 +90,6 @@ var _dodge: Dodge
 var _status: StatusController
 var _lock_on: LockOn
 var _camera_spring: OrbitCamera
-var _arrows: PlayerArrows
 var _weapon_data: Dictionary = {}
 var _combo_index := 0
 var _phase_timer := 0.0
@@ -102,23 +101,22 @@ var _damage_multiplier := 1.0
 var _draw_charge := 0.0
 var _pending_bow_launch: Dictionary = {}
 var _hyperarmor_active := false
-## CB-02: armed by pressing light attack while falling, resolved on the `landed` signal rather
+## Armed by pressing light attack while falling, resolved on the `landed` signal rather
 ## than the fixed STARTUP/ACTIVE/RECOVERY timer every other attack uses -- a fall's duration is
 ## unknown in advance, so "wait for landing" cannot be a phase timer.
 var _airborne_timer := 0.0
 var _plunge_armed := false
-## CB-01: the base `heavy_attack` dict and its `charge` config, held only while charging a melee
+## The base `heavy_attack` dict and its `charge` config, held only while charging a melee
 ## heavy (`current_phase == DRAWING` for a non-bow archetype) -- distinct from the bow's own
 ## draw-and-fire handling in `_process_bow_input()`, which never touches these.
 var _melee_charge_source: Dictionary = {}
 var _melee_charge_config: Dictionary = {}
-## CB-06: `empower_next` rules effect -- a one-shot multiplier consumed by the next hitbox that
+## `empower_next` rules effect -- a one-shot multiplier consumed by the next hitbox that
 ## actually opens, not folded into `_damage_multiplier` (which is gear/talent state, recomputed
 ## whenever those change, not a single-use pickup).
 var _empower_multiplier := 1.0
 var _two_hand := false
 
-var _infusion := ""
 var _combo_idle_timer := 0.0
 var _base_damage_multiplier := 1.0
 var _weapon_scaling_multiplier := 1.0
@@ -162,7 +160,6 @@ func _ready() -> void:
 	_status = _body.get_node_or_null("StatusController") as StatusController
 	_lock_on = _body.get_node_or_null("LockOn") as LockOn
 	_camera_spring = _body.get_node_or_null("CameraPivot/SpringArm3D") as OrbitCamera
-	_arrows = _body.get_node_or_null("PlayerArrows") as PlayerArrows
 	if _dodge:
 		_dodge.dodge_started.connect(_on_dodge_started)
 		_dodge.dodge_ended.connect(_on_dodge_ended)
@@ -295,6 +292,18 @@ func load_weapon_from_path(relative: String) -> void:
 	weapon_changed.emit(get_archetype())
 
 
+## Whether any attack of the held weapon spends mana. Only staff-style weapons do, so the HUD shows
+## the mana bar only for them.
+func uses_mana() -> bool:
+	for key in ["light_attacks", "heavy_attack", "attacks"]:
+		var entry: Variant = _weapon_data.get(key)
+		var list: Array = entry if entry is Array else [entry]
+		for attack in list:
+			if attack is Dictionary and float((attack as Dictionary).get("mana_cost", 0.0)) > 0.0:
+				return true
+	return false
+
+
 func get_weapon_id() -> String:
 	return String(_weapon_data.get("id", ""))
 
@@ -308,11 +317,6 @@ func get_weapon_art_cooldown_duration() -> float:
 	if art.is_empty():
 		return 0.0
 	return float(art.get("cooldown", 5.0)) * _cooldown_duration_multiplier()
-
-
-## HD-06: the HUD reads combat state through getters rather than reaching into private fields.
-func get_next_attack_cost() -> float:
-	return float(get_next_attack_costs().get("stamina", 0.0))
 
 
 ## A move may spend either resource (or both in future content).  Returning a named contract
@@ -332,22 +336,18 @@ func is_two_handed() -> bool:
 	return _two_hand
 
 
-func get_infusion() -> String:
-	return _infusion
-
-
 func get_art_cooldown_remaining() -> float:
 	return _art_cooldown_timer
 
 
-## CB-06: `empower_next` rules effect. Grants stack to the larger multiplier rather than
+## `empower_next` rules effect. Grants stack to the larger multiplier rather than
 ## compounding -- two "on X, empower your next attack" procs landing the same frame should not
 ## multiply into an outlier.
 func grant_empower(multiplier: float) -> void:
 	_empower_multiplier = maxf(_empower_multiplier, multiplier)
 
 
-## CB-06: `reduce_cooldown` rules effect.
+## `reduce_cooldown` rules effect.
 func reduce_art_cooldown(amount: float) -> void:
 	_art_cooldown_timer = maxf(0.0, _art_cooldown_timer - amount)
 
@@ -376,7 +376,7 @@ func get_attack_generation() -> int:
 	return _attack_generation
 
 
-## `RG-01`: HUD reads for the bow reticle/draw arc through getters rather than reaching into
+## HUD reads for the bow reticle/draw arc through getters rather than reaching into
 ## private fields, same as every other HUD readout on this class.
 func get_draw_charge() -> float:
 	return _draw_charge
@@ -408,10 +408,6 @@ func get_current_attack_phases() -> Dictionary:
 func set_damage_multiplier(multiplier: float) -> void:
 	_base_damage_multiplier = maxf(0.1, multiplier)
 	_refresh_damage_multiplier()
-
-
-func set_infusion(element: String) -> void:
-	_infusion = element if element in DamageInfo.ALL_TYPES else ""
 
 
 func set_combat_stat_modifiers(
@@ -511,7 +507,7 @@ func get_attack_lunge_velocity() -> Vector3:
 	return forward.normalized() * speed
 
 
-## `RG-01`: `OrbitCamera.set_aim_active` composes with lock-on's own dolly/FOV rather than a second
+## `OrbitCamera.set_aim_active` composes with lock-on's own dolly/FOV rather than a second
 ## camera mode -- driven every bow-input frame so releasing block/light-attack relaxes the camera
 ## the same frame `is_bow_aiming` goes false.
 func _sync_camera_aim_state() -> void:
@@ -519,7 +515,7 @@ func _sync_camera_aim_state() -> void:
 		_camera_spring.call("set_aim_active", is_bow_aiming)
 
 
-## `AN-04`: growing tremor while a bow draw charges.
+## Growing tremor while a bow draw charges.
 func _update_charge_shake(amount: float) -> void:
 	var director := _body.get_node_or_null("AnimDirector") if _body else null
 	if director and director.has_method("set_charge_shake"):
@@ -530,11 +526,6 @@ func _connect_anim_hitbox_signals() -> bool:
 	var director := _body.get_node_or_null("AnimDirector") if _body else null
 	if director == null:
 		return false
-	var clip := get_current_attack_animation_clip()
-	if clip == &"" or not director.has_method("has_hitbox_markers"):
-		return false
-	if not bool(director.call("has_hitbox_markers", clip)):
-		return false
 	var connected := false
 	if director.has_signal("hitbox_open_frame"):
 		if not director.hitbox_open_frame.is_connected(enable_hitbox_from_anim):
@@ -544,7 +535,10 @@ func _connect_anim_hitbox_signals() -> bool:
 		if not director.hitbox_close_frame.is_connected(disable_hitbox_from_anim):
 			director.hitbox_close_frame.connect(disable_hitbox_from_anim)
 		connected = true
-	return connected and director.has_signal("hitbox_open_frame") and director.has_signal("hitbox_close_frame")
+	if not connected or not director.has_method("has_hitbox_markers"):
+		return false
+	var clip := get_current_attack_animation_clip()
+	return clip != &"" and bool(director.call("has_hitbox_markers", clip))
 
 
 func enable_hitbox_from_anim(generation: int = -1) -> void:
@@ -643,7 +637,7 @@ func _buffer_attack_intent(kind: String) -> void:
 	_attack_buffer_timer = buffer_window + 0.1
 
 
-## CB-05: the staff's identity trait -- an attack with a `mana_cost` spends `Mana` instead of
+## The staff's identity trait -- an attack with a `mana_cost` spends `Mana` instead of
 ## `Stamina`, checked and consumed the same way every other attack already handles affordability.
 func _consume_attack_cost(attack: Dictionary) -> bool:
 	var mana_cost := float(attack.get("mana_cost", 0.0))
@@ -698,9 +692,9 @@ func _resolve_heavy_attack() -> Dictionary:
 	return _weapon_data.get("heavy_attack", {})
 
 
-## CB-01: only the base `heavy_attack` (not a combo's `heavy_branch`) ever carries a `charge`
+## Only the base `heavy_attack` (not a combo's `heavy_branch`) ever carries a `charge`
 ## block, so a mid-combo heavy still fires instantly the way it always has.
-## CB-02: arms a plunge attack instead of a normal light swing when the fall has gone on long
+## Arms a plunge attack instead of a normal light swing when the fall has gone on long
 ## enough to be deliberate (0.2 s) -- a short hop should not turn every landing into an attack.
 func _try_arm_plunge() -> bool:
 	if _body == null or _body.is_on_floor() or _airborne_timer <= PLUNGE_MIN_FALL_TIME:
@@ -966,8 +960,8 @@ func _try_start_execution() -> bool:
 		return false
 	var kind := "riposte"
 	var victim := _resolve_riposte_target()
-	# CB-04: a poise-broken enemy plays the same riposte execution -- breaking poise costs the
-	# player real effort (poise_damage is a stat gear rolls for) and used to pay out nothing but a
+	# A poise-broken enemy plays the same riposte execution -- breaking poise costs the
+	# player real effort (poise_damage is a stat gear rolls for), so it pays out more than a
 	# stagger animation.
 	if victim == null:
 		victim = _resolve_poise_break_target()
@@ -1002,7 +996,7 @@ func _try_start_execution() -> bool:
 	if _dodge and not _execution_iframes:
 		_execution_iframes = true
 		_dodge.grant_external_iframes(true, &"execution")
-	# VS-09: the camera moment an execution deserves -- runs entirely inside the i-frame window
+	# The camera moment an execution deserves -- runs entirely inside the i-frame window
 	# just granted above, so it never costs the player control.
 	if _camera_spring and _camera_spring.has_method("play_execution_framing"):
 		_camera_spring.call("play_execution_framing", victim)
@@ -1056,7 +1050,7 @@ func _resolve_riposte_target() -> Node3D:
 	return victim
 
 
-## CB-04: `Poise.execution_available` gates this to once per break -- without it a fast weapon
+## `Poise.execution_available` gates this to once per break -- without it a fast weapon
 ## could execute the same stagger repeatedly before it ends.
 func _resolve_poise_break_target() -> Node3D:
 	var facing := _facing_forward()
@@ -1192,9 +1186,9 @@ func _clear_execution_state() -> void:
 ## scaled numbers back into those would compound the multiplier on every swing.
 func _scaled_attack(attack: Dictionary) -> Dictionary:
 	var scale := CombatStatModifiersScript.attack_phase_scale(_equipment_stats, _talent_stats)
-	if is_equal_approx(scale, 1.0):
-		return attack
 	var scaled := attack.duplicate(true)
+	if is_equal_approx(scale, 1.0):
+		return scaled
 	# `cancel_after` is a dimensionless fraction of recovery and must not be timing-scaled.
 	for key in ["startup", "active", "recovery"]:
 		if scaled.has(key):
@@ -1251,7 +1245,7 @@ func _apply_weapon_moment(attack: Dictionary) -> Dictionary:
 	if _weapon_moment.is_empty():
 		return attack
 	var moment := _weapon_moment
-	_weapon_moment.clear()
+	_weapon_moment = {}
 	_weapon_moment_timer = 0.0
 	attack["damage"] = float(attack.get("damage", 0.0)) * float(moment.get("damageMult", 1.0))
 	attack["poise_damage"] = float(attack.get("poise_damage", 0.0)) * float(moment.get("poiseMult", 1.0))
@@ -1267,8 +1261,9 @@ func _apply_weapon_moment(attack: Dictionary) -> Dictionary:
 func _play_swing_feedback() -> void:
 	if _body == null:
 		return
-	var anchor: Array = VfxService.resolve_combat_anchor(_body)
-	VfxService.play_attack_swing(anchor[0], anchor[1])
+	# The character animation carries the swing. The old world-space ribbon and
+	# trajectory strip could detach from the moving weapon and flash across rooms.
+	AudioDirector.play_sfx("swing")
 
 
 func _process_attack_phase(delta: float) -> void:
@@ -1334,8 +1329,6 @@ func _enable_hitbox_for_attack() -> void:
 	var dmg_type: String = _current_attack.get(
 		"damage_type", _weapon_data.get("damage_type", "physical")
 	)
-	if _infusion != "":
-		dmg_type = _infusion
 	var status_id: String = _current_attack.get("status", _weapon_data.get("status_on_hit", ""))
 	var status_stacks: int = int(_current_attack.get("status_stacks", 1))
 	var crit := CombatStatModifiersScript.crit_chance(_equipment_stats, _talent_stats)
@@ -1416,7 +1409,7 @@ func _process_bow_input(delta: float) -> void:
 	if is_attacking:
 		_process_attack_phase(delta)
 		return
-	if PlayerInput.pressed(&"heavy_attack") and _has_arrow_available():
+	if PlayerInput.pressed(&"heavy_attack"):
 		current_phase = AttackPhase.DRAWING
 		is_attacking = true
 		_attack_name = "bow_draw"
@@ -1431,17 +1424,7 @@ func _process_bow_input(delta: float) -> void:
 		_try_attack("light")
 
 
-## `RG-02`: an unaffordable shot fizzles rather than firing, the same rule `_try_attack()` already
-## follows for stamina -- checked here (not at draw start) so a draw that goes on long enough to
-## outlast the last arrow release still fizzles cleanly instead of firing on credit.
-func _has_arrow_available() -> bool:
-	return _arrows == null or _arrows.has_arrow()
-
-
 func _fire_bow_shot() -> void:
-	if not _has_arrow_available():
-		_reset_bow()
-		return
 	var heavy: Dictionary = _weapon_data.get("heavy_attack", {})
 	var cost: float = _scaled_stamina_cost(float(heavy.get("stamina_cost", 18.0)))
 	if _stamina and not _stamina.has(cost):
@@ -1560,17 +1543,10 @@ func _commit_pending_bow_launch() -> bool:
 	if _stamina and (not _stamina.has(cost) or not _stamina.consume(cost)):
 		_discard_arrow_request(request)
 		return false
-	if _arrows and not _arrows.consume_arrow():
-		if _stamina:
-			_stamina.restore(cost)
-		_discard_arrow_request(request)
-		return false
 	if _commit_arrow_launch(request):
 		return true
 	if _stamina:
 		_stamina.restore(cost)
-	if _arrows:
-		_arrows.grant_arrow(1)
 	_discard_arrow_request(request)
 	return false
 
@@ -1878,7 +1854,7 @@ func _is_action_blocked() -> bool:
 		return true
 	if _dodge and _dodge.is_dodging:
 		return true
-	# CB-05: the spear's identity trait -- a thrust from behind a raised guard, not a reason to
+	# The spear's identity trait -- a thrust from behind a raised guard, not a reason to
 	# drop the shield first.
 	if _guard and _guard.is_guard_active and not bool(_weapon_data.get("attack_while_guarding", false)):
 		return true

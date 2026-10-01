@@ -71,6 +71,9 @@ var _bounds := Rect2()
 var _room_by_id: Dictionary = {}
 var _center_by_id: Dictionary = {}
 var _neighbors: Dictionary = {}
+## Secret and shortcut edges the player has actually found, keyed by `_edge_key`. Every other edge of
+## those kinds is invisible to the map: it draws no line and reveals no neighbouring room.
+var _revealed_edges: Dictionary = {}
 var _player: Node3D
 var _redraw_timer := 0.0
 var _last_player_pos := Vector3(INF, INF, INF)
@@ -88,7 +91,7 @@ var _floor_number := 0
 const COLOR_STAIRS_OUTLINE := Color(0.95, 0.78, 0.28, 0.9)
 const COLOR_FLOOR_LABEL := Color(0.88, 0.85, 0.78, 0.95)
 
-## HD-05: the Vigil arena has no room graph, so it gets a radar draw path instead of the dungeon
+## The Vigil arena has no room graph, so it gets a radar draw path instead of the dungeon
 ## one -- arena bounds, the player arrow (already works unmodified, it only needs `_bounds`), a
 ## dot per live enemy in the health-bar red, and a pulsing dot per pending spawn in the telegraph
 ## amber. Reuses `_map_point()` by pointing `_bounds` at a fixed square instead of the graph's.
@@ -116,13 +119,14 @@ func configure(definition: Dictionary) -> void:
 	_reveal.clear()
 	_cleared.clear()
 	_manual_pins.clear()
+	_revealed_edges.clear()
 	_current_room_id = ""
 	_build_caches()
 	_recompute_bounds()
 	queue_redraw()
 
 
-## HD-05: switches the minimap into arena-radar mode -- no room graph, just a fixed square of
+## Switches the minimap into arena-radar mode -- no room graph, just a fixed square of
 ## `half_extent` world units centred on the origin (the Vigil arena is centred there).
 func enable_radar_mode(half_extent: float) -> void:
 	_radar_mode = true
@@ -154,7 +158,7 @@ func set_radar_objective_marker(marker: Node3D) -> void:
 	queue_redraw()
 
 
-## HD-10: shown in the map corner so the floor number is legible without opening the overlay.
+## Shown in the map corner so the floor number is legible without opening the overlay.
 func set_floor_number(floor_number: int) -> void:
 	_floor_number = floor_number
 	queue_redraw()
@@ -172,6 +176,31 @@ func mark_visited(room_id: String) -> void:
 		if get_reveal_tier(neighbor) < RevealTier.SEEN:
 			_reveal[neighbor] = RevealTier.SEEN
 	queue_redraw()
+
+
+## A secret passage exists on the map once it exists in the world. Called when an illusory wall or
+## hidden lever opens it.
+func reveal_edge(from_id: String, to_id: String) -> void:
+	var key := _edge_key(from_id, to_id)
+	if _revealed_edges.has(key):
+		return
+	_revealed_edges[key] = true
+	_build_neighbors()
+	for pair in [[from_id, to_id], [to_id, from_id]]:
+		if get_reveal_tier(pair[0]) >= RevealTier.VISITED and get_reveal_tier(pair[1]) < RevealTier.SEEN:
+			_reveal[pair[1]] = RevealTier.SEEN
+	queue_redraw()
+
+
+static func _edge_key(a: String, b: String) -> String:
+	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
+
+
+func _edge_is_known(edge: Dictionary) -> bool:
+	var kind := str(edge.get("kind", "door"))
+	if kind != "secret" and kind != "shortcut":
+		return true
+	return _revealed_edges.has(_edge_key(str(edge.get("from", "")), str(edge.get("to", ""))))
 
 
 ## Reveal the outline of a known room without disclosing its contents or marking it explored.
@@ -245,6 +274,7 @@ func export_state() -> Dictionary:
 			"branchPreviews": _branch_previews,
 		},
 		"reveal": _reveal.duplicate(),
+		"revealed_edges": _revealed_edges.keys(),
 		"cleared": _cleared.duplicate(),
 		"manual_pins": _manual_pins.duplicate(),
 		"current_room_id": _current_room_id,
@@ -258,6 +288,7 @@ func export_state() -> Dictionary:
 func export_discovery_state() -> Dictionary:
 	return {
 		"reveal": _reveal.duplicate(),
+		"revealed_edges": _revealed_edges.keys(),
 		"cleared": _cleared.duplicate(),
 		"manual_pins": _manual_pins.duplicate(),
 	}
@@ -267,6 +298,7 @@ func import_discovery_state(state: Dictionary) -> void:
 	_reveal.clear()
 	_cleared.clear()
 	_manual_pins.clear()
+	_import_revealed_edges(state.get("revealed_edges", []))
 	var reveal: Variant = state.get("reveal", {})
 	if reveal is Dictionary:
 		for room_id in reveal:
@@ -288,8 +320,22 @@ func import_discovery_state(state: Dictionary) -> void:
 	queue_redraw()
 
 
+func _import_revealed_edges(keys: Variant) -> void:
+	_revealed_edges.clear()
+	if keys is Array:
+		var known: Dictionary = {}
+		for edge in _edges:
+			if edge is Dictionary and not _edge_is_known(edge):
+				known[_edge_key(str(edge.get("from", "")), str(edge.get("to", "")))] = true
+		for key in keys:
+			if known.has(str(key)):
+				_revealed_edges[str(key)] = true
+	_build_neighbors()
+
+
 func import_state(state: Dictionary) -> void:
 	configure(state.get("definition", {}))
+	_import_revealed_edges(state.get("revealed_edges", []))
 	_reveal = state.get("reveal", {}).duplicate()
 	var cleared: Variant = state.get("cleared", {})
 	_cleared = (cleared as Dictionary).duplicate() if cleared is Dictionary else {}
@@ -432,6 +478,8 @@ func _draw_edges(map_rect: Rect2) -> void:
 	for edge in _edges:
 		if not edge is Dictionary:
 			continue
+		if not _edge_is_known(edge):
+			continue
 		var from_id := str(edge.get("from", ""))
 		var to_id := str(edge.get("to", ""))
 		if not _should_draw_edge(from_id, to_id):
@@ -453,7 +501,7 @@ func _draw_edges(map_rect: Rect2) -> void:
 		_draw_one_way_chevron(edge, from_id, to_id, a, b)
 
 
-## RM-04: a chevron toward whichever end is actually approachable -- the open side of a barred
+## A chevron toward whichever end is actually approachable -- the open side of a barred
 ## gate, or the lower room of a "down"-only drop -- instead of a plain line for both. `edges`
 ## carries `oneWay` (see `DungeonProcgen._annotate_one_way_edges` for "gate",
 ## `RoomGraphGeometry.build_edges` for "down"); everything else about the line is unchanged.
@@ -492,12 +540,8 @@ func _draw_one_way_chevron(
 
 
 func _room_height_level(room_id: String) -> int:
-	for room_def in _rooms:
-		if not room_def is Dictionary:
-			continue
-		if str((room_def as Dictionary).get("id", "")) == room_id:
-			return int((room_def as Dictionary).get("heightLevel", 0))
-	return 0
+	var room_def: Variant = _room_by_id.get(room_id, {})
+	return int((room_def as Dictionary).get("heightLevel", 0)) if room_def is Dictionary else 0
 
 
 func _draw_rooms(map_rect: Rect2) -> void:
@@ -529,7 +573,7 @@ func _draw_rooms(map_rect: Rect2) -> void:
 				_draw_key_room_mark(rect, key_color)
 
 
-## HD-10: a persistent gold outline on the stairs room once seen -- separate from `COLOR_CURRENT`
+## A persistent gold outline on the stairs room once seen -- separate from `COLOR_CURRENT`
 ## (which moves with the player) so the goal stays marked after you walk away from it.
 func _draw_stairs_outline(map_rect: Rect2) -> void:
 	for room_def in _rooms:
@@ -578,7 +622,7 @@ func _room_at_map_point(point: Vector2) -> String:
 	return ""
 
 
-## HD-10: the floor number in the minimap corner, so it reads without opening the map overlay.
+## The floor number in the minimap corner, so it reads without opening the map overlay.
 func _draw_floor_number() -> void:
 	if _floor_number <= 0:
 		return
@@ -604,9 +648,9 @@ func _draw_room_icon(room_def: Dictionary, center: Vector2, cleared: bool = fals
 	draw_texture_rect_region(_icon_atlas, dest, region, tint, false)
 
 
-## RM-05: `color_id` is one of `FloorKeyring.COLOR_ORDER` ("red"/"blue"/"yellow") -- an empty or
-## unrecognised id falls back to the old flat `COLOR_LOCKED`, which only happens for a definition
-## generated before this field existed (an in-progress save from before this change).
+## `color_id` is one of `FloorKeyring.COLOR_ORDER` ("red"/"blue"/"yellow") -- an empty or
+## unrecognised id falls back to the flat `COLOR_LOCKED`, which only happens for a definition
+## generated before this field existed.
 func _lock_color(color_id: String) -> Color:
 	if color_id == "" or not FloorKeyring.COLORS.has(color_id):
 		return COLOR_LOCKED
@@ -711,7 +755,6 @@ func _draw_legend() -> void:
 func _build_caches() -> void:
 	_room_by_id.clear()
 	_center_by_id.clear()
-	_neighbors.clear()
 	for room_def in _rooms:
 		if not room_def is Dictionary:
 			continue
@@ -721,8 +764,14 @@ func _build_caches() -> void:
 		_room_by_id[room_id] = room_def
 		var t: Dictionary = room_def.get("transform", {})
 		_center_by_id[room_id] = Vector2(float(t.get("x", 0.0)), float(t.get("z", 0.0)))
+	_build_neighbors()
+
+
+## Who counts as next door to whom. A secret or shortcut edge only joins two rooms once it is found.
+func _build_neighbors() -> void:
+	_neighbors.clear()
 	for edge in _edges:
-		if not edge is Dictionary:
+		if not edge is Dictionary or not _edge_is_known(edge):
 			continue
 		var from_id := str(edge.get("from", ""))
 		var to_id := str(edge.get("to", ""))
@@ -823,6 +872,8 @@ func _draw_branch_previews(map_rect: Rect2) -> void:
 			draw_circle(center, 3.0, Color(0.72, 0.72, 0.68, 0.65), false, 1.0)
 		elif hint == "reward":
 			draw_circle(center, 3.0, Color(0.95, 0.78, 0.2, 0.95))
+		elif hint == "rest":
+			draw_circle(center, 3.0, Color(0.35, 0.85, 0.6, 0.95))
 		elif hint == "danger":
 			var half := 3.0
 			draw_colored_polygon(

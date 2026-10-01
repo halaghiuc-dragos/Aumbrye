@@ -53,7 +53,7 @@ static func secret_opened(secret_id: String) -> String:
 	return "%s.%s.opened" % [NS_SECRET, secret_id]
 
 
-## RM-09: a run-level counter of secrets found on the current floor, shown on the results screen.
+## A run-level counter of secrets found on the current floor, shown on the results screen.
 ## Reset by `DungeonBuilder.build_from_definition()` on every new floor (see there).
 static func secrets_found_this_floor() -> String:
 	return "%s.floor.count" % NS_SECRET

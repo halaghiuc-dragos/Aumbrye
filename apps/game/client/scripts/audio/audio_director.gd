@@ -2,10 +2,9 @@ extends Node
 
 
 const MIX_RATE := 44100.0
-const GENERATOR_BUFFER_SEC := 0.25
 const DEFAULT_CROSSFADE := 0.8
 const SFX_POOL_SIZE := 10
-const SFX_3D_POOL_SIZE := 6
+const SFX_3D_POOL_SIZE := 20
 const SFX_BANK_PATH := "content/audio/sfx.json"
 
 const REVERB_PRESETS := {
@@ -32,47 +31,6 @@ const BIOME_REVERB_PRESETS := {
 	"iron_vault": "vault",
 }
 
-const SFX_PROFILES := {
-	"hit": {"path": "res://assets/audio/sfx/hit.ogg", "bus": &"SFX"},
-	"hit_armor": {"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX"},
-	"block": {"path": "res://assets/audio/sfx/block.ogg", "bus": &"SFX"},
-	"parry": {"path": "res://assets/audio/sfx/parry.ogg", "bus": &"SFX"},
-	"swing": {"path": "res://assets/audio/sfx/swing_01.ogg", "bus": &"SFX"},
-	"death": {"path": "res://assets/audio/sfx/death_01.ogg", "bus": &"SFX"},
-	"footstep": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
-	"footstep_stone": {"path": "res://assets/audio/sfx/step_stone_01.ogg", "bus": &"SFX"},
-	"footstep_wood": {"path": "res://assets/audio/sfx/step_wood_01.ogg", "bus": &"SFX"},
-	"footstep_water": {"path": "res://assets/audio/sfx/step_water_01.ogg", "bus": &"SFX"},
-	"footstep_snow": {"path": "res://assets/audio/sfx/step_snow_01.ogg", "bus": &"SFX"},
-	"windup": {"path": "res://assets/audio/sfx/windup_01.ogg", "bus": &"SFX"},
-	"impact_heavy": {"path": "res://assets/audio/sfx/hit_armor.ogg", "bus": &"SFX"},
-	"heal_raise": {"path": "res://assets/audio/sfx/heal_raise.ogg", "bus": &"SFX"},
-	"heal_gulp": {"path": "res://assets/audio/sfx/heal_gulp.ogg", "bus": &"SFX"},
-	"heal_commit": {"path": "res://assets/audio/sfx/heal_commit.ogg", "bus": &"SFX"},
-	"lever_pull": {"path": "res://assets/audio/sfx/lever_pull.ogg", "bus": &"SFX"},
-	"lever_unlock": {"path": "res://assets/audio/sfx/lever_unlock.ogg", "bus": &"SFX"},
-	"ui": {"path": "res://assets/audio/sfx/ui_click_01.ogg", "bus": &"UI"},
-	"door_open": {"path": "res://assets/audio/sfx/door_open.ogg", "bus": &"SFX"},
-	"door_seal": {"path": "res://assets/audio/sfx/door_seal.ogg", "bus": &"SFX"},
-	"door_release": {"path": "res://assets/audio/sfx/door_release.ogg", "bus": &"SFX"},
-	"portal_open": {"path": "res://assets/audio/sfx/portal_open.ogg", "bus": &"SFX"},
-	"portal_enter": {"path": "res://assets/audio/sfx/portal_enter.ogg", "bus": &"UI"},
-	"loot_drop_common": {"path": "res://assets/audio/sfx/loot_drop_common.ogg", "bus": &"SFX"},
-	"loot_drop_magic": {"path": "res://assets/audio/sfx/loot_drop_magic.ogg", "bus": &"SFX"},
-	"loot_drop_rare": {"path": "res://assets/audio/sfx/loot_drop_rare.ogg", "bus": &"SFX"},
-	"loot_drop_epic": {"path": "res://assets/audio/sfx/loot_drop_epic.ogg", "bus": &"SFX"},
-	"loot_drop_legendary": {"path": "res://assets/audio/sfx/loot_drop_legendary.ogg", "bus": &"SFX"},
-	"loot_drop_aumbral": {"path": "res://assets/audio/sfx/loot_drop_aumbral.ogg", "bus": &"SFX"},
-	"dodge_perfect": {"path": "res://assets/audio/sfx/dodge_perfect.ogg", "bus": &"SFX"},
-	"exhausted": {"path": "res://assets/audio/sfx/exhausted.ogg", "bus": &"SFX"},
-	"resource_denied": {"path": "res://assets/audio/sfx/resource_denied.ogg", "bus": &"UI"},
-	"guard_break": {"path": "res://assets/audio/sfx/guard_break.ogg", "bus": &"SFX"},
-	"boss_reveal": {"path": "res://assets/audio/shared/sting_boss.ogg", "bus": &"Music"},
-}
-
-const COMBAT_SFX_KEYS: Array[String] = [
-	"hit", "hit_armor", "block", "parry", "swing", "death", "footstep", "windup",
-]
 const CRITICAL_SFX := [
 	"parry", "guard_break", "boss_reveal", "resource_denied", "windup_unblockable", "windup_grab",
 ]
@@ -101,6 +59,8 @@ const INTENSITY_PER_ENGAGEMENT := 0.26
 const INTENSITY_COMBAT_CAP := 0.72
 const INTENSITY_LOW_VITALITY_BONUS := 0.18
 const LOW_VITALITY_THRESHOLD := 0.35
+const LOW_HP_CUTOFF_HZ := 1400.0
+const OPEN_CUTOFF_HZ := 20500.0
 const INTENSITY_EPSILON := 0.005
 const COMBAT_RELEASE_HYSTERESIS := 2.0
 
@@ -122,14 +82,6 @@ const DEFAULT_STINGER_PATHS := {
 var _music: AudioStreamPlayer
 var _explore: AudioStreamPlayer
 var _combat_layer: AudioStreamPlayer
-var _ambience_freq := 110.0
-var _music_freq := 196.0
-var _explore_freq := 110.0
-var _combat_freq := 130.0
-var _ambience_phase := 0.0
-var _music_phase := 0.0
-var _explore_phase := 0.0
-var _combat_phase := 0.0
 var _current_mode := "none"
 var _current_biome := ""
 var _crossfade := DEFAULT_CROSSFADE
@@ -140,6 +92,9 @@ var _active_tweens: Dictionary = {}
 var _combat_engagements := 0
 var _ambience_reverb_idx := -1
 var _sfx_reverb_idx := -1
+var _lowpass_cutoff := OPEN_CUTOFF_HZ
+var _lowpass_tween: Tween
+var _heartbeat_running := false
 var _ambience_duck_idx := -1
 var _sfx_bank: Dictionary = {}
 var _sfx_streams: Dictionary = {}
@@ -149,12 +104,12 @@ var _sfx_last_played_ms: Dictionary = {}
 var _sfx_active_counts: Dictionary = {}
 var _missing_sfx_warned: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
-var _generator_active := true
 var _layer_base_db: Dictionary = {}
 var _intensity := 0.0
 var _boss_active := false
 var _player_vitality := 1.0
-var _combat_release_timer := 0.0
+var _combat_release_pending := false
+var _combat_release_token := 0
 var _door_acoustic_state := false
 
 
@@ -177,10 +132,10 @@ func _ready() -> void:
 	AudioSettings.load_from_save()
 	_setup_bus_effects()
 	_load_sfx_bank()
-	_ambience = _create_player("AmbiencePlayer", _ambience_freq, &"Ambience")
-	_music = _create_player("MusicPlayer", _music_freq, &"Music")
-	_explore = _create_player("ExplorePlayer", _explore_freq, &"Music")
-	_combat_layer = _create_player("CombatPlayer", _combat_freq, &"Music")
+	_ambience = _create_player("AmbiencePlayer", &"Ambience")
+	_music = _create_player("MusicPlayer", &"Music")
+	_explore = _create_player("ExplorePlayer", &"Music")
+	_combat_layer = _create_player("CombatPlayer", &"Music")
 	add_child(_ambience)
 	add_child(_music)
 	add_child(_explore)
@@ -198,70 +153,6 @@ func _ready() -> void:
 		player3d.max_distance = 24.0
 		add_child(player3d)
 		_sfx_3d_pool.append(player3d)
-	_recompute_generator_active()
-	_report_placeholder_sfx()
-
-
-func _report_placeholder_sfx() -> void:
-	if not OS.is_debug_build():
-		return
-	var pending: Array[String] = []
-	for key in SFX_PROFILES:
-		var profile: Dictionary = SFX_PROFILES[key]
-		if bool(profile.get("placeholder", false)) and not _bank_covers(str(key)):
-			pending.append(str(key))
-	if pending.is_empty():
-		return
-	pending.sort()
-	print_rich(
-		"[color=yellow]AudioDirector: %d placeholder SFX still need real foley — %s[/color]"
-		% [pending.size(), ", ".join(pending)]
-	)
-
-
-static func _profile_bank_key(key: String) -> Array:
-	if key.begins_with("footstep_"):
-		return ["footstep", key.substr("footstep_".length())]
-	return [key, ""]
-
-
-func _bank_covers(key: String) -> bool:
-	var resolved: Array = _profile_bank_key(key)
-	var bank_key: String = str(resolved[0])
-	var surface: String = str(resolved[1])
-	if not _sfx_bank.has(bank_key):
-		return false
-	if surface == "":
-		return true
-	var entry: Dictionary = _sfx_bank[bank_key]
-	var surface_variants: Dictionary = entry.get("surface_variants", {})
-	var paths: Array = surface_variants.get(surface, [])
-	return not paths.is_empty()
-
-
-func _recompute_generator_active() -> void:
-	_generator_active = (
-		_ambience.stream is AudioStreamGenerator
-		or _music.stream is AudioStreamGenerator
-		or _explore.stream is AudioStreamGenerator
-		or _combat_layer.stream is AudioStreamGenerator
-	)
-	set_process(_generator_active)
-
-
-func _process(delta: float) -> void:
-	if _combat_release_timer > 0.0:
-		_combat_release_timer -= delta
-		if _combat_release_timer <= 0.0:
-			_recompute_intensity(_crossfade * 1.5)
-	if _ambience.playing and _ambience.stream is AudioStreamGenerator:
-		_ambience_phase = _fill_generator_for_mode(_ambience, _ambience_freq, _ambience_phase, _current_mode)
-	if _music.playing and _music.stream is AudioStreamGenerator:
-		_music_phase = _fill_generator_for_mode(_music, _music_freq, _music_phase, _current_mode)
-	if _explore.playing and _explore.stream is AudioStreamGenerator:
-		_explore_phase = _fill_generator_for_mode(_explore, _explore_freq, _explore_phase, _current_mode)
-	if _combat_layer.playing and _combat_layer.stream is AudioStreamGenerator:
-		_combat_phase = _fill_generator_for_mode(_combat_layer, _combat_freq, _combat_phase, _current_mode)
 
 
 func set_biome(biome_id: String) -> void:
@@ -275,21 +166,11 @@ func set_biome(biome_id: String) -> void:
 	var next_streams := _resolve_profile_streams(next_profile)
 	_current_biome = biome_id
 	_profile = next_profile
-	_ambience_freq = float(_profile.get("ambienceFreq", 110.0))
-	_music_freq = float(_profile.get("bossFreq", 196.0))
-	_explore_freq = float(_profile.get("exploreFreq", _ambience_freq))
-	_combat_freq = float(_profile.get("combatFreq", _music_freq))
 	_crossfade = float(_profile.get("crossfadeSeconds", DEFAULT_CROSSFADE))
-	_ambience.set_meta(&"freq", _ambience_freq)
-	_explore.set_meta(&"freq", _explore_freq)
-	_combat_layer.set_meta(&"freq", _combat_freq)
-	_music.set_meta(&"freq", _music_freq)
 	_ambience.stream = next_streams[LAYER_AMBIENCE]
-	_explore.stream = next_streams[LAYER_EXPLORE]
-	_combat_layer.stream = next_streams[LAYER_COMBAT]
+	_bind_music_stems(next_streams[LAYER_EXPLORE], next_streams[LAYER_COMBAT])
 	_music.stream = next_streams[LAYER_BOSS]
 	_load_layer_mix_metadata()
-	_recompute_generator_active()
 	var reverb_preset: String = str(_profile.get("reverbPreset", BIOME_REVERB_PRESETS.get(biome_id, "indoor_castle")))
 	_apply_reverb_preset(reverb_preset)
 
@@ -313,24 +194,83 @@ func _resolve_profile_streams(profile: Dictionary) -> Dictionary:
 		LAYER_COMBAT: str((layers.get(LAYER_COMBAT, {}) as Dictionary).get("path", "")),
 		LAYER_BOSS: str(profile.get("bossPath", "")),
 	}
-	var frequencies := {
-		LAYER_AMBIENCE: float(profile.get("ambienceFreq", 110.0)),
-		LAYER_EXPLORE: float((layers.get(LAYER_EXPLORE, {}) as Dictionary).get("fallback_freq", profile.get("exploreFreq", 110.0))),
-		LAYER_COMBAT: float((layers.get(LAYER_COMBAT, {}) as Dictionary).get("fallback_freq", profile.get("combatFreq", 130.0))),
-		LAYER_BOSS: float(profile.get("bossFreq", 196.0)),
-	}
 	var resolved := {}
 	for layer in LAYER_KEYS:
 		var stream := _load_audio_stream(paths[layer]) if paths[layer] != "" else null
-		resolved[layer] = stream if stream != null else _new_generator(float(frequencies[layer]))
+		if stream == null and paths[layer] != "":
+			push_warning("AudioDirector: missing audio file '%s' for the %s layer" % [paths[layer], layer])
+		resolved[layer] = stream
 	return resolved
 
 
-func _new_generator(_frequency: float) -> AudioStreamGenerator:
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = MIX_RATE
-	generator.buffer_length = GENERATOR_BUFFER_SEC
-	return generator
+const STEM_INDEX := {LAYER_EXPLORE: 0, LAYER_COMBAT: 1}
+
+var _stem_sync: AudioStreamSynchronized
+var _stem_db: Dictionary = {}
+var _stem_tweens: Dictionary = {}
+
+
+## Explore and combat are two recordings of one piece. On separate players each starts whenever it
+## becomes audible and they drift apart; inside one synchronized stream they share a clock and only
+## their volumes move. The explore player carries both; the combat player stays empty.
+func _bind_music_stems(explore_stream: AudioStream, combat_stream: AudioStream) -> void:
+	_stem_sync = null
+	if (
+		explore_stream == null
+		or combat_stream == null
+	):
+		_explore.stream = explore_stream
+		_combat_layer.stream = combat_stream
+		return
+	var sync := AudioStreamSynchronized.new()
+	sync.stream_count = 2
+	sync.set_sync_stream(STEM_INDEX[LAYER_EXPLORE], explore_stream)
+	sync.set_sync_stream(STEM_INDEX[LAYER_COMBAT], combat_stream)
+	_stem_sync = sync
+	_explore.stream = sync
+	_combat_layer.stream = null
+	_reset_stems()
+
+
+func _reset_stems() -> void:
+	for layer: String in STEM_INDEX:
+		if _stem_tweens.has(layer):
+			var tween: Tween = _stem_tweens[layer]
+			if tween and tween.is_valid():
+				tween.kill()
+			_stem_tweens.erase(layer)
+		_set_stem_db(layer, LAYER_SILENCE_DB)
+
+
+func _set_stem_db(layer: String, db: float) -> void:
+	_stem_db[layer] = db
+	if _stem_sync != null:
+		_stem_sync.set_sync_stream_volume(int(STEM_INDEX[layer]), db)
+
+
+func _tween_stem(layer: String, gain: float, duration: float) -> void:
+	var target_db := LAYER_SILENCE_DB
+	if gain > 0.001:
+		var base_db := float(_layer_base_db.get(layer, 0.0))
+		target_db = clampf(base_db + linear_to_db(gain), LAYER_SILENCE_DB, LAYER_MAX_DB)
+	if not _explore.playing:
+		_kill_tween(_explore)
+		_reset_stems()
+		_explore.volume_db = 0.0
+		_explore.stream_paused = false
+		_explore.play()
+	if _stem_tweens.has(layer):
+		var previous: Tween = _stem_tweens[layer]
+		if previous and previous.is_valid():
+			previous.kill()
+	var tween := create_tween()
+	_stem_tweens[layer] = tween
+	tween.tween_method(
+		func(db: float) -> void: _set_stem_db(layer, db),
+		float(_stem_db.get(layer, LAYER_SILENCE_DB)),
+		target_db,
+		maxf(0.05, duration)
+	)
 
 
 func _player_for_layer(layer: String) -> AudioStreamPlayer:
@@ -374,7 +314,7 @@ func _recompute_intensity(duration: float) -> void:
 	var target := 0.0
 	if _boss_active:
 		target = 1.0
-	elif _combat_engagements > 0 or _combat_release_timer > 0.0:
+	elif _combat_engagements > 0 or _combat_release_pending:
 		target = minf(float(_combat_engagements) * INTENSITY_PER_ENGAGEMENT, INTENSITY_COMBAT_CAP)
 		if _player_vitality <= LOW_VITALITY_THRESHOLD:
 			target = minf(INTENSITY_COMBAT_CAP, target + INTENSITY_LOW_VITALITY_BONUS)
@@ -397,6 +337,9 @@ func _apply_layer_mix(duration: float) -> void:
 func _tween_layer(
 	player: AudioStreamPlayer, layer: String, gain: float, duration: float
 ) -> void:
+	if _stem_sync != null and STEM_INDEX.has(layer):
+		_tween_stem(layer, gain, duration)
+		return
 	if player.stream == null:
 		return
 	var audible := gain > 0.001
@@ -422,6 +365,45 @@ func notify_player_vitality(ratio: float) -> void:
 	_player_vitality = clamped
 	if was_low != (clamped <= LOW_VITALITY_THRESHOLD):
 		_recompute_intensity(_crossfade * 1.5)
+	_apply_vitality_dsp()
+
+
+## Near death the world goes muffled and a heartbeat takes over: the music and ambience lose their
+## top end in proportion to how little health is left, and a pulse quickens as it falls.
+func _apply_vitality_dsp() -> void:
+	var fight_on := _current_mode in ["dungeon", "boss"]
+	var low := fight_on and _player_vitality <= LOW_VITALITY_THRESHOLD
+	var depth := clampf(1.0 - _player_vitality / LOW_VITALITY_THRESHOLD, 0.0, 1.0) if low else 0.0
+	var target_cutoff := exp(lerpf(log(OPEN_CUTOFF_HZ), log(LOW_HP_CUTOFF_HZ), depth))
+	if _lowpass_tween != null and _lowpass_tween.is_valid():
+		_lowpass_tween.kill()
+	_lowpass_tween = create_tween()
+	_lowpass_tween.tween_method(_set_lowpass_cutoff, _lowpass_cutoff, target_cutoff, 0.6)
+	if low and not _heartbeat_running:
+		_heartbeat_running = true
+		_heartbeat_tick()
+	elif not low:
+		_heartbeat_running = false
+
+
+func _set_lowpass_cutoff(cutoff: float) -> void:
+	_lowpass_cutoff = cutoff
+	for bus_name: StringName in [&"Music", &"Ambience"]:
+		var bus_idx := AudioServer.get_bus_index(bus_name)
+		if bus_idx < 0:
+			continue
+		for i in AudioServer.get_bus_effect_count(bus_idx):
+			var effect := AudioServer.get_bus_effect(bus_idx, i) as AudioEffectLowPassFilter
+			if effect != null:
+				effect.cutoff_hz = cutoff
+
+
+func _heartbeat_tick() -> void:
+	if not _heartbeat_running:
+		return
+	play_sfx("heartbeat")
+	var depth := clampf(1.0 - _player_vitality / LOW_VITALITY_THRESHOLD, 0.0, 1.0)
+	get_tree().create_timer(lerpf(1.15, 0.7, depth), true).timeout.connect(_heartbeat_tick)
 
 
 func play_dungeon_ambience() -> void:
@@ -429,28 +411,19 @@ func play_dungeon_ambience() -> void:
 	_combat_engagements = 0
 	_boss_active = false
 	_player_vitality = 1.0
+	_apply_vitality_dsp()
 	_intensity = 0.0
-	_restore_generator_streams()
 	_apply_layer_mix(_crossfade)
 
 
 func play_menu_music() -> void:
 	_current_mode = "menu"
 	_combat_engagements = 0
-	_ambience_freq = 98.0
-	_music_freq = 392.0
-	_explore_freq = 523.0
-	_combat_freq = 294.0
-	_ambience.set_meta(&"freq", _ambience_freq)
-	_music.set_meta(&"freq", _music_freq)
-	_explore.set_meta(&"freq", _explore_freq)
-	_combat_layer.set_meta(&"freq", _combat_freq)
 	_boss_active = false
 	_intensity = 0.0
 	_layer_base_db.clear()
 	# Keep an already-playing title stream intact. Forcing a generator swap here created orphaned
 	# Ogg playback sequences every time the menu was reopened.
-	_restore_generator_streams()
 	_try_load_file_stream(_music, MENU_THEME_PATH)
 	_apply_reverb_preset("cathedral")
 	_fade_out_player(_combat_layer, _crossfade)
@@ -462,18 +435,14 @@ func play_menu_music() -> void:
 func play_hub_ambience() -> void:
 	_current_mode = "hub"
 	_combat_engagements = 0
-	_ambience_freq = 110.0
-	_music_freq = 220.0
-	_explore_freq = 165.0
-	_combat_freq = 87.5
-	_ambience.set_meta(&"freq", _ambience_freq)
-	_music.set_meta(&"freq", _music_freq)
-	_explore.set_meta(&"freq", _explore_freq)
-	_combat_layer.set_meta(&"freq", _combat_freq)
 	_boss_active = false
 	_intensity = 0.0
 	_layer_base_db.clear()
-	_restore_generator_streams(true)
+	# The hub's sound is its theme, the weather and the props' own loops; the ambience and combat
+	# layers stay empty rather than fall back to a synthesised drone.
+	for layer in [_ambience, _explore, _combat_layer]:
+		layer.stop()
+		layer.stream = null
 	_try_load_file_stream(_music, HUB_THEME_PATH)
 	_apply_reverb_preset("umbral")
 	_fade_out_player(_combat_layer, _crossfade)
@@ -496,9 +465,6 @@ func set_boss_phase(phase_index: int, music_path: String = "") -> void:
 	if music_path != "":
 		_try_load_file_stream(_music, music_path)
 		_fade_in_player(_music)
-	elif _music.stream is AudioStreamGenerator:
-		_music_freq = float(_profile.get("bossFreq", 196.0)) * pow(1.5, float(maxi(0, phase_index)))
-		_music.set_meta(&"freq", _music_freq)
 	if phase_index > 0:
 		play_sfx("boss_reveal")
 
@@ -509,8 +475,6 @@ func end_boss_music() -> void:
 	_boss_active = false
 	_current_mode = "dungeon"
 	_intensity = -1.0
-	_music_freq = float(_profile.get("bossFreq", 196.0))
-	_music.set_meta(&"freq", _music_freq)
 	var boss_path: String = _profile.get("bossPath", "")
 	if boss_path != "":
 		_try_load_file_stream(_music, boss_path)
@@ -521,7 +485,7 @@ func register_combat_engagement() -> void:
 	if _current_mode != "dungeon":
 		return
 	_combat_engagements += 1
-	_combat_release_timer = 0.0
+	_cancel_combat_release()
 	_recompute_intensity(_crossfade)
 
 
@@ -530,17 +494,41 @@ func unregister_combat_engagement() -> void:
 		return
 	_combat_engagements = maxi(0, _combat_engagements - 1)
 	if _combat_engagements == 0:
-		_combat_release_timer = COMBAT_RELEASE_HYSTERESIS
+		_start_combat_release()
 	else:
 		_recompute_intensity(_crossfade * 1.5)
+
+
+## The combat layer lets go a moment after the last engagement ends. This is a tree timer and not
+## a countdown in `_process`: that stops the moment no generator stream is playing.
+func _start_combat_release() -> void:
+	_combat_release_pending = true
+	_combat_release_token += 1
+	get_tree().create_timer(COMBAT_RELEASE_HYSTERESIS).timeout.connect(
+		_finish_combat_release.bind(_combat_release_token)
+	)
+
+
+func _cancel_combat_release() -> void:
+	_combat_release_pending = false
+	_combat_release_token += 1
+
+
+func _finish_combat_release(token: int) -> void:
+	if token != _combat_release_token:
+		return
+	_combat_release_pending = false
+	_recompute_intensity(_crossfade * 1.5)
 
 
 func stop_all(fade: float = 0.3) -> void:
 	_current_mode = "none"
 	_combat_engagements = 0
+	_cancel_combat_release()
 	_boss_active = false
 	_intensity = 0.0
 	_player_vitality = 1.0
+	_apply_vitality_dsp()
 	_fade_out_player(_ambience, fade)
 	_fade_out_player(_music, fade)
 	_fade_out_player(_explore, fade)
@@ -570,14 +558,12 @@ func play_sfx(kind: String, world_pos: Variant = null, surface: String = "stone"
 	var streams: Array = _sfx_streams.get(kind, [])
 	if streams.is_empty():
 		_warn_missing_sfx(kind)
-		_play_fallback_tone(kind, world_pos, entry)
 		_mark_sfx_played(kind)
 		_duck_for_threat(kind, entry)
 		return
 	var stream: AudioStream = _pick_sfx_stream(kind, entry, surface)
 	if stream == null:
 		_warn_missing_sfx(kind)
-		_play_fallback_tone(kind, world_pos, entry)
 		_mark_sfx_played(kind)
 		_duck_for_threat(kind, entry)
 		return
@@ -596,47 +582,8 @@ func preview_bus(bus: StringName) -> void:
 	if idx < 0:
 		play_ui_sfx()
 		return
-	var preview := AudioStreamPlayer.new()
-	preview.name = "BusPreview"
-	preview.bus = bus
-	preview.stream = _preview_tone_for_bus(bus)
-	add_child(preview)
-	preview.finished.connect(preview.queue_free)
-	preview.play()
-
-
-func _preview_tone_for_bus(bus: StringName) -> AudioStream:
-	var freq := 440.0
-	match bus:
-		&"Music":
-			freq = _music_freq * 2.0
-		&"Ambience":
-			freq = _ambience_freq * 2.0
-		&"SFX":
-			freq = 330.0
-		_:
-			freq = 523.25
-	return _make_tone_stream(freq, 0.22)
-
-
-func _make_tone_stream(freq: float, seconds: float) -> AudioStreamWAV:
-	var rate := int(MIX_RATE)
-	var frames := maxi(1, int(rate * seconds))
-	var attack := maxf(1.0, float(frames) * 0.05)
-	var release := maxf(1.0, float(frames) * 0.45)
-	var data := PackedByteArray()
-	data.resize(frames * 2)
-	for i in frames:
-		var envelope := minf(float(i) / attack, minf(1.0, float(frames - i) / release))
-		var sample := sin(TAU * freq * (float(i) / float(rate))) * envelope * 0.35
-		var value := int(clampf(sample, -1.0, 1.0) * 32767.0)
-		data.encode_s16(i * 2, value)
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = rate
-	stream.stereo = false
-	stream.data = data
-	return stream
+	# A click is the preview: it is routed through the bus being adjusted by the cue's own bus.
+	play_ui_sfx()
 
 
 func play_cue(cue_name: StringName, world_pos: Variant = null) -> void:
@@ -648,12 +595,11 @@ func play_stinger(stinger_id: String) -> void:
 	var path := str(stingers.get(stinger_id, DEFAULT_STINGER_PATHS.get(stinger_id, "")))
 	var stream: AudioStream = _load_audio_stream(path) if path != "" else null
 	if stream != null:
-		_play_stream_2d(stream, &"SFX", 0.0, 1.0)
+		_play_stream_2d(stream, &"Music", 0.0, 1.0)
 	else:
 		play_sfx(stinger_id)
-	# Content stingers are optional.  A short, profile-aware chord keeps meaningful events from
-	# collapsing into a dry single cue when a biome has not authored a bespoke music asset yet.
-	_play_stinger_accent(stinger_id)
+		# Only a stinger with no authored file borrows a chord; stacking one on a real file
+		# muddies it.
 	var duck_players: Array[AudioStreamPlayer] = []
 	for layer in [LAYER_EXPLORE, LAYER_COMBAT, LAYER_BOSS]:
 		var player := _player_for_layer(layer)
@@ -676,6 +622,8 @@ func _layer_for_player(player: AudioStreamPlayer) -> String:
 
 
 func _layer_target_db(layer: String) -> float:
+	if _stem_sync != null and STEM_INDEX.has(layer):
+		return 0.0
 	var points: Array = LAYER_GAIN_CURVE.get(layer, [])
 	var gain := _sample_curve(points, _intensity)
 	if gain <= 0.001:
@@ -689,9 +637,9 @@ func _pitch_variant(_kind: String, entry: Dictionary) -> float:
 	if not variants is Array or (variants as Array).is_empty():
 		return 1.0
 	var values: Array = variants
-	var cents := float(values[_rng.randi_range(0, values.size() - 1)])
-	# Semitone fractions are much easier to author and remain subtle enough for foley.
-	return pow(2.0, cents / 12.0)
+	# `pitch_variants` are semitone offsets; fractions stay subtle enough for foley.
+	var semitones := float(values[_rng.randi_range(0, values.size() - 1)])
+	return pow(2.0, semitones / 12.0)
 
 
 func _play_supporting_layers(entry: Dictionary, world_pos: Variant, surface: String) -> void:
@@ -722,48 +670,6 @@ func _play_supporting_layers(entry: Dictionary, world_pos: Variant, surface: Str
 			float(layer.get("pitch", 1.0)) * _pitch_variant(key, support_entry)
 		)
 		_mark_sfx_played(key)
-
-
-func _play_stinger_accent(stinger_id: String) -> void:
-	var notes := PackedFloat32Array([440.0, 554.37, 659.25])
-	var duration := 0.34
-	match stinger_id:
-		"boss_reveal":
-			notes = PackedFloat32Array([73.42, 110.0, 146.83])
-			duration = 0.48
-		"floor_clear", "personal_best":
-			notes = PackedFloat32Array([523.25, 659.25, 783.99])
-			duration = 0.46
-		"secret_found", "rare_drop":
-			notes = PackedFloat32Array([659.25, 783.99, 1046.5])
-			duration = 0.38
-		"key_taken", "lock_opened", "shortcut_opened":
-			notes = PackedFloat32Array([329.63, 440.0, 659.25])
-			duration = 0.32
-		_:
-			return
-	_play_stream_2d(_make_event_chord(notes, duration), &"Music", -13.0, 1.0)
-
-
-func _make_event_chord(notes: PackedFloat32Array, seconds: float) -> AudioStreamWAV:
-	var frames := maxi(1, int(MIX_RATE * seconds))
-	var data := PackedByteArray()
-	data.resize(frames * 2)
-	for i in frames:
-		var progress := float(i) / float(frames)
-		var envelope := minf(progress / 0.045, pow(1.0 - progress, 1.55))
-		var sample := 0.0
-		for note in notes:
-			var phase := TAU * note * float(i) / MIX_RATE
-			sample += sin(phase) * 0.11 + sin(phase * 2.0) * 0.022
-		# A tiny attack transient helps the stinger cut through without turning it into a loud beep.
-		sample += sin(TAU * 1800.0 * float(i) / MIX_RATE) * exp(-progress * 42.0) * 0.025
-		data.encode_s16(i * 2, int(clampf(sample * envelope, -1.0, 1.0) * 32767.0))
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = int(MIX_RATE)
-	stream.data = data
-	return stream
 
 
 func play_biome_accent(biome_id: String, world_pos: Vector3) -> void:
@@ -816,11 +722,9 @@ func has_sfx(kind: String) -> bool:
 	return _sfx_streams.has(kind) and not (_sfx_streams[kind] as Array).is_empty()
 
 
-## `AU-04`: whether `kind` is a declared cue at all (bank entry, even one served only by its
-## `fallback_tone`), as opposed to `has_sfx()`, which is only true once real authored audio exists.
-## Callers building a cue name from content (e.g. a per-enemy voice prefix) use this to decide
-## whether the specific cue they want is worth playing rather than silently degrading to the
-## generic 220 Hz beep an unregistered `kind` falls back to.
+## Whether `kind` is a declared cue in `sfx.json`, as opposed to `has_sfx()`, which is only true once
+## its audio files actually load. Callers building a cue name from content (a per-enemy voice prefix)
+## use this to decide whether the specific cue is worth playing.
 func has_sfx_entry(kind: String) -> bool:
 	return _sfx_bank.has(kind)
 
@@ -854,8 +758,6 @@ func attach_loop_emitter(host: Node3D, key: String, radius: float = 6.0) -> Audi
 func _load_sfx_bank() -> void:
 	var bank_data := ContentLoader.load_json(SFX_BANK_PATH)
 	_sfx_bank = bank_data.get("sfx", {})
-	for kind in SFX_PROFILES:
-		_cache_sfx_kind(str(kind))
 	for kind in _sfx_bank:
 		_cache_sfx_kind(str(kind))
 
@@ -896,10 +798,6 @@ func _resolve_sfx_paths(kind: String) -> Array[String]:
 			for surface_paths in surface_variants.values():
 				for path in surface_paths:
 					paths.append(str(path))
-	if paths.is_empty() and SFX_PROFILES.has(kind):
-		var profile: Dictionary = SFX_PROFILES[kind]
-		if profile.has("path"):
-			paths.append(str(profile["path"]))
 	return paths
 
 
@@ -996,16 +894,14 @@ func _play_stream(
 	var bus: StringName = &"SFX"
 	if entry.has("bus"):
 		bus = StringName(str(entry["bus"]))
-	elif SFX_PROFILES.has(kind):
-		bus = SFX_PROFILES[kind].get("bus", &"SFX")
-	var profile: Dictionary = SFX_PROFILES.get(kind, {})
+	bus = _routed_bus(kind, bus)
 	var priority := _cue_priority(kind, entry)
 	# Critical telegraphs and clean impacts should win the mix, even in a dense room.  The gain is
 	# deliberately small: this is clarity, not a permanent loudness war against ambience.
 	var clarity_boost := 1.25 if priority >= 3 else (0.65 if priority >= 2 else 0.0)
-	var volume_db := float(entry.get("volume_db", profile.get("volume_db", 0.0))) + volume_offset_db + clarity_boost
-	var pitch_jitter := float(entry.get("pitch_jitter", profile.get("pitch_jitter", 0.0)))
-	var pitch_scale := float(entry.get("pitch", profile.get("pitch", 1.0))) * pitch_multiplier
+	var volume_db := float(entry.get("volume_db", 0.0)) + volume_offset_db + clarity_boost
+	var pitch_jitter := float(entry.get("pitch_jitter", 0.0))
+	var pitch_scale := float(entry.get("pitch", 1.0)) * pitch_multiplier
 	if pitch_jitter > 0.0:
 		pitch_scale *= 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
 	if world_pos is Vector3:
@@ -1038,14 +934,29 @@ func _configure_spatial_voice(
 	return float(policy.get("occluded_volume_db", -9.0))
 
 
+## Where the player is listening from: the player's own `AudioListener3D`, or the camera when the
+## scene has no player.
+func _listener_position() -> Variant:
+	var listener := get_tree().get_first_node_in_group("audio_listener") as Node3D
+	if listener != null and listener.is_inside_tree():
+		return listener.global_position
+	var camera := PixelDioramaViewport.get_gameplay_camera()
+	if camera != null:
+		return camera.global_position
+	return null
+
+
 func _is_occluded(world_pos: Vector3) -> bool:
-	var camera := get_viewport().get_camera_3d()
+	var origin: Variant = _listener_position()
+	if origin == null:
+		return false
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	if camera == null:
 		return false
 	var space: PhysicsDirectSpaceState3D = camera.get_world_3d().direct_space_state
 	if space == null:
 		return false
-	var query := PhysicsRayQueryParameters3D.create(camera.global_position, world_pos)
+	var query := PhysicsRayQueryParameters3D.create(origin as Vector3, world_pos)
 	query.collision_mask = CombatLayers.WORLD_OCCLUDERS
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
@@ -1088,59 +999,10 @@ func _duck_for_threat(kind: String, entry: Dictionary) -> void:
 		tween.tween_property(player, "volume_db", baseline, 0.28)
 
 
-func _play_fallback_tone(kind: String, world_pos: Variant, entry: Dictionary) -> void:
-	var profile := _fallback_profile(kind, entry)
-	if world_pos is Vector3:
-		_play_sfx_3d(profile, world_pos)
-	else:
-		_play_sfx_2d(profile)
-
-
-func _fallback_profile(kind: String, entry: Dictionary = {}) -> Dictionary:
-	var profile: Dictionary = {}
-	if entry.has("fallback_tone"):
-		var tone: Dictionary = entry["fallback_tone"]
-		profile = {
-			"kind": kind,
-			"priority": _cue_priority(kind, entry),
-			"freq": float(tone.get("freq", 220.0)),
-			"duration": float(tone.get("duration", 0.08)),
-			"bus": StringName(str(entry.get("bus", "SFX"))),
-		}
-	elif SFX_PROFILES.has(kind):
-		var sfx_profile: Dictionary = SFX_PROFILES[kind]
-		profile = {
-			"kind": kind,
-			"priority": _cue_priority(kind, entry),
-			"bus": sfx_profile.get("bus", &"SFX"),
-			"freq": float(sfx_profile.get("freq", 220.0)),
-			"duration": float(sfx_profile.get("duration", 0.08)),
-		}
-	else:
-		profile = {"kind": kind, "priority": 0, "freq": 220.0, "duration": 0.08, "bus": &"SFX"}
-	return profile
-
-
 func _warn_missing_sfx(kind: String) -> void:
 	if OS.is_debug_build() and not _missing_sfx_warned.has(kind):
 		_missing_sfx_warned[kind] = true
 		push_warning("AudioDirector: missing authored SFX for '%s'" % kind)
-
-
-func _play_sfx_2d(profile: Dictionary) -> void:
-	var player := _acquire_sfx_player(int(profile.get("priority", 0)))
-	if player == null:
-		return
-	_prime_tone_burst(player, profile)
-
-
-func _play_sfx_3d(profile: Dictionary, world_pos: Vector3) -> void:
-	var player := _acquire_sfx_3d_player(int(profile.get("priority", 0)), world_pos)
-	if player == null:
-		_play_sfx_2d(profile)
-		return
-	player.global_position = world_pos
-	_prime_tone_burst(player, profile)
 
 
 func _acquire_sfx_player(request_priority: int = 0) -> AudioStreamPlayer:
@@ -1164,14 +1026,14 @@ func _acquire_sfx_3d_player(
 			return player
 	var candidate: AudioStreamPlayer3D = null
 	var candidate_score := INF
-	var listener := get_viewport().get_camera_3d()
+	var listener: Variant = _listener_position()
 	for player in _sfx_3d_pool:
 		var priority := int(player.get_meta(&"sfx_priority", 0))
 		if priority > request_priority:
 			continue
 		var distance := (
-			listener.global_position.distance_to(player.global_position)
-			if listener else player.global_position.distance_to(world_pos)
+			(listener as Vector3).distance_to(player.global_position)
+			if listener != null else player.global_position.distance_to(world_pos)
 		)
 		var age := float(Time.get_ticks_msec() - int(player.get_meta(&"sfx_started_ms", 0))) / 1000.0
 		var score := float(priority) * 100.0 - distance - age * 4.0
@@ -1179,40 +1041,6 @@ func _acquire_sfx_3d_player(
 			candidate = player
 			candidate_score = score
 	return candidate
-
-
-func _prime_tone_burst(player: Node, profile: Dictionary) -> void:
-	var kind := str(profile.get("kind", ""))
-	if kind != "":
-		_prepare_voice(player, kind, int(profile.get("priority", 0)))
-	var bus: StringName = profile.get("bus", &"SFX")
-	player.bus = bus
-	player.volume_db = 0.0
-	var freq := float(profile.get("freq", 220.0))
-	var duration := float(profile.get("duration", 0.08))
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = MIX_RATE
-	generator.buffer_length = maxf(duration, GENERATOR_BUFFER_SEC)
-	player.stream = generator
-	player.play()
-	var playback: AudioStreamPlayback = player.get_stream_playback()
-	if playback == null or not playback is AudioStreamGeneratorPlayback:
-		return
-	var gen_playback := playback as AudioStreamGeneratorPlayback
-	var frame_count := int(duration * MIX_RATE)
-	var phase := 0.0
-	var phase_step := freq * TAU / MIX_RATE
-	for i in frame_count:
-		var env := 1.0 - float(i) / float(maxi(frame_count, 1))
-		var sample := sin(phase) * 0.35 * env
-		gen_playback.push_frame(Vector2(sample, sample))
-		phase = fmod(phase + phase_step, TAU)
-	var generation_stream: AudioStream = player.stream
-	var stop_timer := get_tree().create_timer(duration + 0.02, true, false, true)
-	stop_timer.timeout.connect(func() -> void:
-		if is_instance_valid(player) and player.stream == generation_stream:
-			player.stop()
-	, CONNECT_ONE_SHOT)
 
 
 func _load_audio_stream(path: String) -> AudioStream:
@@ -1261,18 +1089,12 @@ func _kill_tween(player: AudioStreamPlayer) -> void:
 		_active_tweens.erase(player)
 
 
-func _create_player(player_name: String, freq: float, bus: StringName) -> AudioStreamPlayer:
+func _create_player(player_name: String, bus: StringName) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
 	player.name = player_name
 	player.bus = bus
 	player.volume_db = 0.0
 	player.autoplay = false
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = MIX_RATE
-	generator.buffer_length = GENERATOR_BUFFER_SEC
-	player.stream = generator
-	player.set_meta(&"freq", freq)
-	_generator_active = true
 	return player
 
 
@@ -1282,7 +1104,6 @@ func _try_load_file_stream(player: AudioStreamPlayer, path: String) -> void:
 		return
 	player.stop()
 	player.stream = stream
-	_recompute_generator_active()
 
 
 func _audio_path_candidates(path: String) -> Array[String]:
@@ -1300,6 +1121,75 @@ func _setup_bus_effects() -> void:
 	_ambience_reverb_idx = _ensure_reverb_on_bus(&"Ambience")
 	_sfx_reverb_idx = _ensure_reverb_on_bus(&"SFX")
 	_ambience_duck_idx = _ensure_sidechain_compressor(&"Ambience", &"Music")
+	_ensure_sfx_subbuses()
+	_ensure_low_pass(&"Music")
+	_ensure_low_pass(&"Ambience")
+	_ensure_master_limiter()
+
+
+func _ensure_low_pass(bus_name: StringName) -> void:
+	var bus_idx := AudioServer.get_bus_index(bus_name)
+	if bus_idx < 0:
+		return
+	for i in AudioServer.get_bus_effect_count(bus_idx):
+		if AudioServer.get_bus_effect(bus_idx, i) is AudioEffectLowPassFilter:
+			return
+	var filter := AudioEffectLowPassFilter.new()
+	filter.cutoff_hz = OPEN_CUTOFF_HZ
+	AudioServer.add_bus_effect(bus_idx, filter)
+
+
+## Twenty spatial voices and the music can stack past full scale in a fight; the limiter holds the
+## master under it.
+## The player's own sounds, the enemies' and the voices each get a bus under SFX, so a busy fight
+## can be balanced by source and the SFX volume setting still moves all of them.
+const SFX_SUBBUSES: Array[StringName] = [&"Player", &"Enemies", &"Voice"]
+const CUE_SUBBUS_BY_PREFIX := {
+	"footstep": &"Player",
+	"swing": &"Player",
+	"dodge": &"Player",
+	"block": &"Player",
+	"parry": &"Player",
+	"heal": &"Player",
+	"guard": &"Player",
+	"exhausted": &"Player",
+	"windup": &"Enemies",
+	"death": &"Enemies",
+	"npc_murmur": &"Voice",
+}
+
+
+func _ensure_sfx_subbuses() -> void:
+	for bus_name in SFX_SUBBUSES:
+		if AudioServer.get_bus_index(bus_name) >= 0:
+			continue
+		AudioServer.add_bus()
+		var idx := AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(idx, bus_name)
+		AudioServer.set_bus_send(idx, &"SFX")
+
+
+func _routed_bus(kind: String, bus: StringName) -> StringName:
+	if bus != &"SFX":
+		return bus
+	for prefix: String in CUE_SUBBUS_BY_PREFIX:
+		if kind.begins_with(prefix):
+			var target: StringName = CUE_SUBBUS_BY_PREFIX[prefix]
+			return target if AudioServer.get_bus_index(target) >= 0 else bus
+	return bus
+
+
+func _ensure_master_limiter() -> void:
+	var master := AudioServer.get_bus_index(&"Master")
+	if master < 0:
+		return
+	for i in AudioServer.get_bus_effect_count(master):
+		if AudioServer.get_bus_effect(master, i) is AudioEffectLimiter:
+			return
+	var limiter := AudioEffectLimiter.new()
+	limiter.ceiling_db = -1.0
+	limiter.threshold_db = -6.0
+	AudioServer.add_bus_effect(master, limiter)
 
 
 func _ensure_reverb_on_bus(bus_name: StringName) -> int:
@@ -1366,43 +1256,6 @@ func _apply_reverb_to_bus(bus_name: StringName, preset: Dictionary, wet_scale: f
 	reverb.spread = float(preset.get("spread", 0.3))
 
 
-func _fill_generator_for_mode(
-	player: AudioStreamPlayer,
-	freq: float,
-	phase: float,
-	mode: String
-) -> float:
-	var playback: AudioStreamPlayback = player.get_stream_playback()
-	if playback == null or not playback is AudioStreamGeneratorPlayback:
-		return phase
-	var gen_playback := playback as AudioStreamGeneratorPlayback
-	var frames_available := gen_playback.get_frames_available()
-	if frames_available <= 0:
-		return phase
-	var phase_step := freq * TAU / MIX_RATE
-	for _i in frames_available:
-		var sample := sin(phase) * 0.22 + sin(phase * 0.5) * 0.08
-		if mode == "menu":
-			var layer := player.name
-			if layer == "MusicPlayer":
-				sample = sin(phase) * 0.26 + sin(phase * 2.0) * 0.06
-			elif layer == "ExplorePlayer":
-				sample = sin(phase) * 0.18 + sin(phase * 1.5) * 0.1
-			else:
-				sample = sin(phase) * 0.14 + sin(phase * 0.5) * 0.06
-		elif mode == "hub":
-			var hub_layer := player.name
-			if hub_layer == "AmbiencePlayer":
-				sample = sin(phase) * 0.16 + sin(phase * 0.33) * 0.05
-			elif hub_layer == "MusicPlayer":
-				sample = sin(phase) * 0.2 + sin(phase * 0.66) * 0.08
-			else:
-				sample = sin(phase) * 0.12
-		gen_playback.push_frame(Vector2(sample, sample))
-		phase = fmod(phase + phase_step, TAU)
-	return phase
-
-
 var _pause_mix_active := false
 var _saved_music_layers: Dictionary = {}
 var _saved_bus_mutes: Dictionary = {}
@@ -1440,21 +1293,3 @@ func set_pause_mix(enabled: bool) -> void:
 			if idx >= 0:
 				AudioServer.set_bus_mute(idx, bool(_saved_bus_mutes[bus_name]))
 		_saved_bus_mutes.clear()
-
-
-func _restore_generator_streams(force: bool = false) -> void:
-	for player in [_ambience, _music, _explore, _combat_layer]:
-		if force or player.stream == null or player.stream is AudioStreamGenerator:
-			_assign_generator_stream(player)
-
-
-func _assign_generator_stream(player: AudioStreamPlayer) -> void:
-	if player.stream is AudioStreamGenerator:
-		return
-	player.stop()
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = MIX_RATE
-	generator.buffer_length = GENERATOR_BUFFER_SEC
-	player.stream = generator
-	_generator_active = true
-	set_process(true)

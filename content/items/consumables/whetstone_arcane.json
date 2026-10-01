@@ -2,8 +2,6 @@
   "id": "whetstone_arcane",
   "name": "Arcane Whetstone",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 5,
   "rarity": "rare",
   "description": "It sharpens nothing. The blade cuts better regardless, which nobody has explained.",
@@ -11,7 +9,7 @@
     "kind": "applyStatus",
     "statusId": "elixir_arcane_edge",
     "duration": 120,
-    "stat": "arcaneDamage",
+    "stat": "physicalDamage",
     "amount": 14,
     "usableInHub": false
   },

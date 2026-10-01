@@ -11,6 +11,8 @@ signal hitbox_close_frame(generation: int)
 
 enum Priority {
 	LOCOMOTION,
+	## A flinch yields to any deliberate action: a dodge, a heal or a parry always beats it.
+	FLINCH,
 	DASH,
 	BLOCK,
 	ATTACK,
@@ -59,6 +61,8 @@ var _theme: int = 0
 var _attack_clips: Array = []
 var _combo_index := 0
 var _priority: int = Priority.LOCOMOTION
+## The stagger clip can end before the stagger does; its last frame holds until `end_stagger()`.
+var _holding_stagger := false
 var _desired_locomotion: StringName = &"idle"
 var _desired_locomotion_params: Dictionary = {}
 var _blocking := false
@@ -121,11 +125,7 @@ func _finish_bind() -> void:
 			visual.tree_entered.connect(_on_bind_visual_tree_entered, CONNECT_ONE_SHOT)
 		return
 	_events_path = _resolve_events_path(visual)
-	var loaded := AnimLibrary.build_library(_rest_pose, _events_path, _profile)
-	if AnimLibrary.can_use_authored_library(_rest_pose, _profile):
-		_library = loaded.duplicate(true)
-	else:
-		_library = loaded
+	_library = AnimLibrary.build_library(_rest_pose, _events_path, _profile)
 	_runtime_library = AnimationLibrary.new()
 	_missing_clips.clear()
 	_hitbox_signals_warned = false
@@ -144,7 +144,6 @@ func _finish_bind() -> void:
 	if _weapon_id != "":
 		CharacterSkin.attach_weapon(visual, _weapon_id, _theme)
 	_play(&"idle", LOCOMOTION_BLEND)
-	call_deferred("_check_hitbox_signal_listeners")
 
 
 func is_bound() -> bool:
@@ -393,14 +392,12 @@ const IMPACT_RECOIL_TORSO_OFFSET := Vector3(-0.08, 0.0, 0.0)
 var _recoil_tween: Tween
 
 
-## `AN-03`: connecting used to do nothing to the *attacker's* pose -- the weapon passed through the
-## target and the swing just resumed once hit-stop released. `strength` comes straight from
-## `HitFeedback`'s `ImpactClass` (glancing 0.3, solid 0.7, critical 1.0), which `AnimationPlayer`
-## has no built-in way to scale a single played clip by -- there is no per-call blend-amount
-## parameter without an `AnimationTree`. This nudges `ArmR`/`Torso` directly instead and tweens
-## them back, timed to land inside the hit-stop window: the main clip is itself nearly frozen there
-## (`speed_scale` 0.05, see `HitFeedback._freeze_attacker()`), so the nudge reads as the swing
-## hitching against the target rather than fighting the main pose for the property.
+## Nudges the attacker's pose when a hit connects, so the weapon hitches against the target instead
+## of passing through it. `strength` comes straight from `HitFeedback`'s `ImpactClass` (glancing 0.3,
+## solid 0.7, critical 1.0). `AnimationPlayer` cannot scale a single played clip per call without an
+## `AnimationTree`, so this moves `ArmR`/`Torso` directly and tweens them back inside the hit-stop
+## window, when the main clip is nearly frozen (`speed_scale` 0.05, see
+## `HitFeedback._freeze_attacker()`) and the nudge does not fight the main pose for the property.
 func play_impact_recoil(strength: float) -> void:
 	if _visual == null or not is_bound() or _dead or _priority >= Priority.STAGGER:
 		return
@@ -445,14 +442,10 @@ func play_guard_break() -> void:
 
 
 func play_flinch(direction: Vector3 = Vector3.ZERO) -> void:
-	if _priority > Priority.STAGGER:
+	if _priority > Priority.FLINCH:
 		return
-	if _priority == Priority.STAGGER and is_bound():
-		var current := _player.current_animation
-		if current != "flinch" and not current.begins_with("flinch_"):
-			return
 	var clip := _flinch_clip_for(direction)
-	_start_action(clip, Priority.STAGGER)
+	_start_action(clip, Priority.FLINCH)
 
 
 func _flinch_clip_for(world_dir: Vector3) -> StringName:
@@ -490,10 +483,16 @@ func play_stagger(duration: float = 0.0, direction: Vector3 = Vector3.ZERO) -> v
 		if clip_length > 0.01:
 			scale = clampf(clip_length / duration, 0.4, 2.5)
 	_begin_action(clip, Priority.STAGGER, scale)
+	_holding_stagger = _priority == Priority.STAGGER
 
 
-func stagger_clip_for_direction(world_dir: Vector3) -> StringName:
-	return _stagger_clip_for(world_dir)
+## The stagger is over: let go of the held pose and go back to locomotion.
+func end_stagger() -> void:
+	if not _holding_stagger:
+		return
+	_holding_stagger = false
+	if _priority == Priority.STAGGER:
+		_resume_locomotion()
 
 
 func _stagger_clip_for(world_dir: Vector3) -> StringName:
@@ -572,8 +571,14 @@ func revive() -> void:
 		_play(&"idle", 0.0)
 
 
+## `startup`, `active` and `recovery` pick the compiled clip, so callers pass their nominal timing
+## and use `speed` for per-swing variance: a jittered windup would otherwise compile a new clip.
 func play_attack(
-	startup: float, active: float, recovery: float, clip_override: StringName = &""
+	startup: float,
+	active: float,
+	recovery: float,
+	clip_override: StringName = &"",
+	speed: float = 1.0
 ) -> void:
 	if not is_bound() or _dead:
 		return
@@ -594,7 +599,9 @@ func play_attack(
 	_blocking = false
 	_priority = Priority.ATTACK
 	_action_generation += 1
-	_player.speed_scale = 1.0
+	_base_speed_scale = speed
+	_transient_speed_scale = 1.0
+	_player.speed_scale = speed
 	_player.play(runtime_name, ACTION_BLEND)
 
 
@@ -602,9 +609,9 @@ func play_heavy_attack(startup: float, active: float, recovery: float) -> void:
 	play_attack(startup, active, recovery, AnimLibrary.heavy_clip_for(_weapon_archetype))
 
 
-## `AN-04`: the bow already had a draw state (`AttackPhase.DRAWING`) with no held pose -- the
+## The bow already had a draw state (`AttackPhase.DRAWING`) with no held pose -- the
 ## character just stood in an idle while charge accumulated. `normalized_time` is a 0..1 fraction
-## of the *played* clip's own (phase-scaled) length; freezing at the `AN-02` wound pose (roughly
+## of the *played* clip's own (phase-scaled) length; freezing at wound pose (roughly
 ## `startup / (startup+active+recovery)`) is deliberate -- that pose is already the frame a charge
 ## should hold on. Plays the clip exactly like `play_attack()`, then stops advancing once playback
 ## would reach `normalized_time`, via a one-shot timer rather than a per-frame poll (this
@@ -651,7 +658,7 @@ func _on_hold_reached(runtime_name: StringName, action_generation: int) -> void:
 		_player.speed_scale = 0.0
 
 
-## `AN-04`: a 1-pixel tremor at full charge, growing linearly with `amount` (0..1). Call every
+## A 1-pixel tremor at full charge, growing linearly with `amount` (0..1). Call every
 ## frame while charging; call with 0 (or stop calling) to settle back to the held pose. Like
 ## `play_impact_recoil()`, this bypasses the additive `AnimationPlayer` -- there is no per-call
 ## amplitude to scale a played clip by -- and is safe to write directly here because the main clip
@@ -745,6 +752,7 @@ func _begin_action(clip: StringName, priority: int, scale: float) -> void:
 		return
 	if priority >= Priority.STAGGER:
 		_clear_impact_recoil()
+	_holding_stagger = false
 	_priority = priority
 	_action_generation += 1
 	_base_speed_scale = scale
@@ -842,6 +850,8 @@ func _on_animation_finished(anim_name: StringName) -> void:
 		return
 	if name_text.begins_with("block_"):
 		return
+	if _holding_stagger:
+		return
 	_resume_locomotion()
 
 
@@ -865,12 +875,6 @@ func _report_clamp(clip: StringName, raw_scale: float) -> void:
 		)
 		% [_profile, clip, raw_scale, SPEED_SCALE_MIN, SPEED_SCALE_MAX]
 	)
-
-
-func _check_hitbox_signal_listeners() -> void:
-	# Hitbox callbacks are connected lazily when an attack with authored markers starts. Checking
-	# during setup reports a false warning for the player before their first attack.
-	pass
 
 
 func anim_swing_vfx() -> void:

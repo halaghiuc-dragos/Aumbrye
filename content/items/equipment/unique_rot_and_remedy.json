@@ -3,14 +3,11 @@
   "name": "Rot and Remedy",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 4,
   "stackSize": 1,
   "rarity": "legendary",
   "description": "The physician carried both in the same jar and stopped labelling which was which.",
   "value": 740,
   "lootValue": 370,
-  "maxDurability": 90,
   "unique": true,
   "baseId": "staff",
   "biome": "poison_swamp",
@@ -27,9 +24,8 @@
     }
   ],
   "stats": {
-    "arcaneDamage": 15,
-    "poisonDamage": 12,
-    "manaMax": 44
+    "manaMax": 44,
+    "physicalDamage": 27
   },
   "weaponId": "staff"
 }

@@ -10,7 +10,6 @@ const TURN_FACING_ERROR := 1.4
 const Viewmodel := preload("res://scripts/art/characters/diorama_viewmodel.gd")
 const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
-const DamageInfoScript := preload("res://scripts/combat/damage_info.gd")
 
 
 const SWAY_RESPONSE := 9.0
@@ -148,6 +147,8 @@ func _connect_signals() -> void:
 	if _reactions:
 		if _reactions.has_signal("stagger_started"):
 			_reactions.stagger_started.connect(_on_stagger_started)
+		if _reactions.has_signal("stagger_ended"):
+			_reactions.stagger_ended.connect(end_stagger)
 		if _reactions.has_signal("player_died"):
 			_reactions.player_died.connect(play_death)
 	if _health:
@@ -429,7 +430,7 @@ func _on_attack_started(attack_name: String) -> void:
 	elif attack_name == "backstab":
 		play_backstab(startup, active, recovery)
 	elif attack_name == "heavy_charge":
-		# `AN-04`: charged melee needs the same held wound-pose the bow's draw already gets --
+		# Charged melee needs the same held wound-pose the bow's draw already gets --
 		# hold on the same clip `play_heavy_attack()` resolves so release resumes it in place
 		# instead of restarting the swing from frame zero.
 		var total := maxf(0.01, startup + active + recovery)
@@ -437,7 +438,7 @@ func _on_attack_started(attack_name: String) -> void:
 	elif attack_name.begins_with("heavy"):
 		play_heavy_attack(startup, active, recovery)
 	elif attack_name == "bow_draw":
-		# `AN-04`: hold on the draw's wound pose instead of playing the shot clip straight through
+		# Hold on the draw's wound pose instead of playing the shot clip straight through
 		# -- `_draw_charge` accumulates in `WeaponController._process_bow_input()` with nothing
 		# telling the player they are still drawing until now.
 		var total := maxf(0.01, startup + active + recovery)
@@ -490,8 +491,21 @@ func _on_footstep_frame() -> void:
 func _on_swing_frame() -> void:
 	if _body == null:
 		return
-	var trajectory := VfxService.resolve_combat_trajectory(_body)
-	VfxService.play_weapon_trajectory(trajectory["base"], trajectory["tip"])
+	var first_person := _spring != null and _spring.has_method("is_first_person") and bool(_spring.call("is_first_person"))
+	var art_root := _viewmodel_root if first_person else _visual
+	if art_root == null or not is_instance_valid(art_root):
+		return
+	var mount := CharacterSkin.find_part(art_root, CharacterSkin.WEAPON_MOUNT)
+	if mount == null:
+		return
+	var weapon_model := mount.get_node_or_null("Weapon") as Node3D
+	if weapon_model == null:
+		return
+	for part_name in ["Blade", "Head", "Focus"]:
+		var blade := weapon_model.get_node_or_null(part_name) as MeshInstance3D
+		if blade != null:
+			VfxService.start_weapon_sweep(blade)
+			return
 
 
 func set_weapon(weapon_id: String, archetype: String = "") -> void:

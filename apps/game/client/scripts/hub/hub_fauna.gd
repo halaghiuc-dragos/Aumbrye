@@ -76,31 +76,11 @@ static func _spawn_birds(root: Node3D) -> void:
 
 
 static func _build_bird(parent: Node3D, tint: Color) -> Array:
-	var body_mat := PixelDioramaStyle.make_material(tint)
-	var beak_mat := PixelDioramaStyle.make_material(Color(0.85, 0.62, 0.24))
-	PixelDioramaStyle.add_box(
-		parent, Vector3(0.2, 0.16, 0.38), Vector3.ZERO, body_mat, "Body"
+	PropLibrary.attach_themed(
+		parent, "fauna/bird", PixelDioramaStyle.PaletteTheme.HUB,
+		{"materials": {"fur": PixelDioramaStyle.make_material(tint), "dark": PixelDioramaStyle.make_material(tint.darkened(0.25)), "beak": PixelDioramaStyle.make_material(Color(0.85, 0.62, 0.24))}}
 	)
-	PixelDioramaStyle.add_box(
-		parent, Vector3(0.16, 0.15, 0.16), Vector3(0.0, 0.06, 0.24), body_mat, "Head"
-	)
-	PixelDioramaStyle.add_box(
-		parent, Vector3(0.06, 0.05, 0.12), Vector3(0.0, 0.04, 0.36), beak_mat, "Beak"
-	)
-	PixelDioramaStyle.add_box(
-		parent, Vector3(0.14, 0.05, 0.2), Vector3(0.0, 0.02, -0.28), body_mat, "Tail"
-	)
-	var wings: Array = []
-	for side in [-1.0, 1.0]:
-		var pivot := Node3D.new()
-		pivot.name = "Wing%s" % ("R" if side > 0.0 else "L")
-		pivot.position = Vector3(side * 0.09, 0.05, 0.0)
-		parent.add_child(pivot)
-		PixelDioramaStyle.add_box(
-			pivot, Vector3(0.34, 0.05, 0.22), Vector3(side * 0.18, 0.0, 0.0), body_mat, "Feather"
-		)
-		wings.append(pivot)
-	return wings
+	return [parent.get_node("WingL"), parent.get_node("WingR")]
 
 
 static func _spawn_strays(root: Node3D) -> void:
@@ -160,55 +140,20 @@ static func _add_stray_interact(animal: Node3D, spec: Dictionary, kind: String) 
 
 
 static func _build_cat(parent: Node3D, tint: Color) -> Dictionary:
-	var fur := PixelDioramaStyle.make_material(tint)
-	var dark := PixelDioramaStyle.make_material(tint.darkened(0.3))
-	var body := Node3D.new()
-	body.name = "Body"
-	body.position = Vector3(0.0, 0.24, 0.0)
-	parent.add_child(body)
-	PixelDioramaStyle.add_box(body, Vector3(0.2, 0.18, 0.44), Vector3.ZERO, fur, "Trunk")
-	PixelDioramaStyle.add_box(body, Vector3(0.2, 0.2, 0.18), Vector3(0.0, 0.1, 0.28), fur, "Head")
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			body, Vector3(0.06, 0.09, 0.05), Vector3(side * 0.06, 0.22, 0.28), dark, "Ear"
-		)
-	for corner in [Vector3(-0.07, 0.0, 0.15), Vector3(0.07, 0.0, 0.15),
-			Vector3(-0.07, 0.0, -0.15), Vector3(0.07, 0.0, -0.15)]:
-		PixelDioramaStyle.add_box(
-			parent, Vector3(0.06, 0.24, 0.06), corner + Vector3(0.0, 0.12, 0.0), dark, "Leg"
-		)
-	var tail := Node3D.new()
-	tail.name = "Tail"
-	tail.position = Vector3(0.0, 0.3, -0.22)
-	parent.add_child(tail)
-	PixelDioramaStyle.add_box(tail, Vector3(0.05, 0.28, 0.05), Vector3(0.0, 0.14, 0.0), fur, "Fur")
-	return {"tail": tail, "body": body}
+	_attach_animal(parent, "fauna/cat", tint, 0.3)
+	return {"tail": parent.get_node("Tail"), "body": parent.get_node("Body")}
+
+
+## The animal model in its coat: `fur` is the tint and `dark` a shade under it.
+static func _attach_animal(parent: Node3D, id: String, tint: Color, darken: float) -> void:
+	PropLibrary.attach_themed(
+		parent, id, PixelDioramaStyle.PaletteTheme.HUB,
+		{"materials": {"fur": PixelDioramaStyle.make_material(tint), "dark": PixelDioramaStyle.make_material(tint.darkened(darken))}}
+	)
 
 
 static func _build_dog(parent: Node3D, tint: Color) -> Dictionary:
-	var fur := PixelDioramaStyle.make_material(tint)
-	var dark := PixelDioramaStyle.make_material(tint.darkened(0.28))
-	var body := Node3D.new()
-	body.name = "Body"
-	body.position = Vector3(0.0, 0.38, 0.0)
-	parent.add_child(body)
-	PixelDioramaStyle.add_box(body, Vector3(0.28, 0.26, 0.6), Vector3.ZERO, fur, "Trunk")
-	PixelDioramaStyle.add_box(body, Vector3(0.26, 0.26, 0.24), Vector3(0.0, 0.12, 0.38), fur, "Head")
-	PixelDioramaStyle.add_box(
-		body, Vector3(0.15, 0.13, 0.18), Vector3(0.0, 0.04, 0.52), dark, "Snout"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			body, Vector3(0.07, 0.14, 0.06), Vector3(side * 0.1, 0.26, 0.36), dark, "Ear"
-		)
-	for corner in [Vector3(-0.1, 0.0, 0.2), Vector3(0.1, 0.0, 0.2),
-			Vector3(-0.1, 0.0, -0.2), Vector3(0.1, 0.0, -0.2)]:
-		PixelDioramaStyle.add_box(
-			parent, Vector3(0.09, 0.38, 0.09), corner + Vector3(0.0, 0.19, 0.0), dark, "Leg"
-		)
-	var tail := Node3D.new()
-	tail.name = "Tail"
-	tail.position = Vector3(0.0, 0.48, -0.3)
-	parent.add_child(tail)
-	PixelDioramaStyle.add_box(tail, Vector3(0.07, 0.26, 0.07), Vector3(0.0, 0.13, 0.0), fur, "Fur")
-	return {"tail": tail, "body": body}
+	_attach_animal(parent, "fauna/dog", tint, 0.28)
+	return {"tail": parent.get_node("Tail"), "body": parent.get_node("Body")}
+
+

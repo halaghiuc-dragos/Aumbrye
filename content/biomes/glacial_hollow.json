@@ -4,8 +4,8 @@
   "templatePrefix": "hollow",
   "assetFolder": "hollow",
   "roomCount": {
-    "min": 18,
-    "max": 22
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "hollow_entrance",
@@ -56,32 +56,33 @@
     "rubble": [
       "res://scenes/props/hollow/rubble_a.tscn",
       "res://scenes/props/hollow/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/hollow/banner.tscn",
-    "statue": "res://scenes/props/hollow/statue.tscn",
-    "altar": "res://scenes/props/hollow/altar.tscn",
-    "debrisPile": "res://scenes/props/hollow/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "glacial_pilgrim",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "glacial_keener",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "glacial_hollowed",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "glacial_cairn_golem",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "glacial_anchorite",
-      "weight": 1
+      "weight": 1,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -150,14 +151,6 @@
     ],
     "side": [
       {
-        "itemId": "frost_raider_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "frost_relic_shard",
         "quantity": [
           1,
@@ -224,11 +217,11 @@
   "maxHeightLevel": 2,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 5,
-    "minDeadEnds": 5,
-    "branchMaxDepth": 6,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 3,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -254,5 +247,6 @@
     "lift": 0.05,
     "vignette": 0.14
   },
-  "lootTablePath": "content/loot/tables/glacial_hollow.json"
+  "lootTablePath": "content/loot/tables/glacial_hollow.json",
+  "floorSurface": "snow"
 }

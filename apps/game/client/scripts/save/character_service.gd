@@ -85,15 +85,13 @@ func is_flag_truthy(flag_id: String) -> bool:
 	return CharacterFlags.is_truthy(flag_id, get_flag(flag_id))
 
 
+## `apply_bonus` is for gold found in a run (kills, chests); sales, quest pay and dialogue pass false.
 func add_gold(amount: int, apply_bonus: bool = true) -> void:
 	if amount <= 0:
 		return
 	var adjusted := amount
 	if apply_bonus:
-		var bonus: float = 0.0
-		if ProgressionService:
-			bonus = float(ProgressionService.get_talent_stat_totals().get("goldFind", 0.0))
-		adjusted = int(round(float(amount) * (1.0 + bonus)))
+		adjusted = int(round(float(amount) * (1.0 + InventoryService.total_stat("goldFind"))))
 	if adjusted <= 0:
 		return
 	gold += adjusted

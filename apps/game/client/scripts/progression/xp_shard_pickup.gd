@@ -3,28 +3,23 @@ extends Area3D
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 
+const INTERACT_RANGE := 2.0
 const BEACON_HEIGHT := 14.0
 const BEACON_BOTTOM_RADIUS := 0.32
-const BEACON_TOP_RADIUS := 0.06
 const BEACON_COLOR := Color(0.62, 0.86, 1.0, 0.34)
 const BEACON_SORTING_OFFSET := -8.0
 
 var _xp_amount := 0
 var _gold_amount := 0
 var _visual: Node3D
-var _player: Node3D
 var _label: Label3D
 var _beacon: MeshInstance3D
 
 
 func _ready() -> void:
 	collision_layer = 0
-	collision_mask = 2
-	var shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 1.2
-	shape.shape = sphere
-	add_child(shape)
+	collision_mask = 0
+	monitoring = false
 	_visual = DioramaSkin.build_loot_pickup(self, DioramaSkin.resolve_biome(self))
 	_build_beacon()
 	_label = Label3D.new()
@@ -36,22 +31,23 @@ func _ready() -> void:
 	_label.modulate = Color(0.7, 0.9, 1.0, 1.0)
 	_label.visible = false
 	add_child(_label)
-	body_entered.connect(_on_body_entered)
-	body_exited.connect(_on_body_exited)
-	set_process_unhandled_input(false)
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		2,
+		Callable(self, "_collect"),
+		Callable(),
+		Callable(self, "_set_selected_prompt")
+	)
 	_start_bob()
 
 
 func _build_beacon() -> void:
 	var beam := MeshInstance3D.new()
 	beam.name = "ShardBeacon"
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = BEACON_TOP_RADIUS
-	cylinder.bottom_radius = BEACON_BOTTOM_RADIUS
-	cylinder.height = BEACON_HEIGHT
-	cylinder.radial_segments = 8
-	beam.mesh = cylinder
-	beam.position = Vector3(0.0, BEACON_HEIGHT * 0.5, 0.0)
+	beam.mesh = PropLibrary.bare_mesh("fx/beam")
+	beam.scale = Vector3(BEACON_BOTTOM_RADIUS, BEACON_HEIGHT, BEACON_BOTTOM_RADIUS)
 	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -94,25 +90,8 @@ func configure(world_pos: Vector3, xp_amount: int, gold_amount: int = 0) -> void
 		_label.text = tr("XP_SHARD_XP").format({"xp": _xp_amount})
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _player == null:
-		return
-	if PlayerInput.interact_just_pressed(event):
-		_collect()
-
-
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_player = body
-		_label.visible = true
-		set_process_unhandled_input(true)
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body == _player:
-		_player = null
-		_label.visible = false
-		set_process_unhandled_input(false)
+func _set_selected_prompt(active: bool) -> void:
+	_label.visible = active
 
 
 func _collect() -> void:

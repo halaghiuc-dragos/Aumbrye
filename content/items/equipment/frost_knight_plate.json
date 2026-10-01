@@ -2,8 +2,6 @@
   "id": "frost_knight_plate",
   "name": "Frost Knight Plate",
   "itemType": "armor",
-  "gridWidth": 2,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "epic",
   "description": "Plate armor frozen to a knight who never thawed.",

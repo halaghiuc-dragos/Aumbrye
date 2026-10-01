@@ -78,14 +78,6 @@
         "weight": 2
       },
       {
-        "itemId": "unique_stiltwalkers_greaves",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "unique_widow_of_the_stair",
         "quantity": [
           1,
@@ -162,23 +154,7 @@
         "weight": 4
       },
       {
-        "itemId": "spellglass_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "spellglass_greatsword",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "spellglass_greaves",
         "quantity": [
           1,
           1
@@ -218,14 +194,6 @@
         "weight": 4
       },
       {
-        "itemId": "spellglass_pendant",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "spellglass_rapier",
         "quantity": [
           1,
@@ -248,38 +216,6 @@
           1
         ],
         "weight": 4
-      },
-      {
-        "itemId": "castle_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "crystal_prism_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "frost_raider_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "swamp_bog_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
       },
       {
         "itemId": "hunters_lure",

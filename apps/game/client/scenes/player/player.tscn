@@ -1,6 +1,7 @@
-[gd_scene load_steps=22 format=3 uid="uid://cplayer001"]
+[gd_scene load_steps=23 format=3 uid="uid://cplayer001"]
 
 [ext_resource type="Script" path="res://scripts/player/locomotion.gd" id="1_locomotion"]
+[ext_resource type="Script" path="res://scripts/audio/player_audio_listener.gd" id="99_audio_listener"]
 [ext_resource type="Script" path="res://scripts/player/dodge.gd" id="2_dodge"]
 [ext_resource type="Script" path="res://scripts/combat/health.gd" id="3_health"]
 [ext_resource type="Script" path="res://scripts/combat/stamina.gd" id="4_stamina"]
@@ -19,7 +20,6 @@
 [ext_resource type="Script" path="res://scripts/combat/statuses/status_controller.gd" id="16_status"]
 [ext_resource type="Script" path="res://scripts/combat/mana.gd" id="17_mana"]
 [ext_resource type="Script" path="res://scripts/combat/knockback.gd" id="18_knockback"]
-[ext_resource type="Script" path="res://scripts/player/player_arrows.gd" id="19_arrows"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -40,6 +40,7 @@ size = Vector3(0.9, 1.6, 0.9)
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
+collision_mask = 257
 floor_max_angle = 0.837758
 floor_snap_length = 0.35
 floor_stop_on_slope = true
@@ -54,6 +55,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="Facing" type="Node3D" parent="."]
+
+[node name="AudioListener3D" type="AudioListener3D" parent="."]
+script = ExtResource("99_audio_listener")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Facing"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
@@ -105,9 +109,6 @@ script = ExtResource("14_reactions")
 
 [node name="PlayerHeal" type="Node" parent="."]
 script = ExtResource("15_heal")
-
-[node name="PlayerArrows" type="Node" parent="."]
-script = ExtResource("19_arrows")
 
 [node name="StatusController" type="Node" parent="."]
 script = ExtResource("16_status")

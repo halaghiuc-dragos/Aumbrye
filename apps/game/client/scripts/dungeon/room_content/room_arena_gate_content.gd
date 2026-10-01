@@ -1,6 +1,6 @@
 extends Node3D
 
-## RM-07: the one combat room per floor the assigner marks `"lockIn": true` (the room right before
+## The one combat room per floor the assigner marks `"lockIn": true` (the room right before
 ## the boss -- see `RoomContentAssigner._mark_pre_boss_lock_in()`). Every doorway starts open so the
 ## player walks in normally; the first time they cross into the room's interior every doorway gates
 ## shut behind them, and they open again once `DungeonBuilder` fires `room_cleared` for this room.
@@ -109,7 +109,28 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	_closed = true
 	_apply_state()
+	_leash_room_enemies()
 	AudioDirector.play_cue(&"door_seal", global_position)
+
+
+## Anything from this room that followed the player out into a corridor is put back inside, so the
+## gates never seal with an enemy on the wrong side of them.
+func _leash_room_enemies() -> void:
+	var room := get_parent() as RoomTemplate
+	if room == null:
+		return
+	var blockout := room.get_blockout()
+	if blockout == null:
+		return
+	var half_w := blockout.room_width * 0.5
+	var half_d := blockout.room_depth * 0.5
+	for child in room.get_children():
+		var enemy := child as CastleEnemyBase
+		if enemy == null or enemy.is_dead():
+			continue
+		var local := room.to_local(enemy.global_position)
+		if absf(local.x) > half_w or absf(local.z) > half_d:
+			enemy.leash_to_spawn()
 
 
 func _on_namespace_changed(flag_namespace: String, flag_id: String, _value: Variant) -> void:

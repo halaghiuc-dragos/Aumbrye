@@ -18,7 +18,7 @@ const ROLL_SAMPLES := 600
 var _failures: int = 0
 
 
-## SY-09: per PH-01's authored bands -- light 1.2-1.8, heavy 3.0-4.5 (greatsword's 5.5 is the one
+## Per authored bands -- light 1.2-1.8, heavy 3.0-4.5 (greatsword's 5.5 is the one
 ## named exception), enemy attacks 2.0-3.5 on the player. Bow and staff are ranged/caster weapons
 ## the plan never bands, so they get a looser sanity check instead of the melee target.
 const KNOCKBACK_RANGED_ARCHETYPES := ["bow", "staff"]
@@ -154,7 +154,7 @@ func _audit_affix_group_cap() -> void:
 		_fail("an aumbral weapon rolled %d flat-damage affixes; the cap is 2" % worst)
 
 
-## PH-01: a greatsword and a dagger must not move a body by the same amount, and neither may drift
+## A greatsword and a dagger must not move a body by the same amount, and neither may drift
 ## outside the bands the plan set so a future weapon doesn't silently reintroduce "a hit is a flash
 ## and a number".
 func _audit_knockback_bands() -> void:

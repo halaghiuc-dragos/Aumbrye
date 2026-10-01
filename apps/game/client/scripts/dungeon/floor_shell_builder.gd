@@ -23,8 +23,8 @@ static func build(parent: Node3D, rooms: Dictionary, biome_id: String) -> void:
 	var floor_mat := BiomeRegistry.get_floor_material(biome_id)
 	var min_room_y := _min_room_y(parent, rooms)
 	_build_bedrock(shell, bounds, floor_mat, min_room_y)
-	_build_perimeter_walls(shell, bounds, wall_mat)
-	_build_height_skirts(shell, parent, rooms, wall_mat, min_room_y)
+	_build_perimeter_walls(shell, bounds, wall_mat, biome_id)
+	_build_height_skirts(shell, parent, rooms, wall_mat, min_room_y, biome_id)
 
 	for room in rooms.values():
 		var template := room as RoomTemplate
@@ -85,9 +85,10 @@ static func _build_bedrock(shell: Node3D, bounds: AABB, floor_mat: Material, min
 ## Under any elevated room, the space between the bedrock and that room's own floor is solid --
 ## otherwise it is a pit a player can walk into sideways from the room below.
 static func _build_height_skirts(
-	shell: Node3D, parent: Node3D, rooms: Dictionary, wall_mat: Material, min_room_y: float
+	shell: Node3D, parent: Node3D, rooms: Dictionary, wall_mat: Material, min_room_y: float, biome_id: String
 ) -> void:
 	var bedrock_top := min_room_y - BEDROCK_DROP + BEDROCK_THICKNESS
+	var cladding: Array[Transform3D] = []
 	for room in rooms.values():
 		var template := room as RoomTemplate
 		if template == null:
@@ -105,6 +106,12 @@ static func _build_height_skirts(
 		var size := Vector3(blockout.room_width, height, blockout.room_depth)
 		var center := Vector3(local_xz.x, bedrock_top + height * 0.5, local_xz.z)
 		_add_skirt_segment(shell, center, size, wall_mat)
+		var base_y := center.y - size.y * 0.5
+		for side in [Vector3.BACK, Vector3.FORWARD, Vector3.RIGHT, Vector3.LEFT]:
+			var length := size.x if absf(side.z) > 0.5 else size.z
+			var reach := size.z * 0.5 if absf(side.z) > 0.5 else size.x * 0.5
+			cladding.append_array(WallCladding.face_transforms(center + side * reach, side, length, base_y, size.y))
+	WallCladding.place(shell, cladding, biome_id, _wall_roles(wall_mat), "SkirtMasonry")
 
 
 static func _add_skirt_segment(parent: Node3D, center: Vector3, size: Vector3, material: Material) -> void:
@@ -132,7 +139,7 @@ static func _add_skirt_segment(parent: Node3D, center: Vector3, size: Vector3, m
 	body.add_child(collision)
 
 
-static func _build_perimeter_walls(shell: Node3D, bounds: AABB, wall_mat: Material) -> void:
+static func _build_perimeter_walls(shell: Node3D, bounds: AABB, wall_mat: Material, biome_id: String) -> void:
 	var walls := Node3D.new()
 	walls.name = "PerimeterWalls"
 	shell.add_child(walls)
@@ -176,6 +183,17 @@ static func _build_perimeter_walls(shell: Node3D, bounds: AABB, wall_mat: Materi
 		wall_mat,
 		"PerimeterEast"
 	)
+	var faces: Array[Transform3D] = []
+	var inset := thick
+	faces.append_array(WallCladding.face_transforms(Vector3(center_x, 0.0, min_z + inset), Vector3.BACK, span_x, 0.0, wall_h))
+	faces.append_array(WallCladding.face_transforms(Vector3(center_x, 0.0, max_z - inset), Vector3.FORWARD, span_x, 0.0, wall_h))
+	faces.append_array(WallCladding.face_transforms(Vector3(min_x + inset, 0.0, center_z), Vector3.RIGHT, span_z, 0.0, wall_h))
+	faces.append_array(WallCladding.face_transforms(Vector3(max_x - inset, 0.0, center_z), Vector3.LEFT, span_z, 0.0, wall_h))
+	WallCladding.place(walls, faces, biome_id, _wall_roles(wall_mat), "PerimeterMasonry")
+
+
+static func _wall_roles(wall_mat: Material) -> Dictionary:
+	return {"wall": wall_mat} if wall_mat != null else {}
 
 
 static func _compute_bounds(parent: Node3D, rooms: Dictionary) -> AABB:

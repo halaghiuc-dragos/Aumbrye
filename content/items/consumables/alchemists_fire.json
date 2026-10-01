@@ -2,8 +2,6 @@
   "id": "alchemists_fire",
   "name": "Alchemist's Fire",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 4,
   "rarity": "epic",
   "description": "The recipe was kept in one head and that head is not available for questions.",

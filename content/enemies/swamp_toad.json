@@ -41,6 +41,7 @@
   "attacks": [
     {
       "id": "hammer",
+      "anim": "attack_light_3",
       "name": "Downward Hammer",
       "weight": 3,
       "windup_duration": 0.81,
@@ -51,11 +52,15 @@
       "attack_poise_damage": 23,
       "max_range": 2.5,
       "telegraph_shape": "circle",
-      "attackClass": "parryable",
-      "knockback": 2.5
+      "attackClass": "blockable",
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "slam",
+      "anim": "attack_heavy",
       "name": "Ground Slam",
       "weight": 2,
       "windup_duration": 1.37,
@@ -67,10 +72,15 @@
       "max_range": 2.75,
       "telegraph_shape": "circle",
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "held_sweep",
+      "anim": "attack_sweep",
       "name": "Held Sweep",
       "weight": 2,
       "windup_duration": 1.05,
@@ -81,8 +91,11 @@
       "attack_poise_damage": 28,
       "max_range": 3.5,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "parryable",
+      "knockback": 3.0,
+      "tags": [
+        "gap_close"
+      ]
     }
   ]
 }

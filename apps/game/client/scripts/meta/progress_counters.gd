@@ -104,3 +104,48 @@ static func describe(key: String) -> String:
 			return String(TranslationServer.translate("PROGRESS_RUNS_RECORDED"))
 		_:
 			return key
+
+
+## One progress reading for a `{type, key, value}` unlock trigger, the vocabulary the vault and the
+## mode gates author. Returns `{have, need}`, or an empty dictionary for a type nobody knows.
+static func trigger_progress(trigger: Variant) -> Dictionary:
+	if not trigger is Dictionary:
+		return {}
+	var needed := int((trigger as Dictionary).get("value", 1))
+	var key := str((trigger as Dictionary).get("key", ""))
+	match str((trigger as Dictionary).get("type", "")):
+		"biomeCleared":
+			return {"have": 1 if CharacterService.get_flag("theme_%s_cleared" % key) else 0, "need": 1}
+		"dungeonDepth":
+			return {"have": DungeonTierService.get_max_unlocked_tier(), "need": needed}
+		"dungeonDepthCleared":
+			return {"have": DungeonTierService.get_deepest_cleared(), "need": needed}
+		"enemyKills":
+			return {"have": BestiaryService.get_kills(key), "need": needed}
+		"totalKills":
+			return {"have": _total_kills(), "need": needed}
+		"deaths":
+			return {"have": int(CharacterService.get_flag("deaths")), "need": needed}
+		"wavesWave":
+			return {"have": int(CharacterService.get_flag("waves_best_wave")), "need": needed}
+		"wavesCompletions":
+			return {"have": int(CharacterService.get_flag("waves_completions")), "need": needed}
+	push_warning("ProgressCounters: unknown trigger type '%s'" % str((trigger as Dictionary).get("type", "")))
+	return {}
+
+
+static func trigger_met(trigger: Variant) -> bool:
+	var progress := trigger_progress(trigger)
+	return not progress.is_empty() and int(progress["have"]) >= int(progress["need"])
+
+
+static func _total_kills() -> int:
+	var stored: Variant = CharacterService.get_flag("bestiary_kills", {})
+	if not stored is Dictionary:
+		return 0
+	var total := 0
+	for enemy_id in (stored as Dictionary):
+		var value: Variant = (stored as Dictionary)[enemy_id]
+		if value is int or value is float:
+			total += int(value)
+	return total

@@ -2,8 +2,6 @@
   "id": "rime_catalyst",
   "name": "Rime Catalyst",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 20,
   "description": "Cold that has been persuaded of the same thing.",
   "value": 45,

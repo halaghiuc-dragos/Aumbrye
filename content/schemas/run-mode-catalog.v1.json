@@ -100,6 +100,7 @@
               }
             }
           },
+          "parked": { "type": "boolean", "description": "Shipped but switched off: not listed and not enterable." },
           "unlock": {
             "type": "object",
             "additionalProperties": false,

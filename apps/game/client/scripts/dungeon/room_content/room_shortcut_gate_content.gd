@@ -56,9 +56,8 @@ func _build_at_socket() -> void:
 	add_child(_barrier)
 
 	var mesh := MeshInstance3D.new()
-	var gate_mesh := BoxMesh.new()
-	gate_mesh.size = box.size
-	mesh.mesh = gate_mesh
+	mesh.mesh = PropLibrary.bare_mesh("fx/gate_portcullis")
+	mesh.scale = box.size
 	mesh.position = shape_node.position
 	mesh.material_override = DIORAMA_SKIN.make_telegraph_material(Color(0.3, 0.3, 0.34, 0.95))
 	_barrier.add_child(mesh)
@@ -119,7 +118,7 @@ func _activate_interaction() -> void:
 	_open(true)
 	if _gate_flag_id != "":
 		WorldState.set_flag(_gate_flag_id, true)
-	# AU-03: the moment the far, harder side pays off with a permanent shortcut.
+	# The moment the far, harder side pays off with a permanent shortcut.
 	AudioDirector.play_stinger("shortcut_opened")
 
 

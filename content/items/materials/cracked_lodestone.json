@@ -2,8 +2,6 @@
   "id": "cracked_lodestone",
   "name": "Cracked Lodestone",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 20,
   "description": "It still points. It points at the floor.",
   "value": 66,

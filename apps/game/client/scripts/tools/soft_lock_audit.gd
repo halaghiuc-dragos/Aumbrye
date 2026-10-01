@@ -1,7 +1,6 @@
 extends Node3D
 
 const WeaponControllerScript := preload("res://scripts/combat/weapon_controller.gd")
-const WeaponScene := preload("res://scenes/player/player.tscn")
 
 var _failures := 0
 var _weapon: WeaponController

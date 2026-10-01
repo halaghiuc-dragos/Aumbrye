@@ -119,7 +119,7 @@ func _apply_persistent_entry(on_enter: Dictionary) -> void:
 		_despawn_on_death.append_array(changed)
 
 
-## `BS-02`: re-flashes phase 1's `onEnter` telegraph/vfx for the boss-intro camera beat, without
+## Re-flashes phase 1's `onEnter` telegraph/vfx for the boss-intro camera beat, without
 ## redoing `spawnAdds`/`hazards` -- those already ran once, silently or not, the instant this
 ## controller's `_physics_process` first ticked at spawn.
 func replay_intro_telegraph() -> void:

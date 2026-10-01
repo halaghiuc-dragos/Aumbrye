@@ -4,7 +4,7 @@
   "profile": "biped",
   "parts": {
     "LegL": {
-      "mesh": "res://assets/characters/enemy_ranged/legl.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/legl.glb",
       "joint": [
         -3,
         11,
@@ -12,7 +12,7 @@
       ]
     },
     "LegR": {
-      "mesh": "res://assets/characters/enemy_ranged/legr.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/legr.glb",
       "joint": [
         3,
         11,
@@ -20,7 +20,7 @@
       ]
     },
     "Torso": {
-      "mesh": "res://assets/characters/enemy_ranged/torso.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/torso.glb",
       "joint": [
         0,
         11,
@@ -28,7 +28,7 @@
       ]
     },
     "Head": {
-      "mesh": "res://assets/characters/enemy_ranged/head.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/head.glb",
       "joint": [
         0,
         12,
@@ -37,7 +37,7 @@
       "parent": "Torso"
     },
     "ArmL": {
-      "mesh": "res://assets/characters/enemy_ranged/arml.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/arml.glb",
       "joint": [
         -6,
         12,
@@ -52,7 +52,7 @@
       ]
     },
     "ArmR": {
-      "mesh": "res://assets/characters/enemy_ranged/armr.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/armr.glb",
       "joint": [
         6,
         12,
@@ -67,10 +67,9 @@
       ]
     }
   },
-  "animationLibrary": "res://assets/animations/diorama/ranged_locomotion.res",
   "extras": {
     "Bow": {
-      "mesh": "res://assets/characters/enemy_ranged/bow.voxels.json",
+      "mesh": "res://assets/characters/enemy_ranged/bow.glb",
       "parent": "WeaponMount",
       "offset": [
         0,

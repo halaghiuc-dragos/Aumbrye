@@ -2,8 +2,6 @@
   "id": "seekers_lantern",
   "name": "Seeker's Lantern",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 1,
   "rarity": "epic",
   "description": "The flame leans toward whatever is hidden, and away from whoever is holding it.",

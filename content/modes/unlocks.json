@@ -22,7 +22,8 @@
           "value": 3,
           "text": "Reach Depth 3 of the Descent"
         }
-      ]
+      ],
+      "parked": true
     },
     {
       "id": "endless",
@@ -35,11 +36,6 @@
           "type": "dungeonDepthCleared",
           "value": 10,
           "text": "Clear Depth 10 of the Descent"
-        },
-        {
-          "type": "wavesCompletions",
-          "value": 1,
-          "text": "Survive the Vigil once"
         }
       ]
     }

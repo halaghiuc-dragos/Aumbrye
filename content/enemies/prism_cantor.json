@@ -5,7 +5,7 @@
   "loreText": "It sings the same three notes the caverns taught it.",
   "scene": "res://scenes/enemies/prism_cantor.tscn",
   "threat_cost": 75,
-  "isBoss": true,
+  "isElite": true,
   "health": 495,
   "poise": 248,
   "move_speed": 3.6,
@@ -32,6 +32,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_light_1",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.39,
@@ -47,6 +48,7 @@
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.94,
@@ -58,10 +60,15 @@
       "max_range": 3.08,
       "telegraph_shape": "cone",
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     },
     {
       "id": "chain",
+      "anim": "attack_heavy",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.55,
@@ -89,11 +96,12 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.0
     },
     {
       "id": "sig_split",
+      "anim": "attack_sweep",
       "name": "Split Chorus",
       "weight": 1.4,
       "windup_duration": 0.34,
@@ -137,8 +145,11 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
-      "knockback": 2.0
+      "attackClass": "blockable",
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     }
   ],
   "phases": [
@@ -206,7 +217,7 @@
               "knockback": 3.0
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         }
       ]
@@ -243,7 +254,7 @@
           "attack_poise_damage": 43,
           "max_range": 3.08,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.5
         },
         {
@@ -258,7 +269,7 @@
           "attack_poise_damage": 42,
           "max_range": 3.5,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {

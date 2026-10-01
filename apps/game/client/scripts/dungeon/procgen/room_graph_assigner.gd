@@ -4,7 +4,6 @@ extends RefCounted
 
 const COMBAT_SEMANTICS := ["courtyard", "hall", "arena"]
 
-static var _fallback_warned: Dictionary = {}
 
 
 static func assign(
@@ -23,7 +22,7 @@ static func assign(
 	var combat_index := 0
 	var filler_index := 0
 	var dropped_layout_ids: Array[String] = []
-	# RM-17: the one piece of role information `_combat_size_kind()` cannot derive from a slot
+	# The one piece of role information `_combat_size_kind()` cannot derive from a slot
 	# alone -- whether it is the room immediately before the boss on the critical path.
 	var pre_boss_layout := ""
 	var critical_layout := RoomGraphPaths.critical_path_ids(graph)
@@ -76,7 +75,7 @@ static func assign(
 	}
 
 
-## RM-14: the lattice seats every room flush against its neighbours with no threshold between them,
+## The lattice seats every room flush against its neighbours with no threshold between them,
 ## so this converts `config.corridor_ratio` of the rooms that can host one -- a NORMAL combat slot
 ## with exactly two opposite doors into an actual corridor template after the fact. East/west
 ## corridors carry an explicit quarter-turn consumed by the physical layout.
@@ -123,7 +122,7 @@ static func _convert_corridors(
 		rooms[idx]["template_yaw"] = PI * 0.5 if graph.get_slot(str(rooms[idx]["layout_id"])).door_mask == ew_mask else 0.0
 
 
-## RM-17: "small" (`hall`), "medium" (`courtyard`) or "large" (`arena`), picked from the room's
+## "small" (`hall`), "medium" (`courtyard`) or "large" (`arena`), picked from the room's
 ## depth and role rather than a fixed rotation -- the floor should open up as it goes, so starting
 ## big and ending small reads backwards. Checked in priority order: a junction always wants the
 ## space to fight in regardless of depth, then the pre-boss room, then the near-entrance and
@@ -151,7 +150,7 @@ static func _combat_size_kind(
 	return "courtyard"
 
 
-## RM-19: one balcony per floor, only on a floor that actually has a second height level to put
+## One balcony per floor, only on a floor that actually has a second height level to put
 ## one on. Eligibility mirrors `_convert_corridors()` exactly -- a NORMAL combat slot with exactly
 ## north and south doors -- since `balcony`'s "split" shape shares the same north/south-only
 ## restriction corridors do (an east/west door would sit on the seam between the two floor
@@ -194,19 +193,8 @@ static func _pick_required_template(
 	)
 	if not picked.is_empty():
 		return picked
-	var warn_key := "%s/%d" % [required_kind, required_doors]
-	if not _fallback_warned.has(warn_key):
-		_fallback_warned[warn_key] = true
-		push_warning(
-			(
-				"RoomGraphAssigner: no '%s' template fits door mask %d; using an unfiltered"
-				+ " fallback. (further occurrences for this combination suppressed)"
-			)
-			% [required_kind, required_doors]
-		)
-	return RoomTemplateCatalog.pick_template_for_doors(
-		preferred_template_id, required_doors, biome_templates, rng
-	)
+	push_error("RoomGraphAssigner: no '%s' template fits door mask %d" % [required_kind, required_doors])
+	return ""
 
 
 static func _without(source: Array, excluded: Array) -> Array:
@@ -322,7 +310,7 @@ static func _resolve_room(
 				"tags": ["secret_room"],
 			}
 		_:
-			# RM-17: the semantic id still cycles through the three combat names for a readable
+			# The semantic id still cycles through the three combat names for a readable
 			# label (`courtyard`, `hall`, `arena`, `combat_3`, ...), but which *template* gets
 			# preferred is now the room's role in the graph, not that same index. A floor that
 			# opens up as it goes needs its size to track depth and junction-ness, not turn order.

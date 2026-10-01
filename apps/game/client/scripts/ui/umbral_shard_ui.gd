@@ -2,14 +2,12 @@ extends Control
 
 ## What the last warden left behind.
 ##
-## Dying stakes XP and gold on the floor where it happened. Walking back to it used to be a pure
-## refund — you pressed a key and got your numbers returned, which makes death a tax rather than a
-## thing that happens in the story.
+## Dying stakes XP and gold on the floor where it happened. Walking back to it is a question, not a
+## refund -- otherwise death would be a tax rather than a thing that happens in the story.
 ##
-## The shard now asks a question instead. Recover it and take the numbers back, or listen to it,
-## leave them, and carry the umbral of that warden for the rest of this run. Every character in
-## Aumbrye is an umbral — what a warden left behind — and this is where the game says so
-## mechanically rather than only in the subtitle.
+## Recover the shard and take the numbers back, or listen to it, leave them, and carry the umbral of
+## that warden for the rest of this run. Every character in Aumbrye is an umbral -- what a warden
+## left behind -- and this is where the game says so mechanically rather than only in the subtitle.
 
 const GameUISkinScript := preload("res://scripts/ui/game_ui_skin.gd")
 const MenuShellScript := preload("res://scripts/ui/menu_shell.gd")

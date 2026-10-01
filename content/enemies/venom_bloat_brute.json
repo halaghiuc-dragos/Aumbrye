@@ -32,6 +32,7 @@
   "attacks": [
     {
       "id": "hammer",
+      "anim": "attack_heavy",
       "name": "Downward Hammer",
       "weight": 3,
       "windup_duration": 0.98,
@@ -45,11 +46,15 @@
       "damage_type": "poison",
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "blockable",
+      "knockback": 3.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "slam",
+      "anim": "attack_heavy",
       "name": "Ground Slam",
       "weight": 2,
       "windup_duration": 1.66,
@@ -64,10 +69,15 @@
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "held_sweep",
+      "anim": "attack_sweep",
       "name": "Held Sweep",
       "weight": 2,
       "windup_duration": 1.27,
@@ -81,11 +91,12 @@
       "damage_type": "poison",
       "status_on_hit": "poison",
       "status_stacks_on_hit": 2,
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "sig_bloom",
+      "anim": "attack_slam",
       "name": "Bloom",
       "weight": 1.2,
       "windup_duration": 1.25,
@@ -105,8 +116,11 @@
         "radius": 5.0,
         "lifetime": 10.0
       },
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "blockable",
+      "knockback": 3.0,
+      "tags": [
+        "gap_close"
+      ]
     }
   ]
 }

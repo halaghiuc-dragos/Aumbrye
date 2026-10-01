@@ -2,7 +2,6 @@ extends Node
 
 
 const EquipmentHelper := preload("res://scripts/items/equipment.gd")
-const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const CombatStatModifiersScript := preload("res://scripts/combat/combat_stat_modifiers.gd")
@@ -13,8 +12,6 @@ const ConsumableServiceScript := preload("res://scripts/inventory/consumable_ser
 
 ## Same green and red the equipped-stat comparison already uses, so "better" and "worse" read the
 ## same way wherever the player sees them.
-const CONDITION_GOOD_COLOR := "#7fd67f"
-const CONDITION_POOR_COLOR := "#e07a7a"
 const CONDITION_NEUTRAL_COLOR := "#c9c2b4"
 const WorldItemPickupScript := preload("res://scripts/inventory/world_item_pickup.gd")
 
@@ -69,7 +66,7 @@ func _sync_unique_rules() -> void:
 		var set_id := str(def.get("setId", ""))
 		if set_id != "":
 			set_counts[set_id] = int(set_counts.get(set_id, 0)) + 1
-	# IV-02: a set's bonus at a given piece-count threshold registers once that many pieces of the
+	# A set's bonus at a given piece-count threshold registers once that many pieces of the
 	# same setId are equipped -- unregistering happens for free below, the same way a unregistered
 	# item's rules do, since the threshold's source id simply stops being in `wanted`.
 	for set_id in set_counts:
@@ -184,11 +181,6 @@ func get_last_granted_instance() -> Dictionary:
 	return _last_granted_instance.duplicate(true)
 
 
-func notify_reward_lost(item_id: String) -> void:
-	push_warning("InventoryService: reward '%s' could not be granted — inventory full" % item_id)
-	_emit_inventory_rejected("full")
-
-
 func _emit_inventory_rejected(reason: String) -> void:
 	inventory_rejected.emit(reason)
 
@@ -213,17 +205,6 @@ func _check_full_equip_achievement() -> void:
 	AchievementService.notify("equipment_full")
 
 
-func add_dungeon_key(key_id: String, lock_id: String, label: String = "Dungeon Key") -> bool:
-	return add_item("dungeon_key", 1, {"keyId": key_id, "lockId": lock_id, "keyLabel": label})
-
-
-func has_dungeon_key(key_id: String) -> bool:
-	return not inventory.find_slots_where(
-		func(slot: Dictionary) -> bool:
-			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
-	).is_empty()
-
-
 func count_item(item_id: String) -> int:
 	return inventory.count_by_id(item_id)
 
@@ -234,41 +215,10 @@ func consume_boss_sigil() -> bool:
 	)
 
 
-func count_dungeon_keys(key_id: String) -> int:
-	return inventory.find_slots_where(
-		func(slot: Dictionary) -> bool:
-			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
-	).size()
-
-
-func consume_dungeon_key(key_id: String) -> bool:
-	return inventory.remove_one_where(
-		func(slot: Dictionary) -> bool:
-			return slot.get("itemId", "") == "dungeon_key" and str(slot.get("keyId", "")) == key_id
-	)
-
-
 func clear_dungeon_keys() -> void:
 	inventory.remove_all_where(
 		func(slot: Dictionary) -> bool: return slot.get("itemId", "") == "dungeon_key"
 	)
-
-
-func apply_death_durability_loss(amount: int) -> void:
-	if amount <= 0:
-		return
-	for slot_name in Equipment.SLOT_ORDER:
-		var slot: Dictionary = inventory.equipped.get(slot_name, {})
-		if slot.is_empty():
-			continue
-		var item_id: String = slot.get("itemId", "")
-		var def := ItemCatalog.get_definition(item_id)
-		if def.get("itemType", "") not in BlacksmithService.UPGRADEABLE_TYPES:
-			continue
-		var current := BlacksmithService.get_slot_durability(slot)
-		slot["durability"] = maxi(0, current - amount)
-	inventory.changed.emit()
-	_apply_equipment_to_player()
 
 
 func add_rolled_item(item_id: String, roll_seed: int = -1, instance_data: Dictionary = {}) -> bool:
@@ -292,23 +242,12 @@ func apply_save_inventory(data: Dictionary) -> void:
 	_apply_equipment_to_player()
 
 
-func get_equipment_stats() -> Dictionary:
-	var equip_stats := Equipment.aggregate_stats(
-		inventory.equipped, Callable(AffixRoller, "get_affix_stat")
-	)
-	var class_stats := (
-		ClassCatalog.get_stat_bonuses(CharacterService.class_id) if CharacterService else {}
-	)
-	var talent_stats := ProgressionService.get_talent_stat_totals() if ProgressionService else {}
-	var run_stats := RunBuffs.get_stat_totals() if RunBuffs else {}
-	var status_stats := get_status_buff_stats()
-	return _merge_stat_dicts(
-		_merge_stat_dicts(
-			_merge_stat_dicts(_merge_stat_dicts(equip_stats, class_stats), talent_stats),
-			run_stats
-		),
-		status_stats
-	)
+## One stat from everything that grants it: gear, class, run buffs, statuses and talents.
+func total_stat(stat_id: String) -> float:
+	var total := float(get_combat_aggregate_stats().get(stat_id, 0.0))
+	if ProgressionService:
+		total += float(ProgressionService.get_talent_stat_totals().get(stat_id, 0.0))
+	return total
 
 
 func get_combat_aggregate_stats() -> Dictionary:
@@ -328,13 +267,6 @@ func get_status_buff_stats() -> Dictionary:
 	return controller.call("get_stat_totals")
 
 
-func get_consumable_buff_stats() -> Dictionary:
-	var player := get_tree().get_first_node_in_group("player")
-	if player == null:
-		return {}
-	return ConsumableServiceScript.active_buff_stats(player)
-
-
 func get_equipment_only_stats() -> Dictionary:
 	return Equipment.aggregate_stats(inventory.equipped, Callable(AffixRoller, "get_affix_stat"))
 
@@ -352,14 +284,9 @@ func _format_item_subtitle(slot: Dictionary, def: Dictionary) -> String:
 	var slot_name := Equipment.slot_for_item_def(def)
 	if slot_name != "":
 		parts.append(slot_name.capitalize())
-	var infusion := Equipment.infusion_label(str(slot.get("infusion", "")))
-	if infusion != "":
-		parts.append(infusion)
 	var upgrade_level := int(slot.get("upgradeLevel", 0))
 	if upgrade_level > 0:
-		parts.append(
-			"%s +%d" % [Equipment.upgrade_path_label(str(slot.get("upgradePath", ""))), upgrade_level]
-		)
+		parts.append("+%d" % upgrade_level)
 	var scaling: Variant = def.get("scaling", {})
 	if scaling is Dictionary and not (scaling as Dictionary).is_empty():
 		var grades: PackedStringArray = []
@@ -367,44 +294,6 @@ func _format_item_subtitle(slot: Dictionary, def: Dictionary) -> String:
 			grades.append("%s %s" % [str(attribute).capitalize(), str(scaling[attribute])])
 		parts.append(" ".join(grades))
 	return "  ".join(parts)
-
-
-func _format_item_footer(slot: Dictionary, def: Dictionary) -> String:
-	if def.get("itemType", "") not in BlacksmithService.UPGRADEABLE_TYPES:
-		return ""
-	var item_id := str(slot.get("itemId", ""))
-	var current := BlacksmithService.get_slot_durability(slot)
-	var maximum := BlacksmithService.get_max_durability(item_id)
-	if current <= 0:
-		return tr("INV_DURABILITY_BROKEN")
-	return tr("INV_DURABILITY") % [current, maximum]
-
-
-## The item's condition, on a line of its own.
-##
-## It used to be appended to the subtitle beside the slot name, the infusion and the upgrade level,
-## where it read as one more word in a run-on and was easy to miss entirely -- and the neutral tier
-## was left out altogether, so most items said nothing about an axis that is always there. Naming
-## it, always, is what makes the player aware the axis exists at all; a "Balanced" that says +0% is
-## worth a line, because it tells them the roll could have gone either way.
-func _format_condition_line(slot: Dictionary) -> String:
-	var quality := str(slot.get("quality", ""))
-	if quality == "" or not ItemQualityScript.exists(quality):
-		return ""
-	var delta := ItemQualityScript.stat_multiplier(quality) - 1.0
-	var percent := roundi(delta * 100.0)
-	var colour := CONDITION_NEUTRAL_COLOR
-	if percent > 0:
-		colour = CONDITION_GOOD_COLOR
-	elif percent < 0:
-		colour = CONDITION_POOR_COLOR
-	return "%s [color=%s]%s[/color] [color=%s](%+d%% base stats)[/color]" % [
-		tr("INV_CONDITION"),
-		colour,
-		_escape_bbcode(ItemQualityScript.display_name(quality)),
-		colour,
-		percent,
-	]
 
 
 ## `include_name` defaults to true for callers (storage's description panel, the audit tool) that
@@ -420,9 +309,6 @@ func format_slot_tooltip_bbcode(slot: Dictionary, include_name: bool = true) -> 
 	var subtitle := _format_item_subtitle(slot, def)
 	if subtitle != "":
 		lines.append(_escape_bbcode(subtitle))
-	var condition := _format_condition_line(slot)
-	if condition != "":
-		lines.append(condition)
 	if def.has("description"):
 		lines.append(_escape_bbcode(ContentText.description(def)))
 	var rule_text := str(def.get("ruleText", ""))
@@ -481,10 +367,6 @@ func format_slot_tooltip_bbcode(slot: Dictionary, include_name: bool = true) -> 
 	if not affix_lines.is_empty():
 		lines.append("")
 		lines.append_array(affix_lines)
-	var footer := _format_item_footer(slot, def)
-	if footer != "":
-		lines.append("")
-		lines.append(_escape_bbcode(footer))
 	if not equipped_stats.is_empty():
 		lines.append("")
 		lines.append("[i]%s[/i]" % _escape_bbcode(_comparison_caption(slot_name)))
@@ -510,8 +392,8 @@ func damage_comparison_tooltip_bbcode(
 	var candidate_weapon_path := current_weapon_path
 	if target_slot == "weapon":
 		candidate_weapon_path = _weapon_data_path_for_definition(definition)
-	var current_weapon := ContentLoader.load_json(current_weapon_path)
-	var candidate_weapon := ContentLoader.load_json(candidate_weapon_path)
+	var current_weapon := ContentLoader.load_json_shared(current_weapon_path)
+	var candidate_weapon := ContentLoader.load_json_shared(candidate_weapon_path)
 	var current_attack := _opening_light_attack(current_weapon)
 	var candidate_attack := _opening_light_attack(candidate_weapon)
 	if current_attack.is_empty() or candidate_attack.is_empty():
@@ -586,7 +468,9 @@ func _comparison_caption(slot_name: String) -> String:
 func _escape_bbcode(text: String) -> String:
 	return text.replace("[", "[lb]")
 
-func remove_run_loot(_item_ids: Array = []) -> void:
+## Everything picked up on this run that has not been banked yet is gone. Banking (an escape, a
+## bonfire, the end of a run) clears the tag, so only what is still at risk is found here.
+func remove_run_loot() -> void:
 	var doomed: Array[int] = inventory.find_slots_where(
 		func(slot: Dictionary) -> bool: return bool(slot.get("runLoot", false))
 	)
@@ -596,6 +480,17 @@ func remove_run_loot(_item_ids: Array = []) -> void:
 		inventory.remove_at(index)
 	inventory.strip_equipped_run_loot()
 	_apply_equipment_to_player()
+
+
+## Banks the run's loot: what was carried so far is now kept even if the next fight is lost.
+func bank_run_loot() -> void:
+	for slot in inventory.slots:
+		(slot as Dictionary).erase("runLoot")
+	for slot_name in inventory.equipped:
+		var instance: Variant = inventory.equipped[slot_name]
+		if instance is Dictionary:
+			(instance as Dictionary).erase("runLoot")
+	inventory.consolidate_stacks()
 
 
 func get_class_stats() -> Dictionary:
@@ -644,7 +539,6 @@ func apply_equipment_to_player_node(player: Node, source_inventory: GridInventor
 	var equip_stats := _merge_stat_dicts(equipment_only, get_class_stats())
 	if RunBuffs:
 		equip_stats = _merge_stat_dicts(equip_stats, RunBuffs.get_stat_totals())
-	equip_stats = _merge_stat_dicts(equip_stats, get_consumable_buff_stats())
 	equip_stats = _merge_stat_dicts(equip_stats, get_status_buff_stats())
 	var talent_stats := get_talent_stats()
 	var merged_stats := _merge_stat_dicts(equip_stats, talent_stats)
@@ -705,9 +599,12 @@ func apply_equipment_to_player_node(player: Node, source_inventory: GridInventor
 			mana.set_regen_multiplier(mana_regen)
 	var weapon := player.get_node_or_null("WeaponController")
 	if weapon and weapon.has_method("load_weapon_from_path"):
-		weapon.load_weapon_from_path(resolved_inventory.get_equipped_weapon_data_path())
-		if weapon.has_method("set_infusion"):
-			weapon.call("set_infusion", str(resolved_inventory.get_equipped_weapon_infusion()))
+		# Reloading cancels a swing in progress, and this refresh runs on every status change.
+		# Only a different weapon needs the reload.
+		var weapon_path := resolved_inventory.get_equipped_weapon_data_path()
+		if str(weapon.get_meta("applied_weapon_key", "")) != weapon_path:
+			weapon.load_weapon_from_path(weapon_path)
+			weapon.set_meta("applied_weapon_key", weapon_path)
 		if weapon.has_method("set_combat_stat_modifiers"):
 			weapon.set_combat_stat_modifiers(equip_stats, talent_stats, get_class_stats())
 		elif weapon.has_method("set_damage_multiplier"):
@@ -986,6 +883,23 @@ func _spawn_world_pickup(
 	root.add_child(pickup)
 	pickup.global_position = world_pos + Vector3(0, 0.5, 1.0)
 	pickup.configure(item_id, quantity, rarity)
+	pickup.set_despawn_after_drop()
+
+
+## Puts a dropped item back exactly where a floor snapshot found it.
+func restore_world_pickup(state: Dictionary) -> void:
+	var root := get_tree().current_scene
+	if root == null:
+		return
+	var pickup: Area3D = WorldItemPickupScript.new()
+	pickup.name = "DroppedItemPickup"
+	root.add_child(pickup)
+	pickup.global_position = Vector3(
+		float(state.get("x", 0.0)), float(state.get("y", 0.0)), float(state.get("z", 0.0))
+	)
+	pickup.configure(
+		str(state.get("itemId", "")), int(state.get("quantity", 1)), str(state.get("rarity", ""))
+	)
 	pickup.set_despawn_after_drop()
 
 

@@ -4,7 +4,6 @@ extends Node
 const DEFAULT_MAX_TOKENS := 2
 
 var _leases_by_encounter: Dictionary = {}
-var _owner_connections: Dictionary = {}
 
 
 func request_token(
@@ -13,23 +12,27 @@ func request_token(
 	if lease_owner == null or not is_instance_valid(lease_owner):
 		return false
 	var owner_key := "%d:%s" % [lease_owner.get_instance_id(), lease_kind]
-	var leases: Dictionary = _leases_by_encounter.get(encounter_id, {})
+	# Each kind has its own pool, so defensive leases never eat into the attack slots.
+	var pool_id := _pool_id(encounter_id, lease_kind)
+	var leases: Dictionary = _leases_by_encounter.get(pool_id, {})
 	if leases.has(owner_key):
 		return true
 	if leases.size() >= max_tokens:
 		return false
 	leases[owner_key] = weakref(lease_owner)
-	_leases_by_encounter[encounter_id] = leases
-	if not _owner_connections.has(lease_owner.get_instance_id()):
-		lease_owner.tree_exiting.connect(release_owner.bind(lease_owner.get_instance_id()), CONNECT_ONE_SHOT)
-		_owner_connections[lease_owner.get_instance_id()] = true
+	_leases_by_encounter[pool_id] = leases
+	var release := release_owner.bind(lease_owner.get_instance_id())
+	if not lease_owner.tree_exiting.is_connected(release):
+		lease_owner.tree_exiting.connect(release, CONNECT_ONE_SHOT)
 	return true
 
 
 func release_token(encounter_id: String, lease_owner: Node, lease_kind: String = "attack") -> void:
 	if lease_owner == null:
 		return
-	_release_owner_key(encounter_id, "%d:%s" % [lease_owner.get_instance_id(), lease_kind])
+	_release_owner_key(
+		_pool_id(encounter_id, lease_kind), "%d:%s" % [lease_owner.get_instance_id(), lease_kind]
+	)
 
 
 func release_owner(owner_id: int) -> void:
@@ -42,18 +45,20 @@ func release_owner(owner_id: int) -> void:
 			_leases_by_encounter.erase(encounter_id)
 		else:
 			_leases_by_encounter[encounter_id] = leases
-	_owner_connections.erase(owner_id)
 
 
-func _release_owner_key(encounter_id: String, owner_key: String) -> void:
-	var leases: Dictionary = _leases_by_encounter.get(encounter_id, {})
+func _pool_id(encounter_id: String, lease_kind: String) -> String:
+	return "%s|%s" % [encounter_id, lease_kind]
+
+
+func _release_owner_key(pool_id: String, owner_key: String) -> void:
+	var leases: Dictionary = _leases_by_encounter.get(pool_id, {})
 	leases.erase(owner_key)
 	if leases.is_empty():
-		_leases_by_encounter.erase(encounter_id)
+		_leases_by_encounter.erase(pool_id)
 	else:
-		_leases_by_encounter[encounter_id] = leases
+		_leases_by_encounter[pool_id] = leases
 
 
 func reset_all() -> void:
 	_leases_by_encounter.clear()
-	_owner_connections.clear()

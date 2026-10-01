@@ -62,22 +62,6 @@
         "weight": 3
       },
       {
-        "itemId": "ember_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
-        "itemId": "unique_debtors_pendant",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
         "itemId": "unique_heirless_crown",
         "quantity": [
           1,
@@ -100,14 +84,6 @@
           1
         ],
         "weight": 4
-      },
-      {
-        "itemId": "void_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 1
       }
     ],
     "side": [
@@ -186,22 +162,6 @@
         "weight": 10
       },
       {
-        "itemId": "pitiron_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "pitiron_greaves",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
         "itemId": "pitiron_helm",
         "quantity": [
           1,
@@ -240,22 +200,6 @@
           1
         ],
         "weight": 10
-      },
-      {
-        "itemId": "castle_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "cathedral_holy_charm",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
       },
       {
         "itemId": "training_greatsword",

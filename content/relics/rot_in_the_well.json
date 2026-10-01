@@ -4,8 +4,8 @@
   "description": "You drink from the same well. Killing the poisoned poisons everything standing near them.",
   "maxStacks": 1,
   "stats": {
-    "poisonDamage": 3,
-    "resistPoison": -0.05
+    "resistPoison": -0.05,
+    "physicalDamage": 3
   },
   "tags": [
     "venom"

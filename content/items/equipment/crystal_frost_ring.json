@@ -3,8 +3,6 @@
   "name": "Crystal Frost Ring",
   "itemType": "accessory",
   "equipmentSlot": "ring",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 1,
   "rarity": "magic",
   "description": "A ring of eternal frost that chills attackers.",

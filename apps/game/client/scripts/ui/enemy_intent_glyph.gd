@@ -1,7 +1,7 @@
 extends RefCounted
 class_name EnemyIntentGlyph
 
-## `EN-04`: the pixel intent glyph shown above an enemy's wind-up bar. Colour alone is a weak
+## The pixel intent glyph shown above an enemy's wind-up bar. Colour alone is a weak
 ## channel -- `AccessibilitySettings` already has to remap it three ways for colourblind modes --
 ## so the glyph gives shape a say too: a sword for `blockable`, a broken shield for `unblockable`,
 ## a parry star for `parryable`, a hand for `grab`. Turning on `colorblind_mode` changes the tint;

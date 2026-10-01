@@ -16,9 +16,18 @@ const TIER_MASTERED := 3
 
 const KILLS_FOR_SIGHTED := 1
 const KILLS_FOR_STUDIED := 10
-const KILLS_FOR_MASTERED := 25
+const SIGNATURES_FOR_STUDIED := 2
+## Mastered means the fight is understood, not ground out: a few kills, a few attacks seen, and
+## two of them answered.
+const KILLS_FOR_MASTERED := 5
+const SIGNATURES_FOR_MASTERED := 3
+const COUNTERS_FOR_MASTERED := 2
 
 static var _entries: Dictionary = {}
+## Tier per enemy, for the active character. Recomputed for one enemy when it changes.
+static var _tiers: Dictionary = {}
+static var _tiers_owner := ""
+static var _tiers_ready := false
 static var _order: Array[String] = []
 static var _loaded := false
 
@@ -47,30 +56,72 @@ static func get_kills(enemy_id: String) -> int:
 	return 0
 
 
-static func get_tier(enemy_id: String) -> int:
-	var kills := get_kills(enemy_id)
-	var observation := _observation_record().get(enemy_id, {}) as Dictionary
+static func _tier_from(kills: int, observation: Dictionary) -> int:
 	var seen := bool(observation.get("seen", false))
-	var signatures: Dictionary = observation.get("signatures", {}) as Dictionary
-	var counters: Dictionary = observation.get("counters", {}) as Dictionary
-	if kills >= 5 and signatures.size() >= 3 and counters.size() >= 2:
+	var signatures: int = (observation.get("signatures", {}) as Dictionary).size()
+	var counters: int = (observation.get("counters", {}) as Dictionary).size()
+	if (
+		kills >= KILLS_FOR_MASTERED
+		and signatures >= SIGNATURES_FOR_MASTERED
+		and counters >= COUNTERS_FOR_MASTERED
+	):
 		return TIER_MASTERED
-	if kills >= KILLS_FOR_STUDIED or signatures.size() >= 2:
+	if kills >= KILLS_FOR_STUDIED or signatures >= SIGNATURES_FOR_STUDIED:
 		return TIER_STUDIED
 	if seen or kills >= KILLS_FOR_SIGHTED:
 		return TIER_SIGHTED
 	return TIER_UNKNOWN
 
 
+static func _ensure_tiers() -> void:
+	var owner_id: String = LocalSave.get_active_character_id() if LocalSave else ""
+	if _tiers_ready and owner_id == _tiers_owner:
+		return
+	_ensure_loaded()
+	var kills := _kill_record()
+	var observations := _observation_record()
+	_tiers.clear()
+	for enemy_id in _order:
+		_tiers[enemy_id] = _tier_from(
+			int(kills.get(enemy_id, 0)), observations.get(enemy_id, {}) as Dictionary
+		)
+	_tiers_owner = owner_id
+	_tiers_ready = true
+
+
+static func _update_tier(enemy_id: String) -> void:
+	_ensure_tiers()
+	var observation := _observation_record().get(enemy_id, {}) as Dictionary
+	_tiers[enemy_id] = _tier_from(get_kills(enemy_id), observation)
+
+
+static func get_tier(enemy_id: String) -> int:
+	_ensure_tiers()
+	return int(_tiers.get(enemy_id, TIER_UNKNOWN))
+
+
+## Kills still needed for the next tier under the same rule `get_tier` applies.
 static func kills_to_next_tier(enemy_id: String) -> int:
 	var kills := get_kills(enemy_id)
-	if kills < KILLS_FOR_SIGHTED:
-		return KILLS_FOR_SIGHTED - kills
-	if kills < KILLS_FOR_STUDIED:
-		return KILLS_FOR_STUDIED - kills
-	if kills < KILLS_FOR_MASTERED:
-		return KILLS_FOR_MASTERED - kills
+	match get_tier(enemy_id):
+		TIER_UNKNOWN:
+			return KILLS_FOR_SIGHTED - kills
+		TIER_SIGHTED:
+			return KILLS_FOR_STUDIED - kills
+		TIER_STUDIED:
+			return maxi(0, KILLS_FOR_MASTERED - kills)
 	return 0
+
+
+## What is still missing for mastery, worded the way it is checked: "kill 5, see 3 attacks,
+## counter 2".
+static func mastery_remaining(enemy_id: String) -> Dictionary:
+	var observation := _observation_record().get(enemy_id, {}) as Dictionary
+	return {
+		"kills": maxi(0, KILLS_FOR_MASTERED - get_kills(enemy_id)),
+		"attacks": maxi(0, SIGNATURES_FOR_MASTERED - (observation.get("signatures", {}) as Dictionary).size()),
+		"counters": maxi(0, COUNTERS_FOR_MASTERED - (observation.get("counters", {}) as Dictionary).size()),
+	}
 
 
 static func get_revealed(enemy_id: String) -> Dictionary:
@@ -126,14 +177,8 @@ static func record_kill(enemy_id: String) -> void:
 	var record := _kill_record()
 	record[enemy_id] = get_kills(enemy_id) + 1
 	CharacterService.set_flag(KILLS_FLAG, record)
-	var studied := studied_count()
-	var mastered := mastered_count()
-	CharacterService.set_flag(STUDIED_FLAG, studied)
-	CharacterService.set_flag(MASTERED_FLAG, mastered)
-	if is_complete() and not CharacterService.is_flag_truthy(COMPLETE_FLAG):
-		CharacterService.set_flag(COMPLETE_FLAG, true)
-		if AchievementService:
-			AchievementService.notify("bestiary_completed")
+	_update_tier(enemy_id)
+	_refresh_progress()
 
 
 static func record_sighting(enemy_id: String) -> void:
@@ -149,6 +194,7 @@ static func record_sighting(enemy_id: String) -> void:
 	observation["seen"] = true
 	observations[enemy_id] = observation
 	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_update_tier(enemy_id)
 	_refresh_progress()
 
 
@@ -168,6 +214,7 @@ static func record_signature(enemy_id: String, signature_id: String) -> void:
 	observation["signatures"] = signatures
 	observations[enemy_id] = observation
 	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_update_tier(enemy_id)
 	_refresh_progress()
 
 
@@ -187,6 +234,7 @@ static func record_counter(enemy_id: String, counter_id: String) -> void:
 	observation["counters"] = counters
 	observations[enemy_id] = observation
 	CharacterService.set_flag(OBSERVATIONS_FLAG, observations)
+	_update_tier(enemy_id)
 	_refresh_progress()
 
 
@@ -202,6 +250,8 @@ static func _refresh_progress() -> void:
 
 
 static func clear_cache() -> void:
+	_tiers.clear()
+	_tiers_ready = false
 	_entries.clear()
 	_order.clear()
 	_loaded = false

@@ -29,6 +29,7 @@
   "attacks": [
     {
       "id": "snap",
+      "anim": "attack_bite",
       "name": "Snap",
       "weight": 3,
       "windup_duration": 0.38,
@@ -42,10 +43,14 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "lunge",
+      "anim": "attack_bite",
       "name": "Lunge",
       "weight": 2,
       "windup_duration": 0.88,
@@ -58,11 +63,16 @@
       "telegraph_shape": "line",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "parryable",
-      "knockback": 2.0
+      "attackClass": "unblockable",
+      "knockback": 2.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     },
     {
       "id": "worry",
+      "anim": "attack_bite",
       "name": "Worry",
       "weight": 2,
       "windup_duration": 0.47,
@@ -112,7 +122,9 @@
         }
       ],
       "attackClass": "parryable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "hold_fraction": 0.3,
+      "feint_chance": 0.2
     }
   ]
 }

@@ -29,18 +29,20 @@ these by hand:
 | character options | `res://scenes/debug/combination_audit.tscn` |
 | every icon resolves to artwork | `res://scenes/debug/icon_atlas_audit.tscn` |
 | icon sheets match their source | `python tools/icon-gen/atlas_build.py --check` |
-| item condition rolls and scales | `res://scenes/debug/item_quality_audit.tscn` |
 | shadows follow the day-night cycle | `res://scenes/debug/shadow_cycle_audit.tscn` |
 | the player↔enemy exchange is in band | `node scripts/balance/balance-cli.mjs` |
 | gear stats reach combat, caps hold | `res://scenes/debug/combat_stats_audit.tscn` |
-| every item has its own icon, condition reads | `res://scenes/debug/inventory_ux_audit.tscn` |
+| the inventory panel's input, filters and tooltips behave | `res://scenes/debug/inventory_ux_audit.tscn` |
 | every scene loads and is skinned | `res://scenes/debug/scene_sweep.tscn` — add `-- --verbose` for the full list |
 | what each scene costs per frame | `res://scenes/debug/perf_audit.tscn` — needs a display; headless reports no GPU cost |
 | where a dungeon floor's draw calls go | `res://scenes/debug/draw_call_probe.tscn` |
-| frame matches the pick | `res://scenes/debug/frame_audit.tscn` |
+| character body frames keep their proportions | `res://scenes/debug/frame_audit.tscn` |
 | camera zooms and un-zooms | `res://scenes/debug/camera_zoom_audit.tscn` |
 | the camera follows | `res://scenes/debug/camera_follow_audit.tscn` |
 | how it looks | the `res://scenes/debug/capture_*.tscn` contact sheets |
+| bosses, elites and enemies reach a wind-up and an attack, corpses stay put, stuns pulse | `res://scenes/debug/enemy_attack_audit.tscn` |
+| rebuild the Blender models | `Blender/blender -b -P tools/blender/build_characters.py` (also `build_weapons.py`, `build_equipment.py`, `build_props.py`), then `godot --headless --import` |
+| rebuild the icons | `Blender/blender -b -P tools/blender/build_icons.py`, then `python tools/icon-gen/atlas_build.py` and `python tools/generate_class_icons.py` |
 
 These live under `scenes/debug/` and `scripts/tools/` and are diagnostics, not a test suite: they
 are run deliberately when someone wants an answer, they are not wired to any hook, and nothing

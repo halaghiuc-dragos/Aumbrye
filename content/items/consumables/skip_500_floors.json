@@ -2,8 +2,6 @@
   "id": "skip_500_floors",
   "name": "Umbral Skip (500)",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 5,
   "description": "Start an Umbral Endless run at floor 501.",
   "consumableEffect": {

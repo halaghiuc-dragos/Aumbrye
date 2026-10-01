@@ -30,8 +30,6 @@ const ITEM_DEFINITION_KEYS: PackedStringArray = [
 	"id",
 	"name",
 	"itemType",
-	"gridWidth",
-	"gridHeight",
 	"stackSize",
 ]
 

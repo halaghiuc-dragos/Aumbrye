@@ -2,15 +2,15 @@ extends Node3D
 
 
 const DioramaSkin := preload("res://scripts/art/props/diorama_interactable_skin.gd")
+const INTERACT_RANGE := 2.6
 
 signal lever_used(direction: String)
 
-var _interact_area: Area3D
 var _label: Label3D
 var _anim: AnimationPlayer
 var _audio: AudioStreamPlayer3D
 var _handle: Node3D
-var _near_player := false
+var _selected := false
 var _unlocked := false
 var _menu_open := false
 var _floor_index := 1
@@ -32,7 +32,6 @@ func _ready() -> void:
 		visual.add_child(_handle)
 	if get_node_or_null(DioramaSkin.VISUAL_NAME) == null and visual.get_child_count() <= 1:
 		DioramaSkin.build_lever(visual, DioramaSkin.resolve_biome(self))
-	_interact_area = get_node_or_null("InteractArea") as Area3D
 	_label = get_node_or_null("Label3D") as Label3D
 	_anim = get_node_or_null("AnimationPlayer") as AnimationPlayer
 	_audio = get_node_or_null("AudioStreamPlayer3D") as AudioStreamPlayer3D
@@ -41,9 +40,15 @@ func _ready() -> void:
 		_anim.name = "AnimationPlayer"
 		add_child(_anim)
 		_setup_animations()
-	if _interact_area:
-		_interact_area.body_entered.connect(_on_body_entered)
-		_interact_area.body_exited.connect(_on_body_exited)
+	DungeonInteractionService.register_candidate(
+		self,
+		visual,
+		INTERACT_RANGE,
+		3,
+		Callable(self, "_interact"),
+		Callable(),
+		Callable(self, "_set_selected_prompt")
+	)
 	if AchievementService and not lever_used.is_connected(_notify_lever_used):
 		lever_used.connect(_notify_lever_used)
 	_update_label()
@@ -164,25 +169,17 @@ func use(direction: String) -> bool:
 	return true
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not PlayerInput.interact_just_pressed(event) or not _near_player or not _unlocked or _menu_open:
+func _interact() -> void:
+	if not _unlocked or _menu_open:
 		return
 	var menu := get_tree().get_first_node_in_group("stair_menu")
 	if menu and menu.has_method("open_for_lever"):
 		menu.call("open_for_lever", self, floor_options())
-		get_viewport().set_input_as_handled()
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = true
-		_update_label()
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = false
-		_update_label()
+func _set_selected_prompt(active: bool) -> void:
+	_selected = active
+	_update_label()
 
 
 func _update_label() -> void:
@@ -191,7 +188,7 @@ func _update_label() -> void:
 	if _menu_open:
 		_label.visible = false
 		return
-	if not _near_player:
+	if not _selected:
 		_label.visible = false
 		return
 	if not _unlocked:

@@ -42,6 +42,10 @@ func _ready() -> void:
 	_sell_qty_spin.value = 1
 	_sell_qty_spin.custom_minimum_size = Vector2(110, 0)
 	_qty_row.add_child(_sell_qty_spin)
+	var sell_all := GameUISkinScript.make_button(tr("MERCHANT_SELL_ALL"))
+	sell_all.name = "SellAllButton"
+	sell_all.pressed.connect(_on_sell_all_pressed)
+	_qty_row.add_child(sell_all)
 
 
 func is_open() -> bool:
@@ -50,9 +54,7 @@ func is_open() -> bool:
 
 func open() -> void:
 	_refresh()
-	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.show_modal(self)
 	_buy_list.grab_focus()
 
 
@@ -62,18 +64,12 @@ func open_for_merchant(merchant_id: String = "hub_merchant") -> void:
 
 
 func close() -> void:
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.hide_modal(self)
 	closed.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close()
+func _on_cancel_requested() -> void:
+	close()
 
 
 func _on_gold_changed(_gold: int) -> void:
@@ -164,7 +160,7 @@ func _on_sell_selected(_index: int) -> void:
 	var qty := maxi(1, int(slot.get("quantity", 1)))
 	var def := ItemCatalog.get_definition(str(slot.get("itemId", "")))
 	_sell_qty_spin.max_value = qty
-	_sell_qty_spin.value = qty
+	_sell_qty_spin.value = 1
 	_detail_label.text = tr("MERCHANT_SELL_HINT") % [
 		def.get("name", slot.get("itemId", "")), MerchantService.get_slot_sell_price(slot)
 	]
@@ -187,6 +183,11 @@ func _on_buy_pressed() -> void:
 	else:
 		_detail_label.text = str(result.get("error", tr("MERCHANT_BUY_FAILED")))
 	_refresh()
+
+
+func _on_sell_all_pressed() -> void:
+	_sell_qty_spin.value = _sell_qty_spin.max_value
+	_on_sell_pressed()
 
 
 func _on_sell_pressed() -> void:

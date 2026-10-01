@@ -163,7 +163,10 @@ static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dic
 		var multiplier := 1.0
 		if hurtbox.team != "player":
 			multiplier = float(cfg.get("enemyDamageMultiplier", 1.0))
-		var damage := float(cfg.get("damage", 0.0)) * multiplier
+		# The builder scales a trap once, at spawn, so it hits as hard as the floor's enemies do.
+		var damage := (
+			float(cfg.get("damage", 0.0)) * multiplier * float(source.get_meta("trap_damage_mult", 1.0))
+		)
 		var accepted := false
 		if damage > 0.0:
 			var direction := (hurtbox.global_position - area.global_position).normalized()
@@ -183,7 +186,7 @@ static func strike(area: Area3D, source: Node3D, cfg: Dictionary, cooldowns: Dic
 				)
 			)
 			accepted = resolution != null and float(resolution.get("outgoing")) > 0.0
-			# SY-01: `RunFlow.register_kill()`/`QuestService.register_kill()` already fire from the
+			# `RunFlow.register_kill()`/`QuestService.register_kill()` already fire from the
 			# enemy's own death handler regardless of what killed it -- the one thing genuinely
 			# missing was the achievement, which nothing else can see this hit was a trap's.
 			if (
@@ -227,20 +230,3 @@ static func _resolve_controller(hurtbox: Hurtbox) -> StatusController:
 	return null
 
 
-## A trigger radius wide enough to cover the trap's own hitbox, whatever shape it was authored with.
-## The trap's authored radius wins when it is already the larger of the two.
-static func trigger_radius_for_hitbox(hitbox: Node, authored_radius: float) -> float:
-	if hitbox == null:
-		return authored_radius
-	var shape_node := hitbox.get_node_or_null("CollisionShape3D") as CollisionShape3D
-	if shape_node == null or shape_node.shape == null:
-		return authored_radius
-	var horizontal := 0.0
-	var shape := shape_node.shape
-	if shape is BoxShape3D:
-		horizontal = maxf((shape as BoxShape3D).size.x, (shape as BoxShape3D).size.z) * 0.5
-	elif shape is CapsuleShape3D:
-		horizontal = (shape as CapsuleShape3D).radius
-	elif shape is CylinderShape3D:
-		horizontal = (shape as CylinderShape3D).radius
-	return maxf(authored_radius, horizontal + 0.5)

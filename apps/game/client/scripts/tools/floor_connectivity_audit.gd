@@ -68,7 +68,7 @@ func _ready() -> void:
 			var base_seed := fixed_seed if fixed_seed >= 0 else 1 + s * 7919 + biome_id.hash()
 			for floor_index in range(1, floor_limit + 1):
 				var result: Dictionary = LocalProcgenScript.generate(
-					biome_id, base_seed, floor_index, "castle", 1, 1, false, false, true
+					biome_id, base_seed, floor_index, "castle", 1, 1, false, false, 0
 				)
 				var label := "%s seed=%d floor=%d" % [biome_id, base_seed, floor_index]
 				if not result.get("ok", false):
@@ -85,6 +85,10 @@ func _audit_floor(label: String, definition: Dictionary, biome_id: String) -> vo
 	var rooms_by_id := {}
 	for room in definition.get("rooms", []):
 		var room_id := str(room.get("id", ""))
+		if absf(float(room.get("transform", {}).get("y", 0.0))) > EPSILON:
+			_fail("%s: room '%s' is above the common floor" % [label, room_id])
+		if str(room.get("shape", "rect")) == "split":
+			_fail("%s: room '%s' has a split floor" % [label, room_id])
 		if room_id == "":
 			_fail("%s: a room has no id" % label)
 			continue
@@ -110,7 +114,7 @@ func _audit_floor(label: String, definition: Dictionary, biome_id: String) -> vo
 	await _check_geometry(label, definition, biome_id)
 
 
-## RM-06 item 4: the generator's own gate (`RoomContentValidator`) already rejects a floor that
+## Item 4: the generator's own gate (`RoomContentValidator`) already rejects a floor that
 ## fails this before it ships, so a real failure here should never happen -- this exists to prove
 ## that promise per seed rather than trust it, the same way the rest of this audit re-derives
 ## things the generator already checked once.
@@ -510,6 +514,9 @@ func _check_geometry(label: String, definition: Dictionary, biome_id: String) ->
 		var blockout := room.get_blockout()
 		if blockout != null and blockout.shape == &"split":
 			_split_rooms_checked += 1
+		if room.contains_world_point(room.global_position + Vector3.DOWN * 2.0):
+			_fail("%s: room '%s' still contains the bedrock level" % [label, room_id])
+			holes += 1
 		if is_nan(_probe_floor_y(space, room.global_position + Vector3(0.0, 2.0, 0.0))):
 			_fail("%s: room '%s' centre has no floor beneath it" % [label, room_id])
 			holes += 1
@@ -523,6 +530,7 @@ func _check_geometry(label: String, definition: Dictionary, biome_id: String) ->
 				)
 				holes += 1
 	var cliffs := _check_doorway_continuity(label, builder, definition, space)
+	cliffs += await _check_openings_outward(label, builder, definition)
 	var nav_failures := (
 		_check_split_navigation(label, builder, definition) if _validate_split_navigation else 0
 	)
@@ -531,6 +539,129 @@ func _check_geometry(label: String, definition: Dictionary, biome_id: String) ->
 	_holes_by_biome[biome_id] = int(_holes_by_biome.get(biome_id, 0)) + holes
 	_cliffs_by_biome[biome_id] = int(_cliffs_by_biome.get(biome_id, 0)) + cliffs + nav_failures
 	parent.queue_free()
+
+
+## An opening that leads outside the floor is invisible to a probe inside the doorway, which only
+## proves the room's own floor exists. Every opening cut in a wall is probed one metre *outward*
+## and has to land inside a room the edges say is next door; every gate has to stand in such an
+## opening. Then every secret is revealed and the same probe runs again, and no door that was open
+## before may have moved.
+func _check_openings_outward(
+	label: String, builder: DungeonBuilder, definition: Dictionary
+) -> int:
+	var failures := _probe_openings(label + " (built)", builder, definition)
+	var before := _door_snapshot(builder)
+	for secret in definition.get("placements", {}).get("secrets", []):
+		var secret_id := str(secret.get("roomId", ""))
+		if secret_id != "":
+			builder.reveal_secret(secret_id)
+	# The reveal rebuilds room geometry and navigation on the next frame.
+	for _frame in 3:
+		await get_tree().process_frame
+	await get_tree().physics_frame
+	var after := _door_snapshot(builder)
+	for key in before:
+		if after.get(key, null) != before[key]:
+			_fail("%s: a secret reveal moved or closed the open door %s" % [label, key])
+			failures += 1
+	failures += _probe_openings(label + " (all secrets revealed)", builder, definition)
+	return failures
+
+
+func _probe_openings(label: String, builder: DungeonBuilder, definition: Dictionary) -> int:
+	var failures := 0
+	var open_sockets: Array[DoorwaySocket] = []
+	for room_id in builder.get_room_ids():
+		var room := builder.get_room(room_id)
+		var blockout := room.get_blockout() if room != null else null
+		if blockout == null:
+			continue
+		for socket in room.get_sockets():
+			if not _wall_is_open(blockout, socket.direction):
+				continue
+			open_sockets.append(socket)
+			var outward := socket.global_position + socket.get_world_facing() * 1.0
+			if not _neighbour_contains(builder, definition, room, outward):
+				_fail(
+					"%s: room '%s' opening %s leads outside the floor"
+					% [label, room_id, socket.get_socket_name()]
+				)
+				failures += 1
+	for room_id in builder.get_room_ids():
+		var room := builder.get_room(room_id)
+		if room == null:
+			continue
+		for child in room.get_children():
+			if not child.has_meta("door_socket"):
+				continue
+			var gate_socket := child.get_meta("door_socket") as DoorwaySocket
+			if gate_socket != null and not open_sockets.has(gate_socket):
+				_fail("%s: gate '%s' stands in a wall with no opening" % [label, child.name])
+				failures += 1
+	var boss_door := builder.get_boss_door()
+	if boss_door != null:
+		var on_opening := false
+		for socket in open_sockets:
+			var flat := boss_door.global_position - socket.global_position
+			flat.y = 0.0
+			if flat.length() <= 0.6:
+				on_opening = true
+				break
+		if not on_opening:
+			_fail("%s: the boss gate is not on a real opening" % label)
+			failures += 1
+	return failures
+
+
+func _wall_is_open(blockout: CastleBlockout, direction: CastleRoomConstantsScript.Direction) -> bool:
+	match direction:
+		CastleRoomConstantsScript.Direction.NORTH:
+			return blockout.door_north
+		CastleRoomConstantsScript.Direction.SOUTH:
+			return blockout.door_south
+		CastleRoomConstantsScript.Direction.EAST:
+			return blockout.door_east
+	return blockout.door_west
+
+
+func _neighbour_contains(
+	builder: DungeonBuilder, definition: Dictionary, room: RoomTemplate, point: Vector3
+) -> bool:
+	for edge in definition.get("edges", []):
+		if str(edge.get("kind", "door")) == "shortcut":
+			continue
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		var other_id := ""
+		if from_id == room.room_id:
+			other_id = to_id
+		elif to_id == room.room_id:
+			other_id = from_id
+		if other_id == "":
+			continue
+		var other := builder.get_room(other_id)
+		if other != null and other.contains_world_point(point):
+			return true
+	return false
+
+
+## Which walls are open, and where along the wall, for every room.
+func _door_snapshot(builder: DungeonBuilder) -> Dictionary:
+	var snapshot := {}
+	for room_id in builder.get_room_ids():
+		var room := builder.get_room(room_id)
+		var blockout := room.get_blockout() if room != null else null
+		if blockout == null:
+			continue
+		if blockout.door_north:
+			snapshot["%s/north" % room_id] = blockout.door_north_offset
+		if blockout.door_south:
+			snapshot["%s/south" % room_id] = blockout.door_south_offset
+		if blockout.door_east:
+			snapshot["%s/east" % room_id] = blockout.door_east_offset
+		if blockout.door_west:
+			snapshot["%s/west" % room_id] = blockout.door_west_offset
+	return snapshot
 
 
 ## For every non-secret edge, several points across the threshold must each find floor close to
@@ -546,7 +677,7 @@ func _check_doorway_continuity(
 		var kind := str(edge.get("kind", "door"))
 		if kind in ["secret", "shortcut"]:
 			continue
-		# RM-04: a "down" one-way edge omits its ramp on purpose (see
+		# A "down" one-way edge omits its ramp on purpose (see
 		# `dungeon_builder.gd:_build_height_transitions()`) -- the doorway is meant to drop, so the
 		# jump-detection below would flag exactly the geometry the feature is supposed to build.
 		if str(edge.get("oneWay", "")) == "down":

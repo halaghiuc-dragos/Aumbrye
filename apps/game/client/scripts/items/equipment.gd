@@ -1,18 +1,14 @@
 extends RefCounted
 class_name Equipment
 
-const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 
 
 const SLOT_ORDER: Array[String] = [
 	"helmet",
 	"chest",
-	"gloves",
-	"boots",
 	"weapon",
 	"secondary",
 	"ring",
-	"amulet",
 	"relic",
 ]
 
@@ -51,13 +47,7 @@ const STAT_KEYS: Array[String] = [
 	"attackSpeed",
 ]
 
-const FLAT_DAMAGE_STAT_KEYS: Array[String] = [
-	"physicalDamage",
-	"fireDamage",
-	"frostDamage",
-	"arcaneDamage",
-	"poisonDamage",
-]
+const FLAT_DAMAGE_STAT_KEYS: Array[String] = ["physicalDamage"]
 
 const UNIT_FLAT := 0
 const UNIT_PERCENT := 1
@@ -104,82 +94,10 @@ const STAT_DISPLAY: Dictionary = {
 	"attackSpeed": {"key": "STAT_ATTACK_SPEED", "label": "Attack Speed", "unit": UNIT_FRACTION},
 	"physicalDamage":
 	{"key": "STAT_PHYSICAL_DAMAGE", "label": "Physical Damage", "unit": UNIT_FLAT},
-	"fireDamage": {"key": "STAT_FIRE_DAMAGE", "label": "Fire Damage", "unit": UNIT_FLAT},
-	"frostDamage": {"key": "STAT_FROST_DAMAGE", "label": "Frost Damage", "unit": UNIT_FLAT},
-	"arcaneDamage": {"key": "STAT_ARCANE_DAMAGE", "label": "Arcane Damage", "unit": UNIT_FLAT},
-	"poisonDamage": {"key": "STAT_POISON_DAMAGE", "label": "Poison Damage", "unit": UNIT_FLAT},
 	"lifesteal": {"key": "STAT_LIFESTEAL", "label": "Lifesteal", "unit": UNIT_FRACTION},
 }
 
 const UPGRADE_STEP := 0.06
-
-const UPGRADE_PATHS: Dictionary = {
-	"standard": {"key": "FORGE_PATH_STANDARD", "label": "Standard", "step": 0.06, "perLevel": {}},
-	"heavy":
-	{
-		"key": "FORGE_PATH_HEAVY",
-		"label": "Heavy",
-		"step": 0.08,
-		"perLevel": {"poiseDamage": 0.02, "staminaCostReduction": -0.01},
-	},
-	"keen":
-	{
-		"key": "FORGE_PATH_KEEN",
-		"label": "Keen",
-		"step": 0.04,
-		"perLevel": {"critChance": 0.012, "evasion": 1.0},
-	},
-	"blessed":
-	{
-		"key": "FORGE_PATH_BLESSED",
-		"label": "Blessed",
-		"step": 0.05,
-		"perLevel": {"maxHealth": 6.0, "healthRegen": 0.4},
-	},
-}
-
-const INFUSIONS: Dictionary = {
-	"fire":
-	{
-		"key": "FORGE_INFUSION_FIRE",
-		"label": "Fire",
-		"resist": "resistFire",
-		"convert": 0.35,
-		"rate": 0.88,
-	},
-	"frost":
-	{
-		"key": "FORGE_INFUSION_FROST",
-		"label": "Frost",
-		"resist": "resistFrost",
-		"convert": 0.35,
-		"rate": 0.88,
-	},
-	"poison":
-	{
-		"key": "FORGE_INFUSION_POISON",
-		"label": "Poison",
-		"resist": "resistPoison",
-		"convert": 0.35,
-		"rate": 0.88,
-	},
-	"arcane":
-	{
-		"key": "FORGE_INFUSION_ARCANE",
-		"label": "Arcane",
-		"resist": "resistArcane",
-		"convert": 0.3,
-		"rate": 0.90,
-	},
-	"lightning":
-	{
-		"key": "FORGE_INFUSION_LIGHTNING",
-		"label": "Lightning",
-		"resist": "resistLightning",
-		"convert": 0.3,
-		"rate": 0.90,
-	},
-}
 
 const BlacksmithServiceScript := preload("res://scripts/hub/blacksmith_service.gd")
 
@@ -265,58 +183,20 @@ static func format_stat_line(stat: String, value: float) -> String:
 		return ""
 	return "%s %s" % [format_stat_value(stat, value), stat_display_name(stat)]
 
-static func upgrade_path_label(path: String) -> String:
-	var entry: Dictionary = UPGRADE_PATHS.get(normalize_upgrade_path(path), {})
-	var fallback: String = str(entry.get("label", "Standard"))
-	var key: String = str(entry.get("key", ""))
-	if key == "":
-		return fallback
-	var translated := String(TranslationServer.translate(key))
-	return fallback if translated == key else translated
-
-
-static func infusion_label(infusion: String) -> String:
-	var entry: Dictionary = INFUSIONS.get(infusion, {})
-	if entry.is_empty():
-		return ""
-	var fallback: String = str(entry.get("label", infusion.capitalize()))
-	var key: String = str(entry.get("key", ""))
-	var translated := String(TranslationServer.translate(key))
-	return fallback if translated == key else translated
-
-
-static func normalize_upgrade_path(path: String) -> String:
-	var key := path.to_lower().strip_edges()
-	return key if UPGRADE_PATHS.has(key) else "standard"
-
-
-static func upgrade_multiplier(upgrade_level: int, path: String = "standard") -> float:
-	var entry: Dictionary = UPGRADE_PATHS.get(normalize_upgrade_path(path), {})
-	var step := float(entry.get("step", UPGRADE_STEP))
-	return 1.0 + step * float(maxi(0, upgrade_level))
+static func upgrade_multiplier(upgrade_level: int) -> float:
+	return 1.0 + UPGRADE_STEP * float(maxi(0, upgrade_level))
 
 
 static func slot_stats(slot: Dictionary, affix_resolver: Callable = Callable()) -> Dictionary:
 	var item_id: String = slot.get("itemId", "")
 	if item_id == "":
 		return {}
-	if BlacksmithServiceScript.get_slot_durability(slot) <= 0:
-		var empty: Dictionary = {}
-		for stat in STAT_KEYS:
-			empty[stat] = 0.0
-		return empty
 	var def := ItemCatalog.get_definition(item_id)
 	var upgrade_level := int(slot.get("upgradeLevel", 0))
-	var upgrade_path := normalize_upgrade_path(str(slot.get("upgradePath", "standard")))
 	var base_stats: Dictionary = def.get("stats", {})
 	var recipe_bonus := RecipeCatalog.upgrade_stat_bonus(item_id, upgrade_level)
 	var use_recipe_bonus := not recipe_bonus.is_empty()
-	var mult := upgrade_multiplier(upgrade_level, upgrade_path)
-	# Condition scales the item's own numbers, so it multiplies with the upgrade level rather than
-	# adding beside it: upgrading a chipped sword makes a better chipped sword, and never turns it
-	# into a masterforged one. Affixes are added afterwards and are deliberately untouched -- they
-	# are enchantments on the item, not part of its make.
-	mult *= ItemQualityScript.stat_multiplier(str(slot.get("quality", "")))
+	var mult := upgrade_multiplier(upgrade_level)
 	var totals: Dictionary = {}
 	for stat in STAT_KEYS:
 		var base_val := float(base_stats.get(stat, 0.0))
@@ -344,35 +224,7 @@ static func slot_stats(slot: Dictionary, affix_resolver: Callable = Callable()) 
 					totals["bonusDamage"] = totals.get("bonusDamage", 0.0) + value
 				elif stat_name in STAT_KEYS:
 					totals[stat_name] = totals.get(stat_name, 0.0) + value
-	_apply_upgrade_path_riders(totals, upgrade_path, upgrade_level)
-	_apply_infusion(totals, str(slot.get("infusion", "")))
 	return totals
-
-
-static func _apply_upgrade_path_riders(
-	totals: Dictionary, path: String, upgrade_level: int
-) -> void:
-	if upgrade_level <= 0:
-		return
-	var entry: Dictionary = UPGRADE_PATHS.get(path, {})
-	var per_level: Dictionary = entry.get("perLevel", {})
-	for stat in per_level:
-		if stat in STAT_KEYS:
-			totals[stat] = totals.get(stat, 0.0) + float(per_level[stat]) * float(upgrade_level)
-
-
-static func _apply_infusion(totals: Dictionary, infusion: String) -> void:
-	var entry: Dictionary = INFUSIONS.get(infusion, {})
-	if entry.is_empty():
-		return
-	var convert_fraction := float(entry.get("convert", 0.0))
-	var rate := float(entry.get("rate", 1.0))
-	var damage := float(totals.get("bonusDamage", 0.0))
-	if damage > 0.0:
-		totals["bonusDamage"] = damage * (1.0 - convert_fraction) + damage * convert_fraction * rate
-	var resist_stat := str(entry.get("resist", ""))
-	if resist_stat in STAT_KEYS:
-		totals[resist_stat] = totals.get(resist_stat, 0.0) + convert_fraction * 0.25
 
 
 static func _add_instance_stats(

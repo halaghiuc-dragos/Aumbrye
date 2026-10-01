@@ -131,7 +131,7 @@ func get_seed() -> int:
 	return _run_seed
 
 
-## MD-01: `content/waves/umbral_waves.json:arenaStates` -- empty means "let the mutator use its
+## `content/waves/umbral_waves.json:arenaStates` -- empty means "let the mutator use its
 ## own built-in rotation" rather than a hard failure, since a floor definition authored before this
 ## field existed should still get an arena that changes.
 func get_arena_states() -> Array[String]:
@@ -620,7 +620,7 @@ func cash_out_item(instance_id: String) -> bool:
 	return true
 
 
-## MD-02: banks each id in turn, returning only the ones that actually made it home -- a full bag
+## Banks each id in turn, returning only the ones that actually made it home -- a full bag
 ## can still strip one item out of an otherwise-successful cash-out, same as `cash_out_item()`.
 func cash_out_items(item_ids: Array) -> Array[String]:
 	var banked: Array[String] = []
@@ -657,7 +657,7 @@ func cash_out_items(item_ids: Array) -> Array[String]:
 	return banked
 
 
-## MD-02: the offer escalates with depth so staying is a temptation, not just a greedy holdout --
+## The offer escalates with depth so staying is a temptation, not just a greedy holdout --
 ## from wave 30 bank two, from wave 40 bank three.
 func cash_out_bank_count(wave: int) -> int:
 	if wave >= 40:

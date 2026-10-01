@@ -2,8 +2,6 @@
   "id": "greater_mana_potion",
   "name": "Greater Mana Potion",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 5,
   "rarity": "magic",
   "description": "Kept in a leaded bottle, because the ordinary kind does not hold it.",

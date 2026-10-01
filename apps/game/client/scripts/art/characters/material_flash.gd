@@ -66,7 +66,7 @@ static func restore_all(node: Node3D) -> void:
 	clear_persistent_glow(node)
 
 
-## `BS-03`: an onEnter `"emissive"` phase visual. Unlike `flash()`, this never tweens back down --
+## An onEnter `"emissive"` phase visual. Unlike `flash()`, this never tweens back down --
 ## it stays until the next phase overrides it or `clear_persistent_glow()` is called -- so a boss's
 ## escalating phases keep glowing through every hit-flash `flash()` plays on top of it.
 static func set_persistent_glow(node: Node3D, color: Color, energy: float) -> void:
@@ -138,19 +138,6 @@ static func cached_meshes(root: Node) -> Array[MeshInstance3D]:
 			meshes.append(mesh)
 	root.set_meta(META_MESH_CACHE, meshes)
 	return meshes
-
-
-static func refresh_mesh_cache(root: Node) -> Array[MeshInstance3D]:
-	if root == null or not is_instance_valid(root):
-		return []
-	if root.has_meta(META_MESH_CACHE):
-		root.remove_meta(META_MESH_CACHE)
-	return cached_meshes(root)
-
-
-static func invalidate_mesh_cache(root: Node) -> void:
-	if root != null and root.has_meta(META_MESH_CACHE):
-		root.remove_meta(META_MESH_CACHE)
 
 
 static func _mesh_shader(mesh: MeshInstance3D) -> Shader:

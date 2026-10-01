@@ -2,8 +2,6 @@
   "id": "reforging_stone",
   "name": "Reforging Stone",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 20,
   "description": "Worn concave by use. Every stroke takes something out and puts nothing back.",
   "value": 85,

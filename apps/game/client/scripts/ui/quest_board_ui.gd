@@ -55,27 +55,19 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.show_modal(self)
 	_refresh()
 	_refresh_pending = false
 	_available_list.grab_focus()
 
 
 func close() -> void:
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.hide_modal(self)
 	closed.emit()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close()
+func _on_cancel_requested() -> void:
+	close()
 
 
 func _refresh() -> void:

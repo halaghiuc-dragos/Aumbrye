@@ -15,7 +15,12 @@
         "trap": { "$ref": "#/$defs/profile" },
         "hazard": { "$ref": "#/$defs/profile" },
         "puzzle": { "$ref": "#/$defs/profile" },
-        "lore": { "$ref": "#/$defs/profile" }
+        "shrine": { "$ref": "#/$defs/profile" },
+        "lore": { "$ref": "#/$defs/profile" },
+        "combat": { "$ref": "#/$defs/profile" },
+        "rest": { "$ref": "#/$defs/profile" },
+        "merchant": { "$ref": "#/$defs/profile" },
+        "locked_vault": { "$ref": "#/$defs/profile" }
       }
     }
   },
@@ -25,7 +30,7 @@
       "additionalProperties": false,
       "required": ["hint", "clueQuality"],
       "properties": {
-        "hint": { "type": "string", "enum": ["reward", "danger", "unknown"] },
+        "hint": { "type": "string", "enum": ["reward", "danger", "rest", "unknown"] },
         "clueQuality": { "type": "integer", "minimum": 0, "maximum": 3 }
       }
     }

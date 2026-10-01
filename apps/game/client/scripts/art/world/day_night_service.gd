@@ -15,12 +15,10 @@ const MOON_ENERGY := 0.45
 
 ## Shadows follow the sky rather than belonging to the sun alone.
 ##
-## The moon used to be created with `shadow_enabled = false`, so the moment the sun set every
-## shadow in the level vanished: the world stayed lit, from a visibly different direction, with
-## nothing casting. Objects read as stickers on the ground for half of every cycle.
+## The moon casts too, so the world never turns into stickers on the ground when the sun sets.
 ##
-## Only one directional light casts at a time -- two would double every shadow and cost twice over
-## -- so the brighter of the two owns the shadow, and the handover is faded rather than switched.
+## Only one directional light casts at a time -- two would double every shadow and cost twice over --
+## so the brighter of the two owns the shadow, and the handover is faded rather than switched.
 ## Through dusk, when sun and moon are of comparable strength, the shadow softens away instead of
 ## swinging across the ground, and it comes back as the new light wins. Opacity also tracks how
 ## strong that light actually is, which is what keeps moonlight shadows fainter than noon ones.
@@ -38,9 +36,25 @@ var _profile_id := ""
 var _stops: Array = []
 var _cycle_seconds := FALLBACK_CYCLE_SECONDS
 
-var dim := 1.0
+## A frame's worth of sun movement is invisible on a 20 minute cycle, so the sky is re-lit a few
+## times a second, and at once when something that changes the look (dim, fog boost) is set.
+const APPLY_INTERVAL := 0.25
+## Shadow directions move in fixed steps, so a shadow jumps rarely instead of crawling.
+const SHADOW_STEP_DEG := 0.25
+
+var dim := 1.0:
+	set(value):
+		dim = value
+		_apply_now = true
 var _moon_elongation_cos := 0.0
-var fog_boost := 1.0
+var fog_boost := 1.0:
+	set(value):
+		fog_boost = value
+		_apply_now = true
+var _apply_now := true
+var _since_apply := 0.0
+var _base_fog := 0.01
+var _base_sun := 0.045
 ## Indoor profiles switch the sun's shadow off in the lighting data; the moon has to respect that
 ## too, or a cellar would grow moonlight shadows the sun was denied.
 var _shadows_allowed := true
@@ -60,8 +74,11 @@ func register_level(env: Environment, sun: DirectionalLight3D, fill: Directional
 	_sun = weakref(sun) if sun else null
 	_fill = weakref(fill) if fill else null
 	_profile_id = profile_id
-	var sun_block: Dictionary = VisualLighting.get_profile(profile_id).get("sun", {})
+	var profile := VisualLighting.get_profile(profile_id)
+	var sun_block: Dictionary = profile.get("sun", {})
 	_shadows_allowed = bool(sun_block.get("shadows", true))
+	_base_fog = float((profile.get("fog", {}) as Dictionary).get("density", 0.01))
+	_base_sun = float((profile.get("sky", {}) as Dictionary).get("sun_size", 0.045))
 	_shadow_quality_applied = -1
 	_apply(phase())
 
@@ -107,11 +124,7 @@ func cycle_seconds() -> float:
 	return _cycle_seconds
 
 
-func is_night() -> bool:
-	return night_amount() > 0.5
-
-
-## `SY-08`: the hub board's "today" line wants a human word for what the cycle is doing right now
+## The hub board's "today" line wants a human word for what the cycle is doing right now
 ## -- reuses the same named stops (`midnight`, `dawn`, `noon`, ...) the lighting blend itself
 ## already walks through, rather than inventing a second phase-range table that could drift from
 ## the one `_bracket()` uses to actually light the scene.
@@ -129,8 +142,11 @@ func describe_time_of_day() -> String:
 	return str(current.get("name", "")).capitalize()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _environment == null or _environment.get_ref() == null:
+		return
+	_since_apply += delta
+	if not _apply_now and _since_apply < APPLY_INTERVAL:
 		return
 	_apply(phase())
 
@@ -144,7 +160,13 @@ func _ensure_loaded() -> void:
 	if stops.is_empty():
 		push_error("DayNightService: no day_night stops in the lighting data")
 		return
-	var sorted := stops.duplicate()
+	var sorted := stops.duplicate(true)
+	# Colours are parsed once here; `_col()` then hands back the parsed value.
+	for stop in sorted:
+		for key in (stop as Dictionary).keys():
+			var value: Variant = (stop as Dictionary)[key]
+			if value is String and (value as String).begins_with("#"):
+				(stop as Dictionary)[key] = Color(value as String)
 	sorted.sort_custom(
 		func(a: Variant, b: Variant) -> bool:
 			return float((a as Dictionary).get("at", 0.0)) < float((b as Dictionary).get("at", 0.0))
@@ -181,6 +203,8 @@ func _bracket(p: float) -> Dictionary:
 
 func _apply(p: float) -> void:
 	_applied_phase = p
+	_apply_now = false
+	_since_apply = 0.0
 	_ensure_loaded()
 	if _stops.is_empty():
 		return
@@ -196,7 +220,9 @@ func _apply(p: float) -> void:
 	var sun := _sun.get_ref() as DirectionalLight3D if _sun else null
 	var sun_energy := 0.0
 	if sun and is_instance_valid(sun) and sun.is_inside_tree():
-		sun.global_transform = Transform3D(Celestial.light_basis(to_sun), sun.global_position)
+		sun.global_transform = Transform3D(
+			Celestial.light_basis(_stepped(to_sun)), sun.global_position
+		)
 		sun.light_color = _col(a, "sun_color").lerp(_col(b, "sun_color"), t)
 		var energy := lerpf(_num(a, "sun_energy", 1.0), _num(b, "sun_energy", 1.0), t) * dim
 		energy *= clampf(Celestial.elevation_deg(to_sun) / HORIZON_FADE_DEG + 1.0, 0.0, 1.0)
@@ -286,7 +312,9 @@ func _apply_moon(to_moon: Vector3, to_sun: Vector3, lit_fraction: float) -> Dire
 		_shadow_quality_applied = PixelDioramaSettings.shadow_quality
 	if not moon.is_inside_tree():
 		return null
-	moon.global_transform = Transform3D(Celestial.light_basis(to_moon), moon.global_position)
+	moon.global_transform = Transform3D(
+		Celestial.light_basis(_stepped(to_moon)), moon.global_position
+	)
 	moon.light_color = MOON_COLOR
 	var altitude := clampf(Celestial.elevation_deg(to_moon) / HORIZON_FADE_DEG + 1.0, 0.0, 1.0)
 	var energy := MOON_ENERGY * lit_fraction * altitude * night_amount_at(_applied_phase)
@@ -339,13 +367,21 @@ func _set_shadow(light: DirectionalLight3D, enabled: bool, opacity: float) -> vo
 
 
 func _base_fog_density() -> float:
-	var fog: Dictionary = VisualLighting.get_profile(_profile_id).get("fog", {})
-	return float(fog.get("density", 0.01))
+	return _base_fog
 
 
 func _base_sun_size() -> float:
-	var sky: Dictionary = VisualLighting.get_profile(_profile_id).get("sky", {})
-	return float(sky.get("sun_size", 0.045))
+	return _base_sun
+
+
+## The direction snapped to `SHADOW_STEP_DEG` in azimuth and elevation.
+static func _stepped(direction: Vector3) -> Vector3:
+	var step := deg_to_rad(SHADOW_STEP_DEG)
+	var azimuth := snappedf(atan2(direction.x, direction.z), step)
+	var elevation := snappedf(asin(clampf(direction.y, -1.0, 1.0)), step)
+	return Vector3(
+		cos(elevation) * sin(azimuth), sin(elevation), cos(elevation) * cos(azimuth)
+	)
 
 
 static func _num(stop: Dictionary, key: String, fallback: float) -> float:
@@ -353,4 +389,5 @@ static func _num(stop: Dictionary, key: String, fallback: float) -> float:
 
 
 static func _col(stop: Dictionary, key: String) -> Color:
-	return Color(str(stop.get(key, "#808080")))
+	var value: Variant = stop.get(key, "#808080")
+	return value as Color if value is Color else Color(str(value))

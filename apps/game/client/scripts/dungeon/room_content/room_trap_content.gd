@@ -1,6 +1,14 @@
 extends "res://scripts/dungeon/room_content/room_content_base.gd"
 
 const FALLBACK_TRAP := preload("res://scenes/traps/spike_trap.tscn")
+const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
+
+## A trap room is a gauntlet: its chest sits at the far end, and crossing the room without losing
+## health turns opening it into a relic offer on top of the loot.
+var _chest: Node3D
+var _watching: Health
+var _last_health := 0.0
+var _hurt := false
 
 
 func configure(entry: Dictionary, definition: Dictionary) -> void:
@@ -22,6 +30,47 @@ func configure(entry: Dictionary, definition: Dictionary) -> void:
 	trap.set_meta("trap_id", trap_id)
 	trap.set_meta("room_id", room_id)
 	_content_root().add_child(trap)
+	var params: Variant = entry.get("params", {})
+	if params is Dictionary and str((params as Dictionary).get("risk", "")) == "gauntlet":
+		_build_gauntlet_chest(entry)
+
+
+func get_chests() -> Array[Node3D]:
+	return [_chest] if _chest != null else []
+
+
+func _build_gauntlet_chest(entry: Dictionary) -> void:
+	_chest = CHEST_SCENE.instantiate() as Node3D
+	_chest.name = "GauntletChest"
+	_chest.position = _anchor(1).position
+	_content_root().add_child(_chest)
+	if _chest.has_method("configure"):
+		_chest.call("configure", {"items": entry.get("items", [])})
+	_chest.connect("opened", _on_chest_opened)
+	watch_room_entry(_on_player_entered)
+
+
+func _on_player_entered(body: Node3D) -> void:
+	_watching = body.get_node_or_null("Health") as Health
+	if _watching == null:
+		return
+	_last_health = _watching.current
+	_watching.health_changed.connect(_on_health_changed)
+
+
+func _on_health_changed(current: float, _max_value: float) -> void:
+	if current < _last_health:
+		_hurt = true
+	_last_health = current
+
+
+func _on_chest_opened() -> void:
+	if _hurt:
+		return
+	var offer_ui := get_tree().get_first_node_in_group("relic_offer_ui")
+	if offer_ui and offer_ui.has_method("open_offer"):
+		offer_ui.call("open_offer", "gauntlet:%d:%s" % [RunFlow.current_floor, name])
+	RunFlow.run_warning.emit(tr("ROOM_GAUNTLET_CLEAN"))
 
 
 func _roll_trap_id(biome_id: String, definition: Dictionary, room_id: String) -> String:

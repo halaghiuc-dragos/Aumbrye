@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/procgen_loop_report.gd" id="1_tool"]
+
+[node name="procgen_loop_report" type="Node"]
+script = ExtResource("1_tool")

@@ -13,5 +13,14 @@
   "statusId": "torpor",
   "statusBuildUp": 32,
   "enemyDamageMultiplier": 1,
-  "_comment": "C-163: authored `dark`, which is not in DamageInfo.ALL_TYPES and coerced silently to physical — the trap's authored identity was lost with no warning. `arcane` is the closest real type and is what the shadow theme was reaching for."
+  "_comment": "C-163: authored `dark`, which is not in DamageInfo.ALL_TYPES and coerced silently to physical \u2014 the trap's authored identity was lost with no warning. `arcane` is the closest real type and is what the shadow theme was reaching for.",
+  "damage": 18,
+  "poiseDamage": 10,
+  "size": [
+    3.2,
+    1,
+    3.2
+  ],
+  "color": "#7a33bf",
+  "visual": "spikes"
 }

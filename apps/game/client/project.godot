@@ -59,8 +59,6 @@ PixelDioramaViewport="*res://scripts/art/pipeline/pixel_diorama_viewport.gd"
 AttackTokenService="*res://scripts/combat/attack_token_service.gd"
 DungeonInteractionService="*res://scripts/dungeon/dungeon_interaction_service.gd"
 GameFacade="*res://scripts/app/game_facade.gd"
-InputRebindService="*res://scripts/app/input_rebind_service.gd"
-DebugConsole="*res://scripts/debug/debug_console.gd"
 InputGlyphWatcher="*res://scripts/ui/input_glyph_watcher.gd"
 DayNightService="*res://scripts/art/world/day_night_service.gd"
 NightLights="*res://scripts/art/world/night_lights.gd"
@@ -114,7 +112,6 @@ gdscript/warnings/function_used_as_property=2
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
-#KeeptheFullHDdesignviewportwhileallowingfront-endControlstofitdisplayssmaller#than1920x1080.PixelDioramaViewportretainsthegame'sdeliberatelysnappedlow-resrender.window/stretch/scale_mode="fractional"
 
 [editor_plugins]
 
@@ -276,21 +273,6 @@ look_down={
 "events": [Object(InputEventJoypadMotion,"resource_local_to_scene":false,"resource_name":"","device":-1,"axis":3,"axis_value":1.0,"script":null)
 ]
 }
-debug_toggle={
-"deadzone": 0.5,
-"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194332,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
-]
-}
-debug_hitboxes={
-"deadzone": 0.5,
-"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194333,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
-]
-}
-debug_console={
-"deadzone": 0.5,
-"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194343,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
-]
-}
 reset_duel={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":82,"key_label":0,"unicode":114,"location":0,"echo":false,"script":null)
@@ -310,7 +292,6 @@ toggle_camera={
 inventory={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194306,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
-, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":4,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
 quick_slot_1={
@@ -350,6 +331,12 @@ talents={
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":11,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
+talents_commit={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":67,"key_label":0,"unicode":99,"location":0,"echo":false,"script":null)
+, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":2,"pressure":0.0,"pressed":false,"script":null)
+]
+}
 interact={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":69,"key_label":0,"unicode":101,"location":0,"echo":false,"script":null)
@@ -377,7 +364,7 @@ weapon_art={
 map={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":77,"key_label":0,"unicode":109,"location":0,"echo":false,"script":null)
-, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":6,"pressure":0.0,"pressed":false,"script":null)
+, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":4,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
 ui_page_next={
@@ -412,6 +399,7 @@ locale/translations=PackedStringArray("res://translations/strings.en.translation
 3d_physics/layer_6="trap"
 3d_physics/layer_7="projectile"
 3d_physics/layer_8="camera_blocker"
+3d_physics/layer_9="enemy_body"
 
 [physics]
 
@@ -421,7 +409,7 @@ common/physics_interpolation=true
 
 textures/canvas_textures/default_texture_filter=0
 textures/default_filters/anisotropic_filtering_level=0
-limits/global_shader_variables/buffer_size=1048576
+limits/global_shader_variables/buffer_size=262144
 textures/default_filters/texture_filter=0
 
 [shader_globals]

@@ -133,7 +133,7 @@ static func total_count() -> int:
 	return get_all().size()
 
 
-## `SY-03`: mirrors `VaultService.evaluate()`/`consume_announcements()` exactly -- cheap and
+## Mirrors `VaultService.evaluate()`/`consume_announcements()` exactly -- cheap and
 ## idempotent, safe to call any time progress may have moved (a run's end, hub boot). Newly-unlocked
 ## entries queue for `consume_announcements()`, which the hub drains on its own boot pass to give
 ## the player one line naming what just changed, the same beat `_spawn_growth_props()` in

@@ -1,6 +1,6 @@
 extends CharacterBody3D
 
-## CB-02: lets `WeaponController` resolve an armed plunge attack without this script knowing
+## Lets `WeaponController` resolve an armed plunge attack without this script knowing
 ## anything about combat -- it just reports "you landed, here is how far you fell."
 signal landed(fall_height: float)
 
@@ -26,7 +26,7 @@ const LAND_CAMERA_DIP := 0.12
 const SPRINT_RAMP_UP := 0.35
 const SPRINT_RAMP_DOWN := 0.5
 const SURFACE_PROBE_INTERVAL := 0.25
-const SURFACE_PROBE_LENGTH := 0.4
+const SURFACE_PROBE_LENGTH := 0.9
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
 const AnimDirectorScript := preload("res://scripts/player/player_anim_director.gd")
 const FloorSnap := preload("res://scripts/art/characters/character_floor_snap.gd")
@@ -44,6 +44,7 @@ var _lock_on: LockOn
 var _speed_multiplier := 1.0
 var _weapon: WeaponController
 var _status: StatusController
+var _hit_feedback: Node
 var _anim_director: PlayerAnimDirector
 var _footstep_timer := 0.0
 var _was_on_floor := true
@@ -55,6 +56,7 @@ var _landing_penalty_timer := 0.0
 var _sprint_blend := 0.0
 var _cached_surface: StringName = &"stone"
 var _cached_surface_normal := Vector3.UP
+var _cached_surface_point := Vector3.ZERO
 var _surface_probe_timer := 0.0
 var _applied_knockback := Vector3.ZERO
 var _last_speed_breakdown := {
@@ -79,6 +81,7 @@ func _ready() -> void:
 	_lock_on = get_node_or_null("LockOn") as LockOn
 	_weapon = get_node_or_null("WeaponController") as WeaponController
 	_status = get_node_or_null("StatusController") as StatusController
+	_hit_feedback = get_node_or_null("HitFeedback")
 	if camera_yaw_path:
 		_camera_yaw = get_node(camera_yaw_path) as Node3D
 	if facing_path:
@@ -139,6 +142,10 @@ func _physics_process(delta: float) -> void:
 	if _landing_penalty_timer > 0.0:
 		_landing_penalty_timer = maxf(0.0, _landing_penalty_timer - delta)
 
+	if _hit_feedback and _hit_feedback.call("is_frozen"):
+		velocity = Vector3.ZERO
+		return
+
 	if _combat_reactions and _combat_reactions.is_movement_locked():
 		var lunge := Vector3.ZERO
 		if _weapon:
@@ -181,9 +188,6 @@ func _physics_process(delta: float) -> void:
 	var locked_on := LockOnMovement.is_active(_lock_on)
 
 	var sprint_requested := PlayerInput.pressed(&"sprint") and direction.length_squared() > 0.01
-	if locked_on:
-		sprint_requested = LockOnMovement.break_lock_on_sprint(_lock_on, sprint_requested)
-		locked_on = LockOnMovement.is_active(_lock_on)
 	var forward_dot := _movement_forward_dot(direction)
 	if sprint_requested and forward_dot < SPRINT_MIN_FORWARD_DOT:
 		sprint_requested = false
@@ -278,7 +282,7 @@ func _physics_process(delta: float) -> void:
 	_update_character_animation(delta, fall_height)
 
 
-## `PH-01`: folded into every `move_and_slide()` branch, including the movement-locked and
+## Folded into every `move_and_slide()` branch, including the movement-locked and
 ## landing-locked ones -- a staggered player must still move when hit, or knockback would be
 ## exactly the state (mid-stagger) it exists to sell.
 func _apply_knockback(delta: float) -> void:
@@ -407,10 +411,11 @@ func play_footstep_effects() -> void:
 	# CharacterBody3D.global_position and facing.global_transform are invalid outside the tree.
 	if not is_inside_tree() or not is_on_floor():
 		return
+	_surface_probe_timer = 0.0
 	var surface := _resolve_footstep_surface()
-	var pos := global_position + Vector3(0.0, 0.05, 0.0)
+	var pos := _cached_surface_point
 	VfxService.play_footstep(pos, get_facing_direction(), surface, _cached_surface_normal)
-	AudioDirector.play_sfx("footstep_%s" % surface, pos, String(surface))
+	AudioDirector.play_sfx("footstep", pos, String(surface))
 
 
 func _resolve_footstep_surface() -> StringName:
@@ -427,9 +432,11 @@ func _resolve_footstep_surface() -> StringName:
 	if hit.is_empty():
 		_cached_surface = &"stone"
 		_cached_surface_normal = Vector3.UP
+		_cached_surface_point = global_position
 		return _cached_surface
 	var normal: Variant = hit.get("normal", Vector3.UP)
 	_cached_surface_normal = normal.normalized() if normal is Vector3 and normal.length_squared() > 0.01 else Vector3.UP
+	_cached_surface_point = hit.get("position", global_position)
 	var collider: Object = hit.get("collider")
 	if collider and collider.has_meta("surface"):
 		_cached_surface = StringName(str(collider.get_meta("surface")))

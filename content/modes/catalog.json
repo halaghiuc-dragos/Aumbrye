@@ -34,7 +34,8 @@
       "escalation": [],
       "unlock": {
         "dungeonsCleared": 1
-      }
+      },
+      "parked": true
     },
     {
       "id": "gauntlet",
@@ -81,7 +82,8 @@
       ],
       "unlock": {
         "dungeonsCleared": 2
-      }
+      },
+      "parked": true
     },
     {
       "id": "gilded_delve",
@@ -101,7 +103,8 @@
       "escalation": [],
       "unlock": {
         "dungeonsCleared": 1
-      }
+      },
+      "parked": true
     },
     {
       "id": "shrouded_pilgrimage",
@@ -128,7 +131,8 @@
       ],
       "unlock": {
         "maxUnlockedTier": 3
-      }
+      },
+      "parked": true
     },
     {
       "id": "ironman",
@@ -145,7 +149,8 @@
       "escalation": [],
       "unlock": {
         "endlessBestFloor": 10
-      }
+      },
+      "parked": true
     },
     {
       "id": "treasure_descent",
@@ -175,7 +180,8 @@
       ],
       "unlock": {
         "endlessBestFloor": 4
-      }
+      },
+      "parked": true
     }
   ]
 }

@@ -31,6 +31,10 @@ static func offers_for_descent(run_seed: int, target_floor: int, base_modifiers:
 	var offers: Array[Dictionary] = []
 	if pacts.is_empty():
 		return offers
+	# Heat is a choice for a player who has already finished a dungeon; before that the stairs are
+	# just the stairs.
+	if DungeonTierService != null and DungeonTierService.get_deepest_cleared() < 1:
+		return offers
 	var pool: Array = []
 	for pact in pacts:
 		if not pact is Dictionary:

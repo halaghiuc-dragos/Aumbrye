@@ -137,27 +137,6 @@ static func critical_path_ids(graph: RoomGraph) -> Array[String]:
 	return path
 
 
-static func is_on_branch_to(graph: RoomGraph, ancestor_id: String, descendant_id: String) -> bool:
-	var distances := bfs_distances(graph, graph.start_id)
-	if not distances.has(ancestor_id) or not distances.has(descendant_id):
-		return false
-	if int(distances[descendant_id]) <= int(distances[ancestor_id]):
-		return false
-	var adj := build_adjacency(graph)
-	var current := descendant_id
-	while current != "" and current != ancestor_id:
-		var current_dist: int = int(distances.get(current, 0))
-		var best := ""
-		var best_dist := current_dist
-		for neighbor_id in adj.get(current, []):
-			var nd: int = int(distances.get(neighbor_id, 9999))
-			if nd < best_dist:
-				best_dist = nd
-				best = neighbor_id
-		current = best
-	return current == ancestor_id
-
-
 static func branch_depth_for_slot(graph: RoomGraph, slot_id: String) -> int:
 	var path := critical_path_ids(graph)
 	if path.is_empty():

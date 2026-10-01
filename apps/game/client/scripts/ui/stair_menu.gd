@@ -8,10 +8,9 @@ const RunModeConfigScript := preload("res://scripts/app/run_mode_config.gd")
 const EndlessDifficultyScript := preload("res://scripts/dungeon/endless_difficulty.gd")
 const DifficultyProfileScript := preload("res://scripts/dungeon/difficulty_profile.gd")
 
-## UX-05: descent pacts are the run's biggest fork and used to render as a button whose entire
-## pitch was squeezed into one label line. Give them the same card treatment `relic_offer_ui.gd`
-## gives relics -- gain in green, cost in red -- and keep the plain navigation choices (ascend,
-## descend, retreat) as buttons below the cards.
+## Descent pacts are the run's biggest fork, so each gets the same card treatment
+## `relic_offer_ui.gd` gives relics -- gain in green, cost in red -- and the plain navigation choices
+## (ascend, descend, retreat) are buttons below the cards.
 const CARD_MIN_SIZE := Vector2(320.0, 220.0)
 const COLOR_GIVES := "#7fd67f"
 const COLOR_TAKES := "#e07a7a"
@@ -133,7 +132,7 @@ func _rebuild_buttons(options: Array) -> void:
 	_focus_first_enabled()
 
 
-## AD-08: the pressure curve as a bar instead of a line of text -- fill is this floor's damage
+## The pressure curve as a bar instead of a line of text -- fill is this floor's damage
 ## multiplier against the soft cap, with the personal-best depth marked on the same scale so the
 ## decision to bank the run has a visible "how far past my record am I" reference.
 func _make_pressure_bar() -> Control:

@@ -2,8 +2,6 @@
   "id": "vault_sealing_wax",
   "name": "Vault Sealing Wax",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 20,
   "description": "Red, brittle, and stamped with an office that no longer exists.",
   "value": 20,

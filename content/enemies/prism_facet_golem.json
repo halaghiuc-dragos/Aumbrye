@@ -29,6 +29,7 @@
   "attacks": [
     {
       "id": "hammer",
+      "anim": "attack_heavy",
       "name": "Downward Hammer",
       "weight": 3,
       "windup_duration": 0.98,
@@ -39,11 +40,12 @@
       "attack_poise_damage": 46,
       "max_range": 2.6,
       "telegraph_shape": "circle",
-      "attackClass": "unblockable",
+      "attackClass": "blockable",
       "knockback": 3.5
     },
     {
       "id": "slam",
+      "anim": "attack_heavy",
       "name": "Ground Slam",
       "weight": 2,
       "windup_duration": 1.66,
@@ -55,10 +57,15 @@
       "max_range": 2.86,
       "telegraph_shape": "circle",
       "attackClass": "unblockable",
-      "knockback": 3.5
+      "knockback": 3.5,
+      "tags": [
+        "anti_roll"
+      ],
+      "hold_fraction": 0.35
     },
     {
       "id": "held_sweep",
+      "anim": "attack_sweep",
       "name": "Held Sweep",
       "weight": 2,
       "windup_duration": 1.27,
@@ -69,11 +76,15 @@
       "attack_poise_damage": 54,
       "max_range": 3.64,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
-      "knockback": 3.5
+      "attackClass": "parryable",
+      "knockback": 3.5,
+      "tags": [
+        "gap_close"
+      ]
     },
     {
       "id": "sig_split",
+      "anim": "attack_sweep",
       "name": "Split Chorus",
       "weight": 1.4,
       "windup_duration": 0.34,
@@ -117,8 +128,11 @@
           "knockback": 3.0
         }
       ],
-      "attackClass": "unblockable",
-      "knockback": 2.0
+      "attackClass": "blockable",
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     }
   ],
   "mass": 2.8

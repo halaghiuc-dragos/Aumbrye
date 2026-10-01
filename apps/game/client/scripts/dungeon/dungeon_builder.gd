@@ -17,7 +17,6 @@ const CHEST_SCENE := preload("res://scenes/loot/loot_chest.tscn")
 const EXIT_PORTAL_SCENE := preload("res://scenes/dungeon/exit_portal.tscn")
 const BOSS_ROOM_DOOR_SCENE := preload("res://scenes/dungeon/boss_room_door.tscn")
 const STAIR_LEVER_SCENE := preload("res://scenes/dungeon/stair_lever.tscn")
-const STAIR_COLLISION := preload("res://scripts/dungeon/stair_collision_builder.gd")
 const DIORAMA_SKIN := preload("res://scripts/art/props/diorama_interactable_skin.gd")
 const FINAL_BOSS_SCENE := preload("res://scenes/enemies/final_boss_forgotten_castle.tscn")
 const ILLUSORY_WALL_SCENE := preload("res://scenes/dungeon/illusory_wall.tscn")
@@ -34,6 +33,7 @@ signal boss_defeated
 signal snapshot_dirty
 signal build_progress(ratio: float)
 signal room_cleared(room_id: String)
+signal secret_edge_revealed(from_id: String, to_id: String)
 
 const CHUNK_ROOMS_PER_FRAME := 3
 const CHUNK_ENEMIES_PER_FRAME := 4
@@ -51,12 +51,15 @@ var _floor_nav_map: RID = RID()
 var _owns_floor_nav_map := false
 var _placement_rng: RandomNumberGenerator
 var _boss: Node
-## `BS-06`: at most one miniboss per floor today (`ProcgenPlacements._place_miniboss`), so a single
+## At most one miniboss per floor today (`ProcgenPlacements._place_miniboss`), so a single
 ## slot -- plus the room it's in, so `castle_run.gd` knows when the player has walked in on it.
 var _miniboss: Node
 var _miniboss_room_id := ""
 var _enemy_by_id: Dictionary = {}
 var _cleared_rooms: Dictionary = {}
+## Summoned and split enemies alive per room. They are not placements, but a room is only clear
+## once they are dead too.
+var _room_adds: Dictionary = {}
 var _chest_by_id: Dictionary = {}
 var _boss_door: Node3D
 var _stair_levers: Dictionary = {}
@@ -66,6 +69,7 @@ var _edge_by_pair: Dictionary = {}
 
 var _build_generation := 0
 var _secret_topology_refresh_queued := false
+var _secret_refresh_rooms: Dictionary = {}
 
 
 func _exit_tree() -> void:
@@ -77,13 +81,27 @@ func cancel() -> void:
 	_build_generation += 1
 
 
+## A frame has a few milliseconds for the build and no more: a long loop hands the frame back once
+## that budget is spent instead of running to its end.
+const FRAME_BUDGET_USEC := 4000
+var _slice_started_usec := 0
+
+
 func _yield_step(chunked: bool, my_gen: int) -> bool:
 	if chunked:
 		var tree := get_tree()
 		if tree == null:
 			return false
 		await tree.process_frame
+	_slice_started_usec = Time.get_ticks_usec()
 	return my_gen == _build_generation and is_inside_tree()
+
+
+## Inside a loop: yields only when this frame's budget is gone.
+func _yield_if_over_budget(chunked: bool, my_gen: int) -> bool:
+	if not chunked or Time.get_ticks_usec() - _slice_started_usec < FRAME_BUDGET_USEC:
+		return my_gen == _build_generation
+	return await _yield_step(chunked, my_gen)
 
 
 func build(
@@ -91,14 +109,14 @@ func build(
 	player: CharacterBody3D,
 	fixture_path: String = FIXTURE_RELATIVE,
 	chunked: bool = false
-) -> void:
-	await build_from_source(parent, player, fixture_path, {}, chunked)
+) -> bool:
+	return await build_from_source(parent, player, fixture_path, {}, chunked)
 
 
 func build_from_definition(
 	parent: Node3D, player: CharacterBody3D, def: Dictionary, chunked: bool = false
-) -> void:
-	await build_from_source(parent, player, "", def, chunked)
+) -> bool:
+	return await build_from_source(parent, player, "", def, chunked)
 
 
 func build_from_source(
@@ -107,7 +125,7 @@ func build_from_source(
 	fixture_path: String,
 	def: Dictionary,
 	chunked: bool = false
-) -> void:
+) -> bool:
 	cancel()
 	var my_gen := _build_generation
 	_player = player
@@ -119,7 +137,7 @@ func build_from_source(
 		definition = {}
 	if definition.is_empty():
 		push_error("DungeonBuilder: no definition provided")
-		return
+		return false
 	biome_id = BiomeRegistry.resolve_biome_id(definition)
 	_is_final_floor = (
 		bool(definition.get("isFinalFloor", false))
@@ -129,7 +147,7 @@ func build_from_source(
 	var rooms: Array = definition.get("rooms", [])
 	if rooms.is_empty():
 		push_error("DungeonBuilder: definition has no rooms")
-		return
+		return false
 	_placement_rng = RandomNumberGenerator.new()
 	_placement_rng.seed = int(definition.get("seed", 0)) ^ 0x50ACE01
 	_dungeon_root = Node3D.new()
@@ -143,136 +161,142 @@ func build_from_source(
 
 	if not await _build_rooms(chunked, my_gen):
 		_abort_build(parent)
-		return
+		return false
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_setup_floor_nav_map()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_sync_blockout_doors_from_edges()
+	if not await _dress_rooms(chunked, my_gen):
+		return false
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
-	if _verify_doorway_alignment() and OS.is_debug_build():
-		push_error("DungeonBuilder: aborting build, doorway alignment failed in a debug build")
+	if _verify_doorway_alignment():
+		push_error("DungeonBuilder: aborting build, doorway alignment failed")
 		_abort_build(parent)
-		return
+		return false
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_clear_doorway_obstructions()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_build_height_transitions()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_build_floor_shell()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_build_landmarks()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_place_cover()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
-	_finalize_all_blockouts()
+	if not await _finalize_all_blockouts(chunked, my_gen):
+		return false
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_place_secret_mechanisms()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_build_nav_links()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_spawn_player()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	await _place_enemies(chunked, my_gen)
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	await _place_loot(chunked, my_gen)
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_place_traps()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	if not _place_room_content():
 		_abort_build(parent)
-		return
+		return false
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_setup_boss()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	if _is_final_floor:
 		_setup_exit_portal()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
 	_setup_stair_levers()
 	step += 1.0
 	build_progress.emit(step / TOTAL_STEPS)
 	if not await _yield_step(chunked, my_gen):
-		return
+		return false
 
-	_setup_boss_door(parent)
+	if not _setup_boss_door(parent):
+		_abort_build(parent)
+		return false
 	step += 1.0
 	build_progress.emit(1.0)
 	build_complete.emit()
+	return true
 
 
 func _abort_build(parent: Node3D) -> void:
@@ -332,7 +356,7 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 		var instance := scene.instantiate() as RoomTemplate
 		var t: Dictionary = room_def.get("transform", {})
 		var yaw: float = deg_to_rad(t.get("yaw", 0.0))
-		instance.position = Vector3(t.get("x", 0.0), t.get("y", 0.0), t.get("z", 0.0))
+		instance.position = Vector3(t.get("x", 0.0), 0.0, t.get("z", 0.0))
 		instance.rotation.y = yaw
 		instance.name = room_def.get("id", template_id).capitalize()
 		instance.room_id = room_def.get("id", "")
@@ -354,10 +378,14 @@ func _build_rooms(chunked: bool, my_gen: int) -> bool:
 		var blockout := instance.get_blockout()
 		if blockout:
 			blockout.skip_floor = false
+			if blockout.shape == &"split" or str(room_def.get("shape", "")) == "split":
+				blockout.shape_override = &"rect"
 		rooms_root.add_child(instance)
 		_rooms[room_def.get("id", "")] = instance
 		if str(room_def.get("templateId", "")).ends_with("_stairs"):
-			STAIR_COLLISION.ensure_stair_collision(instance)
+			var decorative_ramp := instance.get_node_or_null("Props/StairRamp") as MeshInstance3D
+			if decorative_ramp:
+				decorative_ramp.visible = false
 		if chunked and (i + 1) % CHUNK_ROOMS_PER_FRAME == 0:
 			if not await _yield_step(chunked, my_gen):
 				return false
@@ -418,16 +446,22 @@ func edge_between(from_id: String, to_id: String) -> Dictionary:
 ## The socket on `from_room` that faces the doorway it shares with `to_room`.
 ##
 ## Everything that wants to sit in a doorway -- the locked door, the puzzle gate, the illusory
-## panel, the navigation link -- has to ask through here rather than through
-## `RoomTemplate.socket_toward`. That guesses the wall from the line between the two room centres,
-## which was correct only while every door was pinned to the middle of its wall. Doors slide now,
-## so two neighbours routinely sit diagonally offset and the centre line points at a corner: the
-## guess picks whichever of the two walls is nearer, and half the time that is the wall the rooms
-## do not share at all.
+## panel, the navigation link -- asks through here: the wall comes from the edge itself, because
+## doors slide along their walls and the line between two room centres can point at a corner.
 func door_socket_between(from_room: RoomTemplate, to_room: RoomTemplate) -> DoorwaySocket:
 	if from_room == null or to_room == null:
 		return null
 	return _socket_for_edge(from_room, to_room, edge_between(from_room.room_id, to_room.room_id))
+
+
+func _dress_rooms(chunked: bool, my_gen: int) -> bool:
+	for room_id in _rooms:
+		var room := get_room(str(room_id)) as CastleRoomScene
+		if room != null:
+			room.dress()
+		if not await _yield_if_over_budget(chunked, my_gen):
+			return false
+	return true
 
 
 func _sync_blockout_doors_from_edges() -> void:
@@ -461,8 +495,8 @@ func _close_all_blockout_doors() -> void:
 ## Opens the door on `from_room` that leads to `to_room`, at the point the two rooms share.
 ##
 ## `edge` carries the wall and the world position of the doorway, because neither can be recovered
-## from the rooms any more: doors slide along their wall now, so two neighbours can sit diagonally
-## offset from each other and the line between their centres no longer names the shared wall.
+## from the rooms: doors slide along their wall, so two neighbours can sit diagonally offset from each
+## other and the line between their centres does not name the shared wall.
 func _open_blockout_door_toward(
 	from_room: RoomTemplate, to_room: RoomTemplate, edge: Dictionary = {}
 ) -> void:
@@ -510,7 +544,7 @@ func _open_blockout_door_toward(
 	)
 	socket.landing_height = blockout.socket_landing_height(socket.direction)
 	socket.position.y = socket.landing_height
-	# RM-16: a frame around the hole, not just the hole -- guarded since a floor can resync its
+	# A frame around the hole, not just the hole -- guarded since a floor can resync its
 	# door state (`_sync_blockout_doors_from_edges` closes then reopens every door) and this must
 	# not stack a second frame on the same socket when that happens.
 	if socket.get_node_or_null("DoorwayFrameVisual") == null:
@@ -519,17 +553,18 @@ func _open_blockout_door_toward(
 		)
 
 
-## The socket on the wall the edge names, falling back to the old centre-delta guess.
+## The socket on the wall the edge names, or null when the edge names none: the callers report it,
+## because guessing the wall from the room centres picks the wrong one on offset neighbours.
 ##
 ## `edge.dir` is authored once, facing outward from `edge.from` toward `edge.to` -- so a caller
 ## asking for the socket on the far side of the same edge needs the opposite of that facing, or it
 ## picks the far room's opposite wall instead of the one the two rooms actually share.
 func _socket_for_edge(
-	from_room: RoomTemplate, to_room: RoomTemplate, edge: Dictionary
+	from_room: RoomTemplate, _to_room: RoomTemplate, edge: Dictionary
 ) -> DoorwaySocket:
 	var dir_name := str(edge.get("dir", ""))
 	if dir_name == "":
-		return from_room.socket_toward(to_room)
+		return null
 	var world_dir := Vector3.ZERO
 	match dir_name:
 		"north":
@@ -549,7 +584,7 @@ func _socket_for_edge(
 		if dot > best_dot:
 			best_dot = dot
 			best = socket
-	return best if best != null else from_room.socket_toward(to_room)
+	return best
 
 
 ## How far along its wall the doorway sits, in the room's own frame.
@@ -574,7 +609,7 @@ func _door_lateral(from_room: RoomTemplate, socket: DoorwaySocket, edge: Diction
 ## position, so the two sockets should coincide exactly; a nonzero span means a room's footprint
 ## and its reserved cells have drifted apart, which is the one failure that silently produces doors
 ## opening onto solid rock. Returns true if a mismatch was found, so `_build_debug_build()` can
-## abort the build rather than let it limp -- a mismatch here is exactly the failure `BG-01`'s
+## abort the build rather than let it limp -- a mismatch here is exactly the failure
 ## bedrock plane exists to catch, and it should never ship undetected during development.
 func _verify_doorway_alignment() -> bool:
 	var mismatch := false
@@ -674,10 +709,10 @@ func _prop_roots(props: Node3D) -> Array[Node3D]:
 
 ## Each open doorway as `{axis_pos, along, lo, hi}` in the room's own frame: the strip of floor in
 ## front of the opening that has to stay walkable.
-## `RM-01` Trap 3: a round or octagon room's opening sits on the circle, not on the wall-centre
-## rectangle the plain-rect version below assumes -- using the radius in place of `half_w`/`half_d`
-## keeps the zone anchored to where the wall segments were actually skipped
-## (`CastleBlockout._build_curved_perimeter()`), not to a wall that no longer exists there.
+## A round or octagon room's opening sits on the circle, not on the wall-centre rectangle the
+## plain-rect version below assumes -- using the radius in place of `half_w`/`half_d` keeps the zone
+## anchored to where the wall segments were actually skipped
+## (`CastleBlockout._build_curved_perimeter()`), not to a wall that does not exist there.
 func _doorway_zones(blockout: CastleBlockout) -> Array:
 	if blockout.shape == &"round" or blockout.shape == &"octagon":
 		var radius: float = minf(blockout.room_width, blockout.room_depth) * 0.5
@@ -776,7 +811,7 @@ func _build_height_transitions() -> void:
 				)
 			)
 			continue
-		# RM-04: a "down" one-way edge omits the ramp entirely -- the doorway is still cut normally,
+		# A "down" one-way edge omits the ramp entirely -- the doorway is still cut normally,
 		# but with nothing to climb, `HEIGHT_STEP`'s 3-unit rise is tall enough on its own that a
 		# player can drop from the higher room into the lower one yet cannot get back up without a
 		# ramp. No separate collision trick needed, unlike `RoomShortcutGateContent`'s barrier.
@@ -786,19 +821,6 @@ func _build_height_transitions() -> void:
 		var lateral := _door_lateral(lower_room, socket, edge)
 		var step_count := ceili(absf(from_y - to_y) / STEP_HEIGHT)
 		blockout.add_height_stairs(step_count, direction, STEP_HEIGHT, lateral)
-
-
-func _door_mask_to_vector(door_mask: int) -> Vector2i:
-	match door_mask:
-		RoomGraphSlot.DOOR_NORTH:
-			return Vector2i(0, -1)
-		RoomGraphSlot.DOOR_EAST:
-			return Vector2i(1, 0)
-		RoomGraphSlot.DOOR_SOUTH:
-			return Vector2i(0, 1)
-		RoomGraphSlot.DOOR_WEST:
-			return Vector2i(-1, 0)
-	return Vector2i.ZERO
 
 
 func _direction_to_vector(direction: CastleRoomConstants.Direction) -> Vector2i:
@@ -848,34 +870,9 @@ func _build_landmarks() -> void:
 
 
 func _place_cover() -> void:
-	var cover_placements: Array = definition.get("placements", {}).get("cover", [])
-	var wall_mat := BiomeRegistry.get_wall_material(biome_id)
-	var zones_by_room := {}
-	for placement in cover_placements:
-		var room := get_room(placement.get("roomId", ""))
-		if room == null:
-			continue
-		var blockout := room.get_blockout()
-		if blockout == null:
-			continue
-		if not zones_by_room.has(room):
-			zones_by_room[room] = _doorway_zones(blockout)
-		var offset: Dictionary = placement.get("offset", {})
-		var size: Dictionary = placement.get("size", {})
-		var size_vec := Vector3(
-			float(size.get("x", 1.2)), float(size.get("y", 2.4)), float(size.get("z", 1.2))
-		)
-		var local_pos := Vector3(
-			float(offset.get("x", 0.0)), float(offset.get("y", 0.0)), float(offset.get("z", 0.0))
-		)
-		# Cover anchors are authored per room kind, so they know nothing about where this floor slid
-		# the doors. A pillar is solid collision -- one standing in an opening does not just look
-		# wrong, it seals the room. Dropped rather than nudged: the anchor list is generous and the
-		# room reads fine one pillar short.
-		var half_footprint := maxf(size_vec.x, size_vec.z) * 0.5
-		if _in_any_doorway(zones_by_room.get(room, []), local_pos, half_footprint):
-			continue
-		blockout.add_cover_obstacle(local_pos, size_vec, wall_mat)
+	# Generated cover used full-height wall blocks at tactical anchors. Those blocks could
+	# obstruct stair rooms and visually read as stray walls. Keep traversal clear.
+	pass
 
 
 func _place_secret_mechanisms() -> void:
@@ -906,7 +903,7 @@ func _place_secret_mechanisms() -> void:
 			mechanism_node = ILLUSORY_WALL_SCENE.instantiate() as Node3D
 		if mechanism_node == null:
 			continue
-		# RM-09: a lever hides best in a place the room's own lighting already draws the eye to,
+		# A lever hides best in a place the room's own lighting already draws the eye to,
 		# not tucked in a socket like the illusory wall (which has to sit in an actual doorway gap
 		# to disguise as one). Falls back to the socket when the room has no fixture to anchor on.
 		var fixture_pos: Variant = (
@@ -953,12 +950,12 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 		return
 	if set_flag:
 		WorldState.set_flag(WorldFlags.secret_opened(secret_room_id), true)
-		# RM-09: a run-level counter for the results screen. Only on a genuine new reveal -- not
+		# A run-level counter for the results screen. Only on a genuine new reveal -- not
 		# when a floor reload replays an already-opened secret from its persisted flag (that call
 		# passes `set_flag = false`), which would otherwise recount the same secret every load.
 		var found := int(WorldState.get_flag(WorldFlags.secrets_found_this_floor(), 0))
 		WorldState.set_flag(WorldFlags.secrets_found_this_floor(), found + 1)
-		# VS-09: the reveal framing -- same gate as the counter above, a genuine new find only.
+		# The reveal framing -- same gate as the counter above, a genuine new find only.
 		if _player:
 			var camera := _player.get_node_or_null("CameraPivot/SpringArm3D")
 			if camera and camera.has_method("play_reveal_framing"):
@@ -974,6 +971,9 @@ func reveal_secret(secret_room_id: String, set_flag: bool = true) -> void:
 			if from_room and to_room:
 				_open_blockout_door_toward(from_room, to_room, edge)
 				_open_blockout_door_toward(to_room, from_room, edge)
+				_secret_refresh_rooms[from_id] = true
+				_secret_refresh_rooms[to_id] = true
+				secret_edge_revealed.emit(from_id, to_id)
 	_queue_secret_topology_refresh()
 	for room_id in _rooms:
 		var room := get_room(room_id)
@@ -998,15 +998,19 @@ func _queue_secret_topology_refresh() -> void:
 	call_deferred("_refresh_secret_topology")
 
 
+## Only the two rooms a revealed secret joins changed shape, so only they are rebuilt.
 func _refresh_secret_topology() -> void:
 	_secret_topology_refresh_queued = false
-	for room_id in _rooms:
-		var room := get_room(room_id)
+	for room_id in _secret_refresh_rooms:
+		var room := get_room(str(room_id))
 		if room == null:
 			continue
 		var blockout := room.get_blockout()
 		if blockout:
 			blockout.finalize_geometry()
+		if room is CastleRoomScene:
+			(room as CastleRoomScene).carve_navigation()
+	_secret_refresh_rooms.clear()
 	if _nav_links_root:
 		_nav_links_root.queue_free()
 		_nav_links_root = null
@@ -1029,28 +1033,42 @@ func _build_nav_links() -> void:
 		var kind: String = edge.get("kind", "door")
 		# Shortcuts are deliberately absent: they are the links the lattice could not close, so
 		# there is no opening to walk through and a link across one routes enemies into rock.
+		# A secret has no opening either until it is found; `reveal_secret` links it then.
 		if kind not in ["door", "corridor", "secret"]:
 			continue
-		var from_room := get_room(edge.get("from", ""))
-		var to_room := get_room(edge.get("to", ""))
-		if from_room == null or to_room == null:
+		if kind == "secret" and not _is_secret_edge_open(edge):
 			continue
-		var from_socket := _socket_for_edge(from_room, to_room, edge)
-		var to_socket := _socket_for_edge(to_room, from_room, edge)
-		if from_socket == null or to_socket == null:
-			continue
-		var link := NavigationLink3D.new()
-		link.enabled = true
-		link.bidirectional = true
-		link.travel_cost = 1.0
-		link.set_navigation_map(_floor_nav_map)
-		link.start_position = _nav_links_root.to_local(
-			from_socket.global_position + from_socket.get_world_facing() * -0.5
-		)
-		link.end_position = _nav_links_root.to_local(
-			to_socket.global_position + to_socket.get_world_facing() * -0.5
-		)
-		_nav_links_root.add_child(link)
+		_add_nav_link(edge)
+
+
+func _is_secret_edge_open(edge: Dictionary) -> bool:
+	for room_key in ["from", "to"]:
+		if WorldState.has_flag(WorldFlags.secret_opened(str(edge.get(room_key, "")))):
+			return true
+	return false
+
+
+func _add_nav_link(edge: Dictionary) -> void:
+	var from_room := get_room(str(edge.get("from", "")))
+	var to_room := get_room(str(edge.get("to", "")))
+	if from_room == null or to_room == null:
+		return
+	var from_socket := _socket_for_edge(from_room, to_room, edge)
+	var to_socket := _socket_for_edge(to_room, from_room, edge)
+	if from_socket == null or to_socket == null:
+		return
+	var link := NavigationLink3D.new()
+	link.enabled = true
+	link.bidirectional = true
+	link.travel_cost = 1.0
+	link.set_navigation_map(_floor_nav_map)
+	link.start_position = _nav_links_root.to_local(
+		from_socket.global_position + from_socket.get_world_facing() * -0.5
+	)
+	link.end_position = _nav_links_root.to_local(
+		to_socket.global_position + to_socket.get_world_facing() * -0.5
+	)
+	_nav_links_root.add_child(link)
 
 
 func _wall_direction_to_enum(wall_direction: String) -> CastleRoomConstants.Direction:
@@ -1084,7 +1102,7 @@ func _build_floor_shell() -> void:
 	FloorShellBuilderScript.build(_dungeon_root, _rooms, biome_id)
 
 
-func _finalize_all_blockouts() -> void:
+func _finalize_all_blockouts(chunked: bool, my_gen: int) -> bool:
 	for room_id in _rooms:
 		var room := get_room(room_id)
 		if room == null:
@@ -1092,6 +1110,12 @@ func _finalize_all_blockouts() -> void:
 		var blockout := room.get_blockout()
 		if blockout:
 			blockout.finalize_geometry()
+		# The props are all placed by now, so the room's navigation can be cut around them.
+		if room is CastleRoomScene:
+			(room as CastleRoomScene).carve_navigation()
+		if not await _yield_if_over_budget(chunked, my_gen):
+			return false
+	return true
 
 
 func _spawn_player() -> void:
@@ -1100,7 +1124,7 @@ func _spawn_player() -> void:
 	var entrance_id: String = definition.get("placements", {}).get("entrance", "entrance")
 	var entrance := get_room(entrance_id)
 	if entrance:
-		_player.global_position = entrance.get_player_spawn_global()
+		Teleport.to(_player, entrance.get_player_spawn_global())
 		CharacterFloorSnapScript.snap_to_floor_below(_player)
 	_player.add_to_group("player")
 
@@ -1119,8 +1143,44 @@ func _placement_offset(placement: Dictionary) -> Vector3:
 	return Vector3(float(pos.get("x", 0.0)), float(pos.get("y", 0.0)), float(pos.get("z", 0.0)))
 
 
+## A first build of an enemy model costs 30-50 ms (files read, meshes built); every later one is
+## almost free. Paying it here, once per distinct enemy and while the loading screen is up, keeps
+## it out of the fight.
+func _prewarm_enemy_models(chunked: bool, my_gen: int, placements: Array) -> bool:
+	var seen := {}
+	var ids: Array[String] = []
+	for placement in placements:
+		ids.append(str((placement as Dictionary).get("enemyId", "")))
+	var boss: Variant = definition.get("placements", {}).get("boss")
+	if boss is Dictionary:
+		ids.append(str((boss as Dictionary).get("enemyId", "")))
+	for enemy_id in ids:
+		if enemy_id == "" or seen.has(enemy_id):
+			continue
+		seen[enemy_id] = true
+		var data := EnemyCatalog.get_definition(enemy_id)
+		if data.is_empty():
+			continue
+		var host := Node3D.new()
+		add_child(host)
+		DioramaCharacterSkin.build_enemy_body(
+			host,
+			DioramaCharacterSkin.profile_for_enemy_data(data),
+			DioramaCharacterSkin.theme_for_enemy_id(enemy_id),
+			enemy_id,
+			data
+		)
+		remove_child(host)
+		host.free()
+		if not await _yield_step(chunked, my_gen):
+			return false
+	return true
+
+
 func _place_enemies(chunked: bool, my_gen: int) -> void:
 	var placements: Array = definition.get("placements", {}).get("enemies", [])
+	if not await _prewarm_enemy_models(chunked, my_gen, placements):
+		return
 	for i in range(placements.size()):
 		_spawn_enemy(placements[i], i)
 		if chunked and (i + 1) % CHUNK_ENEMIES_PER_FRAME == 0:
@@ -1142,16 +1202,17 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 		return
 	if enemy.has_method("set_catalog_id"):
 		enemy.call("set_catalog_id", enemy_id)
-	# RM-08: set before `add_child()` so `_ready()` (which reads it) sees the trigger already
+	# Set before `add_child()` so `_ready()` (which reads it) sees the trigger already
 	# configured, instead of enemy briefly existing idle-and-visible for a frame.
 	var trigger := str(placement.get("trigger", "idle"))
 	if trigger != "idle" and enemy.has_method("set_spawn_trigger"):
 		enemy.call("set_spawn_trigger", trigger, float(placement.get("triggerDelay", 2.0)))
-	# `EN-12`: set before `add_child()`, same reason as `trigger` above -- `_ready()` reads this
+	# Set before `add_child()`, same reason as `trigger` above -- `_ready()` reads this
 	# meta to apply the elite's poise, scale, rim and name plate, and add_child() runs `_ready()`
 	# synchronously before this function's own statements after it would otherwise get the chance.
 	if placement.get("isElite", false):
 		enemy.set_meta("is_elite", true)
+		enemy.set_meta("elite_affix", str(placement.get("affixId", "")))
 	# Encounter ownership is data-derived rather than an incidental RoomTemplate parent instance.
 	# The floor seed keeps an otherwise repeated room ID from sharing pressure permits with a
 	# different reconstructed floor, while spawned/summoned actors can inherit this exact key.
@@ -1172,13 +1233,17 @@ func _spawn_enemy(placement: Dictionary, index: int) -> void:
 		_miniboss = enemy
 		_miniboss_room_id = str(placement.get("roomId", ""))
 	_apply_floor_scaling(enemy)
+	if enemy.has_method("capture_spawn_state"):
+		enemy.call("capture_spawn_state")
 	_ensure_enemy_groups(enemy)
 	_enemy_by_id[placement_key] = enemy
 	if enemy.has_signal("enemy_died"):
 		enemy.enemy_died.connect(_on_tracked_enemy_died.bind(placement_key))
+	if enemy.has_signal("adds_spawned"):
+		enemy.adds_spawned.connect(_on_adds_spawned)
 
 
-## RM-08: called by `castle_run.gd:_notify_room()` on room entry. Enemies not marked `ambush` (or
+## Called by `castle_run.gd:_notify_room()` on room entry. Enemies not marked `ambush` (or
 ## already woken) are unaffected -- `wake_ambush()` on an idle enemy does nothing since `_ambush_hidden`
 ## was never set.
 func wake_ambushers(room_id: String) -> void:
@@ -1213,15 +1278,22 @@ func _place_loot(chunked: bool, my_gen: int) -> void:
 		if chest.has_method("configure"):
 			chest.call("configure", placement)
 		chest.set_meta("biome_id", biome_id)
-		if chest.has_signal("opened"):
-			chest.opened.connect(_on_chest_opened)
-		if chest.has_signal("contents_changed"):
-			chest.contents_changed.connect(_on_chest_opened)
 		room.add_child(chest)
-		_chest_by_id[chest_key] = chest
+		register_chest(chest_key, chest)
 		if chunked and (i + 1) % CHUNK_LOOT_PER_FRAME == 0:
 			if not await _yield_step(chunked, my_gen):
 				return
+
+
+## Every chest on the floor goes through here, whoever spawned it, so floor snapshots capture and
+## restore all of them and none refills after Continue.
+func register_chest(chest_id: String, chest: Node) -> void:
+	chest.set_meta("chest_id", chest_id)
+	if chest.has_signal("opened") and not chest.opened.is_connected(_on_chest_opened):
+		chest.opened.connect(_on_chest_opened)
+	if chest.has_signal("contents_changed") and not chest.contents_changed.is_connected(_on_chest_opened):
+		chest.contents_changed.connect(_on_chest_opened)
+	_chest_by_id[chest_id] = chest
 
 
 func _trap_scene_for_id(trap_id: String) -> PackedScene:
@@ -1260,7 +1332,18 @@ func _place_traps() -> void:
 		var trap: Node3D = scene.instantiate() as Node3D
 		trap.position = _sample_placement_offset(room, placement)
 		trap.set_meta("biome_id", biome_id)
+		trap.set_meta("trap_damage_mult", _trap_damage_multiplier())
 		room.add_child(trap)
+
+
+func _trap_damage_multiplier() -> float:
+	var mode := RunFlow.get_run_mode()
+	if mode != "endless" and mode != "castle":
+		return 1.0
+	var profile := DifficultyProfileScript.for_run(
+		mode, RunFlow.current_dungeon_id, RunFlow.get_difficulty_tier()
+	)
+	return profile.damage_multiplier(RunFlow.get_current_floor())
 
 
 func _setup_boss() -> void:
@@ -1296,6 +1379,8 @@ func _setup_boss() -> void:
 	if _boss.has_method("set_player"):
 		_boss.call("set_player", _player)
 	_boss.set_meta("catalog_id", enemy_id)
+	if _boss.has_signal("adds_spawned"):
+		_boss.adds_spawned.connect(_on_adds_spawned)
 	_apply_floor_scaling(_boss, true)
 	if not boss_variant.is_empty() and _boss.has_method("apply_arena_modifier"):
 		var modifier: Variant = boss_variant.get("modifier", {})
@@ -1305,12 +1390,14 @@ func _setup_boss() -> void:
 		_apply_final_floor_arena_flavor()
 	if _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
+	elif _boss.has_signal("enemy_died"):
+		_boss.enemy_died.connect(_on_boss_defeated)
+	if _boss.has_method("capture_spawn_state"):
+		_boss.call("capture_spawn_state")
 	_enemy_by_id["boss"] = _boss
-	if RunFlow:
-		RunFlow.begin_boss_fight()
 
 
-## `BS-08`: every biome's final floor uses the same entrance -> arena -> boss line and, absent a
+## Every biome's final floor uses the same entrance -> arena -> boss line and, absent a
 ## bespoke set piece (`final_boss_forgotten_castle.gd` is still the only one), the same reused
 ## floor-boss fight -- so the boss *pattern* is not what makes a tier's ending distinct. The biome's
 ## `finalFloor.arenaHazards`/`arenaAdds`/`arenaModifier` are the per-biome twist instead, applied
@@ -1442,18 +1529,19 @@ func get_stair_spawn_global(stair_room_id: String, _ascending: bool) -> Dictiona
 	var pos := spawn.global_position if spawn else room.global_position + Vector3(0, 1.0, -4.0)
 	return {
 		"position": pos,
-		"rotationY": RunFloorConfig.stairs_spawn_facing_y(room),
+		"rotationY": RunFloorConfig.stairs_spawn_facing_y(room, _entry_socket(room)),
 	}
 
 
-func _setup_boss_door(castle_run: Node3D) -> void:
+## False when the boss room cannot be given its gate, which makes the whole floor unwinnable.
+func _setup_boss_door(castle_run: Node3D) -> bool:
 	var boss_placement: Variant = definition.get("placements", {}).get("boss")
 	if boss_placement == null or not boss_placement is Dictionary:
-		return
+		return true
 	var exit_room_id: String = definition.get("placements", {}).get("exit", "boss")
 	var room := get_room(exit_room_id)
 	if room == null:
-		return
+		return false
 	var door := BOSS_ROOM_DOOR_SCENE.instantiate() as Node3D
 	door.name = "BossRoomDoor"
 	var requirement := DungeonCatalog.get_boss_door_requirement(RunFlow.current_dungeon_id)
@@ -1461,36 +1549,45 @@ func _setup_boss_door(castle_run: Node3D) -> void:
 	if door.has_method("configure"):
 		door.call("configure", biome_id, requirement, RunFlow.get_current_floor(), locks)
 
-	var socket := _boss_approach_socket(room)
-	if socket:
-		var facing := socket.get_world_facing()
-		door.position = socket.position + facing * 0.25
-	else:
-		var blockout := room.get_blockout()
-		var depth := blockout.room_depth if blockout else 28.0
-		door.position = Vector3(0.0, 0.0, -depth * 0.5 + 0.25)
+	var socket := _entry_socket(room)
+	if socket == null:
+		door.free()
+		return false
+	door.position = socket.position + socket.get_world_facing() * 0.25
+	door.rotation.y = socket.rotation.y
 
 	room.add_child(door)
 	_boss_door = door
 	if castle_run.has_method("register_boss_door"):
 		castle_run.call("register_boss_door", door)
+	return true
 
 
-func _boss_approach_socket(room: RoomTemplate) -> DoorwaySocket:
-	var sockets := room.get_sockets()
-	if sockets.is_empty():
+## The boss and stairs rooms each have exactly one non-secret edge; its socket is the real entrance.
+func _entry_edge(room: RoomTemplate) -> Dictionary:
+	for edge in definition.get("edges", []):
+		if str(edge.get("kind", "door")) in ["secret", "shortcut"]:
+			continue
+		if str(edge.get("from", "")) == room.room_id or str(edge.get("to", "")) == room.room_id:
+			return edge
+	return {}
+
+
+func _entry_socket(room: RoomTemplate) -> DoorwaySocket:
+	var edge := _entry_edge(room)
+	if edge.is_empty():
+		push_error("Boss room %s has no entry edge" % room.room_id)
 		return null
-	if sockets.size() == 1:
-		return sockets[0]
-	var best: DoorwaySocket = null
-	var best_dot := -2.0
-	var approach := CombatFacing.forward_of(room)
-	for socket in sockets:
-		var dot := socket.get_world_facing().dot(approach)
-		if dot > best_dot:
-			best_dot = dot
-			best = socket
-	return best if best != null else room.find_socket(CastleRoomConstants.Direction.NORTH)
+	var other_id := str(edge.get("to", "")) if str(edge.get("from", "")) == room.room_id else str(edge.get("from", ""))
+	var neighbour := get_room(other_id)
+	if neighbour == null:
+		push_error("Boss room %s entry edge names missing room %s" % [room.room_id, other_id])
+		return null
+	return _socket_for_edge(room, neighbour, edge)
+
+
+func get_boss_door() -> Node3D:
+	return _boss_door
 
 
 func get_tracked_enemy(placement_id: String) -> Node:
@@ -1498,21 +1595,15 @@ func get_tracked_enemy(placement_id: String) -> Node:
 
 
 func get_boss_door_outside_spawn() -> Vector3:
-	if _boss_door:
-		return _boss_door.global_position - _boss_door.global_transform.basis.z * 3.5
-	var exit_room_id: String = definition.get("placements", {}).get("exit", "")
-	if exit_room_id != "":
-		for edge in definition.get("edges", []):
-			var from_id := str(edge.get("from", ""))
-			var to_id := str(edge.get("to", ""))
-			if to_id == exit_room_id:
-				var adjacent := get_room(from_id)
-				if adjacent:
-					return adjacent.get_player_spawn_global()
-			if from_id == exit_room_id:
-				var adjacent_to := get_room(to_id)
-				if adjacent_to:
-					return adjacent_to.get_player_spawn_global()
+	var exit_room := get_room(str(definition.get("placements", {}).get("exit", "boss")))
+	if exit_room != null:
+		var edge := _entry_edge(exit_room)
+		var other_id := str(edge.get("to", "")) if str(edge.get("from", "")) == exit_room.room_id else str(edge.get("from", ""))
+		var neighbour := get_room(other_id)
+		if neighbour != null:
+			var outer_socket := _socket_for_edge(neighbour, exit_room, edge)
+			if outer_socket != null:
+				return outer_socket.global_position - outer_socket.get_world_facing() * 3.5
 	var entrance := get_room(definition.get("placements", {}).get("entrance", "entrance"))
 	if entrance:
 		return entrance.get_player_spawn_global()
@@ -1535,6 +1626,8 @@ func respawn_enemies() -> void:
 		if placement_id == "boss":
 			continue
 		var enemy: Node = _enemy_by_id[placement_id]
+		if enemy and enemy.has_meta("is_miniboss"):
+			continue
 		if enemy and is_instance_valid(enemy) and enemy.has_method("apply_state"):
 			enemy.call("apply_state", {"alive": true})
 	snapshot_dirty.emit()
@@ -1599,6 +1692,35 @@ func _loot_placement_id(placement: Dictionary, index: int) -> String:
 	return "%s:%d" % [placement.get("roomId", ""), index]
 
 
+## Scales every batch of adds like the enemies placed on the floor, and counts them toward the
+## room's clear.
+func _on_adds_spawned(nodes: Array) -> void:
+	for node in nodes:
+		if not is_instance_valid(node):
+			continue
+		_apply_floor_scaling(node)
+		if node.has_signal("adds_spawned"):
+			node.adds_spawned.connect(_on_adds_spawned)
+		var room := node.get_parent() as RoomTemplate
+		if room == null or not node.has_signal("enemy_died"):
+			continue
+		var room_id := room.room_id
+		if not _room_has_placements(room_id):
+			continue
+		if not _room_adds.has(room_id):
+			_room_adds[room_id] = []
+		(_room_adds[room_id] as Array).append(node)
+		node.enemy_died.connect(_on_tracked_enemy_died.bind("%s:add" % room_id))
+
+
+func _room_has_placements(room_id: String) -> bool:
+	var prefix := "%s:" % room_id
+	for key in _enemy_by_id:
+		if str(key).begins_with(prefix):
+			return true
+	return false
+
+
 func _on_tracked_enemy_died(placement_id: String) -> void:
 	snapshot_dirty.emit()
 	_dispatch_room_clear(placement_id)
@@ -1622,8 +1744,14 @@ func _dispatch_room_clear(placement_id: String) -> void:
 		if enemy.has_method("is_dead") and bool(enemy.call("is_dead")):
 			continue
 		return
+	for add in _room_adds.get(room_id, []):
+		if not is_instance_valid(add):
+			continue
+		if add.has_method("is_dead") and bool(add.call("is_dead")):
+			continue
+		return
 	_cleared_rooms[room_id] = true
-	# RM-07: persisted, not just the signal -- an arena lock-in gate reopens by listening for this
+	# Persisted, not just the signal -- an arena lock-in gate reopens by listening for this
 	# flag (see `room_arena_gate_content.gd`), and a save resumed inside an already-cleared arena
 	# has to come back open rather than sealed, which a signal alone cannot survive a reload for.
 	WorldState.set_flag(WorldFlags.room_cleared(room_id), true)
@@ -1654,6 +1782,7 @@ func unload_from_parent(parent: Node3D) -> void:
 	_rooms.clear()
 	_enemy_by_id.clear()
 	_cleared_rooms.clear()
+	_room_adds.clear()
 	_chest_by_id.clear()
 	_boss = null
 	_boss_door = null
@@ -1693,17 +1822,21 @@ func _apply_floor_scaling(enemy: Node, is_boss: bool = false) -> void:
 	)
 	var is_elite: bool = enemy.get_meta("is_elite", false)
 	var hp_mult := profile.hp_multiplier(progress)
+	var affix_id := str(enemy.get_meta("elite_affix", "")) if is_elite else ""
 	if is_elite and mode == "castle":
-		hp_mult *= 1.5
+		hp_mult *= 1.5 * float(EliteAffixes.definition(affix_id).get("hpMult", 1.0))
 	var health := enemy.get_node_or_null("Health") as Health
 	if health:
 		health.configure(float(health.max_health) * hp_mult)
 	if enemy.has_method("set_damage_multiplier"):
 		var dmg_mult := profile.damage_multiplier(progress)
 		if is_elite and mode == "castle":
-			dmg_mult *= 1.25
+			dmg_mult *= 1.25 * float(EliteAffixes.definition(affix_id).get("damageMult", 1.0))
 		enemy.call("set_damage_multiplier", dmg_mult)
 	if is_boss:
 		return
 	if enemy.has_method("apply_phase_modifiers"):
-		enemy.call("apply_phase_modifiers", profile.behaviour_modifiers(progress))
+		var behaviour := profile.behaviour_modifiers(progress)
+		for key in EliteAffixes.behaviour_modifiers(affix_id):
+			behaviour[key] = float(behaviour.get(key, 1.0)) * float(EliteAffixes.behaviour_modifiers(affix_id)[key])
+		enemy.call("apply_phase_modifiers", behaviour)

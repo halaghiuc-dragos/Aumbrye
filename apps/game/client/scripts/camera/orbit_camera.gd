@@ -25,9 +25,11 @@ const LOCK_FRAME_BIAS := 0.62
 const LOCK_CLOSE_RANGE := 4.5
 const LOCK_CLOSE_DOLLY := 0.9
 const LOCK_SWITCH_MOUSE := 0.5
+## A mouse event has to be a flick to count toward a target switch; slow aiming never accumulates.
+const LOCK_SWITCH_MIN_DELTA := 0.02
 const LOCK_SWITCH_DECAY := 6.0
 
-## `RG-01`: composes with (does not replace) the lock-on dolly/FOV above -- both add onto the same
+## Composes with (does not replace) the lock-on dolly/FOV above -- both add onto the same
 ## `spring_length`/`fov` so aiming while locked on pulls in further rather than fighting lock-on.
 const AIM_DOLLY := -0.8
 const AIM_FOV_REDUCTION_DEG := 8.0
@@ -38,7 +40,6 @@ const AIM_BLEND_RATE := 6.0
 @export var facing_path: NodePath = NodePath("../../Facing")
 
 const CharacterSkin := preload("res://scripts/art/characters/diorama_character_skin.gd")
-const PixelCameraSnapScript := preload("res://scripts/art/pipeline/pixel_camera_snap.gd")
 
 var _pitch := 0.0
 var _target_zoom := 4.0
@@ -74,7 +75,7 @@ var _death_framing := false
 const DEATH_FRAMING_DOLLY := 0.12
 var _fov_kick := 0.0
 
-## `BS-02`: boss-entrance framing. A separate mode from lock-on -- it drives yaw/pitch/zoom directly
+## Boss-entrance framing. A separate mode from lock-on -- it drives yaw/pitch/zoom directly
 ## rather than through player look input, and runs while `PlayerInput` camera input is blocked by the
 ## caller, so there is no fight over who owns the spring arm during the sequence.
 const INTRO_ORBIT_RATE := deg_to_rad(8.0)
@@ -87,7 +88,7 @@ var _intro_timer := 0.0
 var _intro_target: Node3D
 var _saved_intro_zoom := 0.0
 
-## `VS-09`: the two other set-piece framings the plan asked for alongside the boss intro --
+## The two other set-piece framings the plan asked for alongside the boss intro --
 ## an execution pulls the camera in tight for the kill, a reveal turns to look at what just
 ## opened. Both are short, skippable-by-timeout, and never touch player control outside the window
 ## the caller already owns (i-frames for an execution, a beat after a gate opens for a reveal).
@@ -238,7 +239,7 @@ func _update_aim_blend(delta: float) -> void:
 	_aim_blend = move_toward(_aim_blend, target, AIM_BLEND_RATE * delta)
 
 
-## `RG-01`: parallel to `set_lock_on_active` -- a separate flag rather than a second camera mode,
+## Parallel to `set_lock_on_active` -- a separate flag rather than a second camera mode,
 ## so aiming while locked on stacks its dolly/FOV pull on top of lock-on's own.
 func set_aim_active(active: bool) -> void:
 	_aim_active = active
@@ -386,7 +387,7 @@ func update_lock_on_frame(focus_world: Vector3, player_eye: Vector3, delta: floa
 
 
 func _accumulate_lock_switch(yaw_delta: float) -> void:
-	if not _lock_on_active:
+	if not _lock_on_active or absf(yaw_delta) < LOCK_SWITCH_MIN_DELTA:
 		return
 	if signf(yaw_delta) != signf(_lock_switch_travel):
 		_lock_switch_travel = 0.0
@@ -633,7 +634,7 @@ func _break_player_lock() -> void:
 		lock_on.call("break_lock")
 
 
-## `BS-02`: pulls back and slow-orbits to frame `target` for `duration` seconds, then restores
+## Pulls back and slow-orbits to frame `target` for `duration` seconds, then restores
 ## normal control on its own. The caller is responsible for blocking player camera/movement input
 ## for the same window (via `PlayerInput.block_groups`) and for cutting the sequence short with
 ## `skip_intro_framing()` on a skip -- this coroutine does not know about skip input itself.
@@ -655,10 +656,6 @@ func skip_intro_framing() -> void:
 	if not _intro_active:
 		return
 	_end_intro_framing()
-
-
-func is_intro_framing_active() -> bool:
-	return _intro_active
 
 
 func _end_intro_framing() -> void:
@@ -685,7 +682,7 @@ func _update_intro_framing(delta: float) -> void:
 	rotation.x = _pitch
 
 
-## `VS-09`: 0.6s, pulls in and orbits slightly around the kill -- called during the execution's own
+## 0.6s, pulls in and orbits slightly around the kill -- called during the execution's own
 ## i-frames, so it never costs the player control they'd otherwise be spending.
 func play_execution_framing(target: Node3D) -> void:
 	if target == null or _yaw_pivot == null:
@@ -699,10 +696,6 @@ func play_execution_framing(target: Node3D) -> void:
 	await get_tree().create_timer(0.6).timeout
 	if is_instance_valid(self) and generation == _framing_generation:
 		_end_execution_framing()
-
-
-func is_execution_framing_active() -> bool:
-	return _execution_active
 
 
 func _end_execution_framing() -> void:
@@ -729,7 +722,7 @@ func _update_execution_framing(delta: float) -> void:
 	rotation.x = _pitch
 
 
-## `VS-09`: 0.8s, turns to look at a world point -- a secret found or a gate that just opened.
+## 0.8s, turns to look at a world point -- a secret found or a gate that just opened.
 ## Takes a `Vector3` rather than a `Node3D` on purpose: the thing being revealed is often not a
 ## node at all (a wall panel's world position, a socket transform).
 func play_reveal_framing(point: Vector3) -> void:
@@ -742,10 +735,6 @@ func play_reveal_framing(point: Vector3) -> void:
 	await get_tree().create_timer(0.8).timeout
 	if is_instance_valid(self) and generation == _framing_generation:
 		_end_reveal_framing()
-
-
-func is_reveal_framing_active() -> bool:
-	return _reveal_active
 
 
 func _end_reveal_framing() -> void:

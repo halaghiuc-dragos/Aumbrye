@@ -89,7 +89,7 @@ func _run_smoke_test() -> void:
 	if floor_gen.is_empty():
 		failures.append("LocalProcgen.generate(forgotten_castle) returned empty")
 
-	DirAccess.make_dir_recursive_absolute(LocalSave.CHARACTERS_DIR)
+	DirAccess.make_dir_recursive_absolute(LocalSave._characters_dir())
 	LocalSave._active_character_id = "__smoke_test__"
 	var payload: Dictionary = LocalSave._build_save_payload()
 	var wrote: bool = LocalSave._write_save(payload, false)

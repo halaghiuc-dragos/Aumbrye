@@ -49,7 +49,7 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["burst", "decal", "ribbon", "glyph", "impact", "sfx"]
+          "enum": ["burst", "decal", "ribbon", "glyph", "impact", "ground_imprint", "impact_flash", "sfx"]
         },
         "backend": { "type": "string", "enum": ["cpu", "gpu"] },
         "amount": { "type": "integer", "minimum": 1 },
@@ -80,6 +80,7 @@
         "align_to": { "type": "string", "enum": ["direction", "forward", "up", "ground", "none"] },
         "billboard": { "type": "boolean" },
         "flatness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "closed": { "type": "boolean" },
         "randomness": { "type": "number", "minimum": 0, "maximum": 1 },
         "decal": { "type": "string", "minLength": 1 },
         "size": { "type": "number", "minimum": 0.01 },

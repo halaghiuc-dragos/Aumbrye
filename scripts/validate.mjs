@@ -156,8 +156,17 @@ function runContentLayer() {
 }
 
 function runPythonLayer() {
+  const python = process.platform === "win32" ? "python" : "python3";
   const ruff = spawnSync("ruff", ["--version"], { encoding: "utf8", shell: true });
-  const command = ruff.status === 0 ? "ruff" : process.platform === "win32" ? "python" : "python3";
+  const ruffModule = ruff.status === 0
+    ? ruff
+    : spawnSync(python, ["-m", "ruff", "--version"], { encoding: "utf8", shell: true });
+  if (ruffModule.status !== 0) {
+    // A lint tool that is not installed is not a lint failure: say so, and do not turn the run red.
+    console.log("\n== Layer: python ==\nSKIPPED: ruff is not installed (pip install ruff)");
+    return { name: "python", ok: true, passed: 0, failed: 0, detail: "skipped: ruff is not installed" };
+  }
+  const command = ruff.status === 0 ? "ruff" : python;
   const args = ruff.status === 0 ? ["check", "tools/"] : ["-m", "ruff", "check", "tools/"];
   const result = runCommand("python", command, args);
   return {
@@ -168,6 +177,7 @@ function runPythonLayer() {
     detail: result.detail,
   };
 }
+
 
 function runBalanceExport() {
   const result = runCommand(

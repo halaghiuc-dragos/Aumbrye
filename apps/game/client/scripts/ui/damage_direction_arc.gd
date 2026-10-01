@@ -1,6 +1,6 @@
 extends Control
 
-## HD-07: a short arc at the screen edge, in the bearing the last hit came from, fading over 0.6 s.
+## A short arc at the screen edge, in the bearing the last hit came from, fading over 0.6 s.
 ## `combat_hud.gd` drives `bearing`/`radius`/`alpha` and calls `queue_redraw()`; this script only
 ## draws.
 

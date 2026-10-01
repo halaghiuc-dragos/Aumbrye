@@ -4,11 +4,8 @@ class_name ApiClient
 
 const AUTH_REGISTER := "/api/v1/auth/register"
 const AUTH_LOGIN := "/api/v1/auth/login"
-const AUTH_STEAM := "/api/v1/auth/steam"
 const AUTH_REFRESH := "/api/v1/auth/refresh"
 const AUTH_LOGOUT := "/api/v1/auth/logout"
-const RUNS_CREATE := "/api/v1/runs"
-const RUNS_DUNGEON := "/api/v1/runs/%s/dungeon"
 const RUNS_COMPLETE := "/api/v1/runs/%s/complete"
 const SAVES_CURRENT := "/api/v1/saves/current"
 const LEADERBOARDS := "/api/v1/leaderboards"
@@ -39,10 +36,6 @@ static func login(email: String, password: String) -> Dictionary:
 	if result.get("ok", false):
 		_store_tokens(result.get("body", {}), email)
 	return result
-
-
-static func access_token_optional() -> bool:
-	return ApiConfig.access_token != ""
 
 
 static func logout() -> void:
@@ -101,20 +94,6 @@ static func require_session() -> bool:
 		)
 		return login_result.get("ok", false)
 	return false
-
-
-static func create_run(biome_id: String, run_seed: Variant = null, tier: int = 1) -> Dictionary:
-	return await _authed_json(
-		RUNS_CREATE,
-		HTTPClient.METHOD_POST,
-		_run_create_payload(biome_id, run_seed, tier),
-		false
-	)
-
-
-static func get_dungeon(run_id: String) -> Dictionary:
-	var path := RUNS_DUNGEON % run_id
-	return await _authed_json(path, HTTPClient.METHOD_GET, {})
 
 
 static func complete_run(
@@ -194,13 +173,6 @@ static func fetch_leaderboard(biome_id: String, tier: int, run_seed: int, player
 	if result.get("ok", false):
 		return {"ok": true, "body": result.get("body", {})}
 	return result
-
-
-static func _run_create_payload(biome_id: String, run_seed: Variant, tier: int) -> Dictionary:
-	var payload := {"biomeId": biome_id, "tier": maxi(1, tier)}
-	if run_seed != null:
-		payload["seed"] = int(run_seed)
-	return payload
 
 
 static func _authed_json(

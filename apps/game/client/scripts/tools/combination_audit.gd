@@ -7,9 +7,11 @@ const CLASS_IDS: PackedStringArray = [
 const REQUIRED_PARTS: PackedStringArray = ["Root", "Torso", "Head", "ArmL", "ArmR", "LegL", "LegR"]
 
 const MIN_HEIGHT := 1.15
-const MAX_HEIGHT := 1.65
+const MAX_HEIGHT := 1.70
+const PROGRESS_EVERY := 250
 
 var _checked := 0
+var _started_msec := Time.get_ticks_msec()
 var _failures: Array[String] = []
 
 
@@ -18,38 +20,38 @@ func _ready() -> void:
 	_sweep_geometry()
 	_sweep_cosmetics()
 	print("\ncombination_audit: %d combinations, %d failures" % [_checked, _failures.size()])
-	var shown := 0
+	var by_reason := {}
 	for failure in _failures:
-		print("  " + failure)
-		shown += 1
-		if shown >= 40:
-			print("  ... and %d more" % (_failures.size() - shown))
-			break
+		var reason := failure.get_slice(": ", 1)
+		by_reason[reason] = int(by_reason.get(reason, 0)) + 1
+	for reason in by_reason:
+		print("  %5d x %s" % [by_reason[reason], reason])
+	for failure in _failures.slice(0, 10):
+		print("    e.g. " + failure)
 	get_tree().quit(0 if _failures.is_empty() else 1)
 
 
 func _sweep_geometry() -> void:
 	for height in CharacterAppearance.FRAME_VARIANTS:
-		for bulk in CharacterAppearance.FRAME_VARIANTS:
-			for head_style in [
-				CharacterAppearance.HEAD_OPEN,
-				CharacterAppearance.HEAD_VISOR,
-				CharacterAppearance.HEAD_HOOD,
-			]:
-				for hair in CharacterAppearance.HAIR_STYLES:
-					for trim in 3:
-						for class_id in CLASS_IDS:
-							_check({
-								"theme": 0,
-								"frame": height,
-								"head": head_style,
-								"hair": hair,
-								"trim": trim,
-								"classId": class_id,
-								"face": CharacterAppearance.FACE_STERN,
-								"skinTone": CharacterAppearance.SKIN_TONE_TAN,
-								"hairColor": CharacterAppearance.HAIR_COLOR_BROWN,
-							})
+		for head_style in [
+			CharacterAppearance.HEAD_OPEN,
+			CharacterAppearance.HEAD_VISOR,
+			CharacterAppearance.HEAD_HOOD,
+		]:
+			for hair in CharacterAppearance.HAIR_STYLES:
+				for trim in 3:
+					for class_id in CLASS_IDS:
+						_check({
+							"theme": 0,
+							"frame": height,
+							"head": head_style,
+							"hair": hair,
+							"trim": trim,
+							"classId": class_id,
+							"face": CharacterAppearance.FACE_STERN,
+							"skinTone": CharacterAppearance.SKIN_TONE_TAN,
+							"hairColor": CharacterAppearance.HAIR_COLOR_BROWN,
+						})
 
 
 func _sweep_cosmetics() -> void:
@@ -70,11 +72,15 @@ func _sweep_cosmetics() -> void:
 
 func _check(profile: Dictionary) -> void:
 	_checked += 1
+	if _checked % PROGRESS_EVERY == 0:
+		print("combination_audit: %d checked, %d failures, %.0fs" % [
+			_checked, _failures.size(), (Time.get_ticks_msec() - _started_msec) / 1000.0
+		])
 	var host := Node3D.new()
 	add_child(host)
 	var visual := DioramaCharacterSkin.build_preview_body(host, profile)
-	var label := "%s/%s head=%s hair=%s trim=%s class=%s face=%s" % [
-		str(profile.get("frame", "standard")), str(profile.get("frame", "standard")),
+	var label := "frame=%s head=%s hair=%s trim=%s class=%s face=%s" % [
+		str(profile.get("frame", "standard")),
 		str(profile.get("head", "")), str(profile.get("hair", "")), str(profile.get("trim", 0)),
 		str(profile.get("classId", "")), str(profile.get("face", "")),
 	]

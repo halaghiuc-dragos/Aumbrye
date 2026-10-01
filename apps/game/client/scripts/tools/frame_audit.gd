@@ -111,7 +111,7 @@ func _ready() -> void:
 		% [leg_spread, RATIO_SPREAD, head_spread, HEAD_FRACTION_MIN, HEAD_FRACTION_MAX])
 	fails += await _audit_garments(frames)
 	print("AUDIT RESULT %d failures across %d frames" % [fails, frames.size()])
-	get_tree().quit(0)
+	get_tree().quit(0 if fails == 0 else 1)
 
 
 func _head_clear(root: Node3D) -> float:

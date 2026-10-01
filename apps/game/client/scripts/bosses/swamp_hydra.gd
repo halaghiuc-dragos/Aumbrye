@@ -24,7 +24,7 @@ func get_lock_aim_point() -> Vector3:
 func _ready() -> void:
 	super._ready()
 	_apply_mesh_tint(Color(0.25, 0.4, 0.15, 1.0))
-	scale = Vector3(1.35, 1.1, 1.35)
+	scale_physical_size(Vector3(1.35, 1.1, 1.35))
 	if not boss_phase_entered.is_connected(_on_boss_phase_entered):
 		boss_phase_entered.connect(_on_boss_phase_entered)
 

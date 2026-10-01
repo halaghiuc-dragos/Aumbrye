@@ -7,7 +7,7 @@ export default function LandingPage() {
     <section className="landing">
       <PageHelmet
         title="Aumbrye — Action Roguelite RPG"
-        description="Handcrafted runs, soulslike combat, and five deadly biomes await in Aumbrye."
+        description="Seeded runs, soulslike combat, and ten deadly biomes await in Aumbrye."
         path="/"
       />
       <PrerenderReady />
@@ -15,7 +15,7 @@ export default function LandingPage() {
         <p className="eyebrow">Action Roguelite RPG</p>
         <h1>Aumbrye</h1>
         <p className="subtitle">
-          Handcrafted runs. Soulslike combat. Five deadly biomes await.
+          Seeded runs. Soulslike combat. Ten deadly biomes await.
         </p>
         <div className="cta-row">
           <a className="cta primary" href="#mailing-list">

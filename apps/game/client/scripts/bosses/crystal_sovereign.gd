@@ -16,4 +16,4 @@ func get_lock_aim_point() -> Vector3:
 func _ready() -> void:
 	super._ready()
 	_apply_mesh_tint(Color(0.5, 0.75, 1.0, 1.0))
-	scale = Vector3(1.3, 1.3, 1.3)
+	scale_physical_size(Vector3(1.3, 1.3, 1.3))

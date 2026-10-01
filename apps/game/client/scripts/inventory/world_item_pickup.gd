@@ -7,25 +7,22 @@ const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
 @export var item_id := "iron_scrap"
 @export var quantity := 1
 
+const INTERACT_RANGE := 2.0
 const DESPAWN_SECONDS := 20.0 * 60.0
 const DESPAWN_FADE_SECONDS := 20.0
 
 var _visual: Node3D
 var _label: Label3D
-var _player: Node3D
 var _beam: Node3D
 var _rarity := "common"
 var _despawn_timer := 0.0
 
 
 func _ready() -> void:
+	add_to_group("world_item_pickup")
 	collision_layer = 0
-	collision_mask = 2
-	var shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 1.2
-	shape.shape = sphere
-	add_child(shape)
+	collision_mask = 0
+	monitoring = false
 	_visual = DioramaSkin.build_loot_pickup(self, DioramaSkin.resolve_biome(self))
 	_label = Label3D.new()
 	_label.name = "Label3D"
@@ -36,9 +33,15 @@ func _ready() -> void:
 	_label.modulate = Color(0.7, 0.9, 1.0, 1.0)
 	_label.visible = false
 	add_child(_label)
-	body_entered.connect(_on_body_entered)
-	body_exited.connect(_on_body_exited)
-	set_process_unhandled_input(false)
+	DungeonInteractionService.register_candidate(
+		self,
+		self,
+		INTERACT_RANGE,
+		2,
+		Callable(self, "_pickup"),
+		Callable(),
+		Callable(self, "_set_selected_prompt")
+	)
 	set_process(false)
 	_start_bob()
 
@@ -51,6 +54,18 @@ func _start_bob() -> void:
 	tween.set_loops()
 	tween.tween_property(_visual, "position:y", base_y + 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(_visual, "position:y", base_y - 0.08, 0.83).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## What a floor snapshot keeps of an item lying on the ground.
+func capture_state() -> Dictionary:
+	return {
+		"itemId": item_id,
+		"quantity": quantity,
+		"rarity": _rarity,
+		"x": global_position.x,
+		"y": global_position.y,
+		"z": global_position.z,
+	}
 
 
 func set_despawn_after_drop() -> void:
@@ -104,7 +119,7 @@ func _apply_rarity_presentation() -> void:
 			AudioDirector.play_sfx("ui_interact_near", global_position)
 	if RarityRegistryScript.wants_camera_nudge(_rarity) and VfxService:
 		VfxService.request_shake(0.12, 320)
-		# AU-03: same top-tier gate as the camera nudge -- see `loot_chest.gd:_present_rarity_juice()`.
+		# Same top-tier gate as the camera nudge -- see `loot_chest.gd:_present_rarity_juice()`.
 		AudioDirector.play_stinger("rare_drop")
 
 
@@ -114,12 +129,8 @@ func _build_beam(color: Color) -> void:
 	var height := RarityRegistryScript.drop_beam_height(_rarity)
 	var beam := MeshInstance3D.new()
 	beam.name = "RarityBeam"
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.06
-	cylinder.bottom_radius = 0.16
-	cylinder.height = height
-	cylinder.radial_segments = 8
-	beam.mesh = cylinder
+	beam.mesh = PropLibrary.bare_mesh("fx/beam")
+	beam.scale = Vector3(0.16, height, 0.16)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -130,30 +141,12 @@ func _build_beam(color: Color) -> void:
 	material.emission = color
 	material.emission_energy_multiplier = RarityRegistryScript.drop_beam_energy(_rarity)
 	beam.material_override = material
-	beam.position = Vector3(0.0, height * 0.5, 0.0)
 	add_child(beam)
 	_beam = beam
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _player == null:
-		return
-	if PlayerInput.interact_just_pressed(event):
-		_pickup()
-
-
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_player = body
-		_label.visible = true
-		set_process_unhandled_input(true)
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body == _player:
-		_player = null
-		_label.visible = RarityRegistryScript.wants_drop_toast(_rarity)
-		set_process_unhandled_input(false)
+func _set_selected_prompt(active: bool) -> void:
+	_label.visible = active or RarityRegistryScript.wants_drop_toast(_rarity)
 
 
 func _pickup() -> void:

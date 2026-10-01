@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "floors": {
+    "1": {
+      "path": [
+        "fight",
+        "fight"
+      ],
+      "tail": [
+        "rest"
+      ],
+      "branches": [
+        "reward",
+        "trial",
+        "fight"
+      ],
+      "side": [
+        "fight",
+        "fight",
+        "lore"
+      ]
+    },
+    "2": {
+      "path": [
+        "fight",
+        "choice"
+      ],
+      "tail": [
+        "rest"
+      ],
+      "branches": [
+        "reward",
+        "trial",
+        "choice",
+        "lore"
+      ],
+      "side": [
+        "fight",
+        "fight",
+        "lore"
+      ]
+    },
+    "3": {
+      "path": [
+        "fight",
+        "choice"
+      ],
+      "tail": [
+        "rest"
+      ],
+      "branches": [
+        "trial",
+        "reward",
+        "merchant"
+      ],
+      "side": [
+        "fight",
+        "fight",
+        "lore"
+      ]
+    },
+    "4": {
+      "path": [
+        "choice",
+        "fight",
+        "fight"
+      ],
+      "tail": [
+        "rest"
+      ],
+      "branches": [
+        "reward",
+        "trial",
+        "choice",
+        "trial"
+      ],
+      "side": [
+        "fight",
+        "fight",
+        "fight",
+        "lore"
+      ]
+    },
+    "5": {
+      "path": [
+        "fight",
+        "choice",
+        "fight"
+      ],
+      "tail": [
+        "rest"
+      ],
+      "branches": [
+        "reward",
+        "trial",
+        "reward",
+        "fight"
+      ],
+      "side": [
+        "fight",
+        "fight",
+        "fight",
+        "lore"
+      ]
+    }
+  }
+}

@@ -9,7 +9,7 @@
         "client:scripts/dungeon/dungeon_builder.gd",
         "client:scripts/dungeon/procgen/dungeon_procgen.gd"
       ],
-      "notes": "v2 adds roomContent/locks/puzzles and generatorCapabilities. v1 predates the room-content pass and no longer matches serializer output. See docs/ADR/0002-procgen-authority-split.md."
+      "notes": "v2 adds roomContent/locks/puzzles and generatorCapabilities. v1 predates the room-content pass and no longer matches serializer output."
     },
     "character-state": {
       "current": "v2",

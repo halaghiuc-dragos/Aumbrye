@@ -2,7 +2,6 @@ extends Node3D
 
 
 const BIRD_COLOR := Color(0.09, 0.08, 0.12)
-const BAT_COLOR := Color(0.14, 0.11, 0.16)
 
 const FLOCK_COUNT := 3
 const BIRDS_PER_FLOCK := 7
@@ -90,24 +89,7 @@ func _make_bird(
 	bird.set_meta("beat_scale", rng.randf_range(0.85, 1.2))
 	bird.set_meta("glide_phase", rng.randf_range(0.0, FLAP_PERIOD))
 	flock.add_child(bird)
-	var mat := _bird_material()
-	PixelDioramaStyle.add_box(bird, Vector3(0.16, 0.12, 0.5), Vector3.ZERO, mat, "Body")
-	PixelDioramaStyle.add_box(bird, Vector3(0.1, 0.09, 0.16), Vector3(0.0, 0.02, 0.3), mat, "Head")
-	PixelDioramaStyle.add_box(bird, Vector3(0.1, 0.05, 0.22), Vector3(0.0, 0.0, -0.32), mat, "Tail")
-	for side in [-1.0, 1.0]:
-		var wing := Node3D.new()
-		wing.name = "WingR" if side > 0.0 else "WingL"
-		bird.add_child(wing)
-		PixelDioramaStyle.add_box(
-			wing, Vector3(0.38, 0.05, 0.28), Vector3(side * 0.24, 0.0, 0.0), mat, "Inner"
-		)
-		var outer := Node3D.new()
-		outer.name = "Outer"
-		outer.position = Vector3(side * 0.43, 0.0, 0.0)
-		wing.add_child(outer)
-		PixelDioramaStyle.add_box(
-			outer, Vector3(0.34, 0.04, 0.2), Vector3(side * 0.17, 0.0, -0.03), mat, "Tip"
-		)
+	PropLibrary.attach_themed(bird, "nature/bird", PixelDioramaStyle.PaletteTheme.CASTLE)
 	return bird
 
 
@@ -169,6 +151,6 @@ func _pose_bird(bird: Node3D) -> void:
 		if wing == null:
 			continue
 		wing.rotation.z = (-swing - glide) * side
-		var outer := wing.get_node_or_null("Outer") as Node3D
+		var outer := wing.get_child(0) as Node3D if wing.get_child_count() > 0 else null
 		if outer:
 			outer.rotation.z = (-sin(beat - 0.7) * FLAP_ANGLE * 0.7 * beating) * side

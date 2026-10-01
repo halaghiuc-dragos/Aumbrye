@@ -28,9 +28,7 @@ const FIRST_PERSON_HIDDEN_PARTS := ["Torso"]
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const WeaponKit := preload("res://scripts/art/props/diorama_weapon_kit.gd")
-const RigCatalog := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const VoxelGridScript := preload("res://scripts/art/characters/voxel_grid.gd")
-const VoxelMeshBuilderScript := preload("res://scripts/art/characters/voxel_mesh_builder.gd")
 const CharacterRigCatalogScript := preload("res://scripts/art/characters/character_rig_catalog.gd")
 const MeshMergerScript := preload("res://scripts/art/characters/character_mesh_merger.gd")
 const EquipmentKitScript := preload("res://scripts/art/characters/equipment_model_kit.gd")
@@ -39,18 +37,15 @@ const EQUIP_VISUAL_PREFIX := "EquipVisual_"
 
 ## Marks a node as a mounted equipment model.
 ##
-## The name alone is not enough to find these again. Two pieces of gear can mount to the
-## same body part -- a breastplate and an amulet both hang off the torso -- and when the
-## second holder is added under a name a sibling already has, Godot drops the name and
-## auto-generates `@Node3D@N` instead of suffixing it. That holder then no longer matches
-## the `EquipVisual_` prefix, so it survives every later clear: a stale model welded to
-## the body, and its geometry counted as part of the body when fitting the next item.
-## Metadata survives the rename, so the mark is what clearing and fitting both go by.
+## The name alone is not enough to find these again. Two pieces of gear can mount to the same body
+## part -- a breastplate and an amulet both hang off the torso -- and when the second holder is added
+## under a name a sibling already has, Godot drops the name and auto-generates `@Node3D@N` instead of
+## suffixing it. That holder would no longer match the `EquipVisual_` prefix, so it would survive every
+## later clear as a stale model welded to the body. Metadata survives the rename, so the mark is what
+## clearing and fitting both go by.
 const EQUIP_VISUAL_META := &"aumbrye_equip_visual"
 const SKIN_TINT_PARAM := &"skin_tint"
 
-const ARENA_DUMMY_ACCENT := Color(1.0, 0.35, 0.1)
-const ARENA_DUMMY_GLOW := Color(0.6, 0.2, 0.05)
 
 const PROFILES := {
 	"player":
@@ -236,10 +231,10 @@ static func _apply_hair(visual: Node3D, profile: Dictionary, mats: Dictionary) -
 	var existing := head.get_node_or_null("Hair")
 	if existing:
 		existing.queue_free()
-	var mesh_path := "res://assets/characters/player_warden/hair_%s.voxels.json" % hair
+	var mesh_path := "res://assets/characters/player_warden/hair_%s.glb" % hair
 	if not ResourceLoader.exists(mesh_path):
 		return
-	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+	var mesh: ArrayMesh = ModelLoader.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
 	var holder := Node3D.new()
@@ -272,10 +267,10 @@ static func _apply_face(visual: Node3D, profile: Dictionary, _mats: Dictionary) 
 	if head_style != CharacterAppearance.HEAD_OPEN:
 		return
 	var face := str(profile.get("face", CharacterAppearance.FACE_OPEN))
-	var mesh_path := "res://assets/characters/player_warden/face_%s.voxels.json" % face
+	var mesh_path := "res://assets/characters/player_warden/face_%s.glb" % face
 	if not ResourceLoader.exists(mesh_path):
 		return
-	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+	var mesh: ArrayMesh = ModelLoader.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
 	var holder := _add_pivot(head, FACE_PLATE_NAME, Vector3.ZERO)
@@ -322,7 +317,7 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 	var mesh_path := _garment_path(profile, class_id)
 	if mesh_path == "":
 		return
-	var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+	var mesh: ArrayMesh = ModelLoader.load_mesh(mesh_path, -1)
 	if mesh == null:
 		return
 	var torso_mesh := torso.get_node_or_null("Mesh") as MeshInstance3D
@@ -338,7 +333,7 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 	mesh_inst.material_override = _make_voxel_material(0)
 	mesh_inst.position = Vector3(
 		-(garment.position.x + garment.size.x * 0.5),
-		torso_base - VoxelGridScript.EDGE * float(_garment_skirt_drop(mesh_path)),
+		torso_base - VoxelGridScript.EDGE * float(GARMENT_SKIRT_DROP),
 		-(garment.position.z + garment.size.z * 0.5)
 	)
 	holder.add_child(mesh_inst)
@@ -346,23 +341,17 @@ static func _apply_class_armor(visual: Node3D, profile: Dictionary, _mats: Dicti
 
 static func _garment_path(profile: Dictionary, class_id: String) -> String:
 	var archetype := CharacterRigCatalogScript.archetype_for_player(profile)
-	var path := "res://assets/characters/%s/garment_%s.voxels.json" % [archetype, class_id]
+	var path := "res://assets/characters/%s/garment_%s.glb" % [archetype, class_id]
 	if ResourceLoader.exists(path):
 		return path
 	push_warning("DioramaCharacterSkin: no %s garment for %s, using the base warden's"
 		% [class_id, archetype])
-	var fallback := "res://assets/characters/player_warden/garment_%s.voxels.json" % class_id
+	var fallback := "res://assets/characters/player_warden/garment_%s.glb" % class_id
 	return fallback if ResourceLoader.exists(fallback) else ""
 
 
-static func _garment_skirt_drop(mesh_path: String) -> int:
-	var text := FileAccess.get_file_as_string(mesh_path)
-	if text.is_empty():
-		return 0
-	var parsed: Variant = JSON.parse_string(text)
-	if not parsed is Dictionary:
-		return 0
-	return int((parsed as Dictionary).get("skirtDrop", 0))
+## How far below the torso's base a garment model reaches, in voxels: its y = 0 sits this far down.
+const GARMENT_SKIRT_DROP := 6
 
 
 static func build_enemy_body(
@@ -397,22 +386,6 @@ static func build_enemy_body(
 				"DioramaCharacterSkin: %s manifest missing — using box fallback" % archetype
 			)
 			_build_humanoid(visual, resolved if PROFILES.has(profile) else "melee", mats)
-	_ground_rig(visual)
-	MeshMergerScript.merge(visual)
-	return visual
-
-
-static func build_training_dummy(parent: Node3D) -> Node3D:
-	_remove_visual(parent)
-	PixelStyle.hide_legacy_meshes(parent)
-	var visual := _make_visual(parent)
-	var theme := PixelStyle.PaletteTheme.CASTLE
-	var mats := _body_materials(theme, "dummy")
-	mats["accent"] = PixelStyle.make_material(ARENA_DUMMY_ACCENT, ARENA_DUMMY_GLOW)
-	var root := build_from_manifest(visual, "enemy_dummy", theme)
-	if root == null:
-		push_error("DioramaCharacterSkin: enemy_dummy manifest missing — using box fallback")
-		_build_humanoid(visual, "dummy", mats)
 	_ground_rig(visual)
 	MeshMergerScript.merge(visual)
 	return visual
@@ -524,7 +497,7 @@ static func profile_for_enemy_data(data: Dictionary) -> String:
 		return "hound"
 	if enemy_id.contains("brute") or enemy_id.contains("golem") or enemy_id.contains("guardian"):
 		return "brute"
-	## `EN-10`: `flyer` and `swarm` have no dedicated `PROFILES` silhouette yet, so they resolve
+	## `flyer` and `swarm` have no dedicated `PROFILES` silhouette yet, so they resolve
 	## through `build_enemy_body()`'s existing "unrecognised profile" fallback to the leaner
 	## `ranged` frame (flyer) or the standard `melee` frame (swarm). `caster` is passed through
 	## as-is -- `_default_weapon_for_profile()` already special-cases it to no mounted weapon,
@@ -534,72 +507,6 @@ static func profile_for_enemy_data(data: Dictionary) -> String:
 	if enemy_type == "swarm":
 		return "melee"
 	return enemy_type
-
-
-static func rest_pose_for_profile(profile: String) -> Dictionary:
-	var holder := Node3D.new()
-	var visual := _make_visual(holder)
-	if profile == "hound":
-		_build_reference_quadruped(visual)
-	elif PROFILES.has(profile):
-		_build_reference_humanoid(visual, profile)
-	else:
-		holder.free()
-		return {}
-	var pose := collect_rest_pose(visual)
-	holder.free()
-	return pose
-
-
-static func _build_reference_humanoid(visual: Node3D, profile: String) -> Node3D:
-	var spec: Dictionary = PROFILES.get(profile, PROFILES["melee"])
-	var leg: Vector3 = spec["leg"]
-	var torso: Vector3 = spec["torso"]
-	var arm: Vector3 = spec["arm"]
-	var hip_x: float = spec["hip_x"]
-	var shoulder_x: float = spec["shoulder_x"]
-	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
-	var waist_y := leg.y
-	for side in [-1.0, 1.0]:
-		var leg_name := "LegL" if side < 0.0 else "LegR"
-		_add_pivot(root, leg_name, Vector3(hip_x * side, waist_y, 0.0))
-	var torso_pivot := _add_pivot(root, "Torso", Vector3(0.0, waist_y, 0.0))
-	_add_pivot(torso_pivot, "Head", Vector3(0.0, torso.y, 0.0))
-	var shoulder_y := torso.y * 0.88
-	for side in [-1.0, 1.0]:
-		var arm_name := "ArmL" if side < 0.0 else "ArmR"
-		var shoulder := _add_pivot(
-			torso_pivot, arm_name, Vector3(shoulder_x * side, shoulder_y, 0.0)
-		)
-		var mount_name := SHIELD_MOUNT if side < 0.0 else WEAPON_MOUNT
-		_add_pivot(shoulder, mount_name, Vector3(0.0, -arm.y, 0.0))
-	var extras: Array = spec.get("extras", [])
-	if extras.has("bow"):
-		var bow_mount := find_part(root, WEAPON_MOUNT)
-		if bow_mount:
-			_add_pivot(bow_mount, "Bow", Vector3.ZERO)
-	if extras.has("shield"):
-		var shield_mount := find_part(root, SHIELD_MOUNT)
-		if shield_mount:
-			_add_pivot(shield_mount, "Shield", Vector3.ZERO)
-	return root
-
-
-static func _build_reference_quadruped(visual: Node3D) -> Node3D:
-	var root := _add_pivot(visual, ROOT_NAME, Vector3.ZERO)
-	var leg_h := 0.3
-	var body_y := leg_h
-	var torso_pivot := _add_pivot(root, "Torso", Vector3(0.0, body_y, 0.0))
-	_add_pivot(torso_pivot, "Head", Vector3(0.0, 0.2, 0.36))
-	_add_pivot(torso_pivot, "Tail", Vector3(0.0, 0.24, -0.38))
-	for entry in [
-		{"name": "LegL", "pos": Vector3(-0.16, body_y, 0.26)},
-		{"name": "LegR", "pos": Vector3(0.16, body_y, 0.26)},
-		{"name": "LegBL", "pos": Vector3(-0.16, body_y, -0.26)},
-		{"name": "LegBR", "pos": Vector3(0.16, body_y, -0.26)},
-	]:
-		_add_pivot(root, entry["name"], entry["pos"])
-	return root
 
 
 static func collect_rest_pose(visual: Node3D) -> Dictionary:
@@ -703,11 +610,11 @@ static func sync_first_person_weapon_shadows(visual: Node3D, first_person: bool)
 ## Keeps the held weapon in step with the body it hangs off.
 ##
 ## The mounts sit under `Torso`, so the loop above has already put them in shadows-only -- but a
-## weapon model built *after* that call, which is every weapon swap, comes in drawing normally. This
-## used to set the mounts to `SHADOW_CASTING_SETTING_OFF`, and `OFF` does not mean hidden: it means
-## drawn, casting nothing. That re-showed the third-person weapon at the player's hand, a few
-## centimetres from a first-person camera, so the real sword swung through the view alongside the
-## viewmodel's. Matching the torso keeps the silhouette's shadow armed and the geometry out of frame.
+## weapon model built *after* that call, which is every weapon swap, comes in drawing normally. The
+## mounts take the torso's setting rather than `SHADOW_CASTING_SETTING_OFF`: `OFF` means drawn and
+## casting nothing, which would show the third-person weapon at the player's hand a few centimetres
+## from a first-person camera, swinging through the view alongside the viewmodel's. Matching the torso
+## keeps the silhouette's shadow armed and the geometry out of frame.
 static func _apply_first_person_weapon_shadows(visual: Node3D, first_person: bool) -> void:
 	for mount_name in [WEAPON_MOUNT, SHIELD_MOUNT, "Bow"]:
 		var mount := find_part(visual, mount_name)
@@ -981,7 +888,7 @@ static func build_from_manifest(visual: Node3D, archetype_id: String, theme: int
 			)
 			built[part_name] = pivot
 			var mesh_path: String = str(part_def.get("mesh", ""))
-			var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, theme)
+			var mesh: ArrayMesh = ModelLoader.load_mesh(mesh_path, theme)
 			if mesh == null:
 				push_error(
 					"DioramaCharacterSkin: missing mesh %s for %s" % [mesh_path, archetype_id]
@@ -1036,7 +943,7 @@ static func _attach_manifest_extras(
 			float(offset_arr[2]) * grid
 		)
 		var mesh_path := str(extra_def.get("mesh", ""))
-		var mesh: ArrayMesh = VoxelMeshBuilderScript.load_mesh(mesh_path, -1)
+		var mesh: ArrayMesh = ModelLoader.load_mesh(mesh_path, -1)
 		if mesh == null:
 			push_warning("DioramaCharacterSkin: missing extra mesh %s" % mesh_path)
 			continue
@@ -1066,6 +973,10 @@ static func _archetype_id_for_profile(profile: String) -> String:
 static var _untinted_material_cache: Dictionary = {}
 
 
+static func voxel_material(theme: int) -> ShaderMaterial:
+	return _make_voxel_material(theme)
+
+
 static func _make_voxel_material(theme: int) -> ShaderMaterial:
 	if _untinted_material_cache.has(theme):
 		return _untinted_material_cache[theme]
@@ -1091,7 +1002,7 @@ const META_DEFAULT_VISIBLE := &"skin_default_visible"
 
 ## The rig's bare state, recorded once per character and restored before every equipment pass.
 ## It cannot be inferred from the mesh merger's flag: a part hidden by armour is deliberately not
-## merged and so never carries one, which is what used to leave the head missing on unequip.
+## merged and so never carries one.
 static func _capture_default_visibility(node: Node) -> void:
 	var mesh := node as GeometryInstance3D
 	if mesh != null and not mesh.has_meta(META_DEFAULT_VISIBLE):
@@ -1111,10 +1022,10 @@ static func _restore_default_visibility(node: Node) -> void:
 ## The order slots are dressed in, worst-fitting first.
 ##
 ## A dictionary iterates in insertion order, which is whatever order the save happened to equip
-## things in — so a pendant could be built before the breastplate it is supposed to hang over. This
-## fixes the order outright, and puts neckwear last so it is always the outermost layer.
+## things in, so a helmet could be built before the breastplate it sits over. This fixes the order
+## outright.
 const EQUIP_DRESS_ORDER: Array[String] = [
-	"chest", "helmet", "gloves", "boots", "secondary", "weapon", "relic", "ring", "amulet"
+	"chest", "helmet", "secondary", "weapon", "relic", "ring"
 ]
 
 
@@ -1223,25 +1134,25 @@ static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int)
 		attach_names = [str(raw_attach)]
 	if attach_names.is_empty():
 		return
-	var voxels: Dictionary = vis.get("voxels", {})
 	var mesh: ArrayMesh = null
 	var mesh_path := str(vis.get("mesh", ""))
+	var family: Array = vis.get("palette", [])
 	if mesh_path != "":
-		mesh = VoxelMeshBuilderScript.load_mesh(mesh_path, theme)
+		mesh = (
+			ModelLoader.load_equipment_mesh(mesh_path, family, false)
+			if not family.is_empty()
+			else ModelLoader.load_mesh(mesh_path, theme)
+		)
 		if mesh == null:
 			push_error("DioramaCharacterSkin: equipment mesh missing %s" % mesh_path)
 			return
-	elif not voxels.is_empty():
-		mesh = _kit_mesh(vis, voxels, theme, false)
 	if mesh == null:
 		return
 	for hide_name in vis.get("hide", []):
 		var hidden := find_part(visual, str(hide_name))
 		if hidden:
 			_hide_part_meshes(hidden, true)
-	# The mirrored copy is built from mirrored *voxels* rather than from a negative scale, which
-	# would flip the triangle winding and turn the model inside out.
-	var mirror_extras := bool(vis.get("mirror_after_first", false)) and not voxels.is_empty()
+	var mirror_extras := bool(vis.get("mirror_after_first", false)) and not family.is_empty()
 	var mirrored_mesh: ArrayMesh = null
 	for i in attach_names.size():
 		var attach_name := str(attach_names[i])
@@ -1251,91 +1162,18 @@ static func _apply_equipment_visual(visual: Node3D, vis: Dictionary, theme: int)
 		var use := mesh
 		if mirror_extras and i > 0:
 			if mirrored_mesh == null:
-				mirrored_mesh = _kit_mesh(vis, voxels, theme, true)
+				mirrored_mesh = ModelLoader.load_equipment_mesh(mesh_path, family, true)
 			if mirrored_mesh != null:
 				use = mirrored_mesh
 		_mount_equipment_mesh(mount, attach_name, use, vis, theme)
 
 
-## Kit models are rebuilt whenever equipment changes, and equipment is reapplied on every stat
-## refresh — so the meshes are cached by item, slot and theme rather than remeshed each time.
-static var _kit_mesh_cache: Dictionary = {}
-static var _kit_mesh_cache_order: Array[String] = []
-static var _kit_mesh_cache_hits := 0
-static var _kit_mesh_cache_misses := 0
-static var _kit_mesh_cache_evictions := 0
-static var _kit_mesh_cache_peak := 0
-const KIT_MESH_CACHE_LIMIT := 256
+## The least a worn model may stand off each side of the part it covers, in metres. Below this the
+## two surfaces z-fight.
+const EQUIP_MIN_CLEARANCE := 0.012
 
 
-static func _kit_mesh(
-	vis: Dictionary, voxels: Dictionary, theme: int, mirrored: bool
-) -> ArrayMesh:
-	var source_key := str(vis.get("cache_key", "inline"))
-	var key := "%s|%s" % [
-		source_key,
-		VoxelMeshBuilderScript.cache_fingerprint(voxels, theme, "mirrored" if mirrored else "base"),
-	]
-	if _kit_mesh_cache.has(key):
-		_kit_mesh_cache_hits += 1
-		return _kit_mesh_cache[key]
-	_kit_mesh_cache_misses += 1
-	var data := _mirror_voxels(voxels) if mirrored else voxels
-	var mesh := VoxelMeshBuilderScript.build_from_data(data, theme, key)
-	if _kit_mesh_cache_order.size() >= KIT_MESH_CACHE_LIMIT:
-		var evicted_key: String = _kit_mesh_cache_order.pop_front()
-		_kit_mesh_cache.erase(evicted_key)
-		_kit_mesh_cache_evictions += 1
-	_kit_mesh_cache_order.append(key)
-	_kit_mesh_cache[key] = mesh
-	_kit_mesh_cache_peak = maxi(_kit_mesh_cache_peak, _kit_mesh_cache.size())
-	return mesh
-
-
-static func get_kit_mesh_cache_stats() -> Dictionary:
-	return {
-		"retained": _kit_mesh_cache.size(),
-		"limit": KIT_MESH_CACHE_LIMIT,
-		"peak": _kit_mesh_cache_peak,
-		"hits": _kit_mesh_cache_hits,
-		"misses": _kit_mesh_cache_misses,
-		"evictions": _kit_mesh_cache_evictions,
-	}
-
-
-## The same voxel model reflected across X.
-static func _mirror_voxels(voxels: Dictionary) -> Dictionary:
-	var cells: Array = voxels.get("cells", [])
-	var max_x := 0
-	for cell in cells:
-		if cell is Array and (cell as Array).size() >= 1:
-			max_x = maxi(max_x, int(cell[0]))
-	var flipped: Array = []
-	for cell in cells:
-		if not (cell is Array) or (cell as Array).size() < 3:
-			continue
-		var c: Array = cell
-		var mat := int(c[3]) if c.size() >= 4 else 0
-		flipped.append([max_x - int(c[0]), int(c[1]), int(c[2]), mat])
-	var out := voxels.duplicate(true)
-	out["cells"] = flipped
-	return out
-
-
-## The thinnest gap that can still be drawn: one voxel of the grid everything here is modelled on.
-##
-## A worn model that surrounds a body part by less than this puts its surface inside a single voxel
-## of the skin underneath. At the resolution the diorama renders at, those two surfaces land on the
-## same pixel and the depth test has no way to order them, so the seam flickers between armour and
-## body as the camera moves — the "pixels clipping on equipment" the player actually sees.
-##
-## Measured against the authored fits, six of the eight surrounding axes were under one voxel: a
-## hood cleared the head by 0.20 of a voxel, gauntlets cleared the arm by 0.37, and a breastplate
-## cleared the torso's front face by 0.85. Only slots that hide the part beneath them were safe.
-const EQUIP_MIN_CLEARANCE := VoxelGridScript.EDGE
-
-
-## Grows a worn model just enough that it clears the part it is worn on.
+## Grows a fitted model just enough that it clears the part it is worn on.
 ##
 ## Only axes where the model already surrounds the part are touched, so a pendant sitting in front
 ## of the chest or a breastplate that stops above the waist keeps its authored proportions. The
@@ -1356,9 +1194,7 @@ static func _enforce_equipment_clearance(scale: Vector3, bounds: AABB, target: A
 ##
 ## `fit` says how big the model should be as a multiple of the part's own box and `anchor` says which
 ## corner, edge or face of the two boxes to line up, so a model is sized and placed by the body it is
-## worn on rather than by whatever absolute coordinates it happened to be modelled at. Without this
-## the old path simply centred the mesh on the part, which is why a helmet sat over the head like a
-## crate and boots floated at mid-shin.
+## worn on rather than by whatever absolute coordinates it happened to be modelled at.
 static func _mount_equipment_mesh(
 	mount: Node3D, attach_name: String, mesh: ArrayMesh, vis: Dictionary, theme: int
 ) -> void:
@@ -1380,7 +1216,6 @@ static func _mount_equipment_mesh(
 		var target_point := target.get_center() + target.size * 0.5 * anchor
 		var mesh_point := bounds.get_center() + bounds.size * 0.5 * anchor
 		offset = target_point - mesh_point * scale
-		offset.z += target.size.z * float(vis.get("forward", 0.0))
 	else:
 		# A bare pivot with no geometry of its own — a weapon or shield mount. The model keeps its
 		# modelled size and hangs off the mount where the kit asks.

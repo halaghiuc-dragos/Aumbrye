@@ -45,11 +45,11 @@ func _ready() -> void:
 	get_tree().quit(0 if total_ok > 0 and enemy_content_failures == 0 else 1)
 
 
-## EN-01: every attack entry in every enemy and boss definition must author `attackClass`, or the
-## telegraph a player learns to trust silently falls back to the old poise-derived guess, which
+## Every attack entry in every enemy and boss definition must author `attackClass`, or the
+## telegraph a player learns to trust silently falls back to a poise-derived guess, which
 ## only ever produces `blockable`/`unblockable` -- `parryable` and `grab` never appear.
 ##
-## EN-03: the invariant is that the telegraph must never be smaller than the attack. A missing
+## The invariant is that the telegraph must never be smaller than the attack. A missing
 ## `telegraph_radius` derives one from `max_range` at runtime, so this only warns (does not fail)
 ## when an *authored* radius is more than 25% smaller than `max_range` -- a tell that under-
 ## promises is a trap, not a tell.

@@ -32,6 +32,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_light_1",
       "translationId": "frost_castellan_probe",
       "name": "Frostbitten Thrust",
       "weight": 3,
@@ -44,10 +45,14 @@
       "max_range": 3,
       "telegraph_shape": "circle",
       "attackClass": "blockable",
-      "knockback": 2.5
+      "knockback": 2.5,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "translationId": "frost_castellan_cleave",
       "name": "Glacier Cleave",
       "weight": 2,
@@ -59,11 +64,12 @@
       "attack_poise_damage": 28,
       "max_range": 3.3,
       "telegraph_shape": "cone",
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.0
     },
     {
       "id": "chain",
+      "anim": "attack_light_3",
       "translationId": "frost_castellan_chain",
       "name": "Warden's Measure",
       "weight": 2,
@@ -93,11 +99,12 @@
           "knockback": 2.5
         }
       ],
-      "attackClass": "parryable",
+      "attackClass": "blockable",
       "knockback": 2.5
     },
     {
       "id": "sig_shatter_cone",
+      "anim": "attack_sweep",
       "name": "Shatterbreath",
       "weight": 1.3,
       "windup_duration": 0.9,
@@ -112,7 +119,11 @@
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 2,
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -223,7 +234,7 @@
           "attack_poise_damage": 28,
           "max_range": 3.3,
           "telegraph_shape": "cone",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         },
         {
@@ -239,7 +250,7 @@
           "attack_poise_damage": 24,
           "max_range": 7.8,
           "telegraph_shape": "line",
-          "attackClass": "parryable",
+          "attackClass": "blockable",
           "knockback": 2.5
         },
         {

@@ -76,14 +76,6 @@
           1
         ],
         "weight": 1
-      },
-      {
-        "itemId": "unique_the_quiet_hour",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 1
       }
     ],
     "side": [
@@ -146,23 +138,7 @@
         "weight": 6
       },
       {
-        "itemId": "mirebrass_greaves",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
         "itemId": "mirebrass_helm",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "mirebrass_pendant",
         "quantity": [
           1,
           1
@@ -195,30 +171,6 @@
       },
       {
         "itemId": "mirebrass_staff",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "castle_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "jade_amulet",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 6
-      },
-      {
-        "itemId": "steel_boots",
         "quantity": [
           1,
           1

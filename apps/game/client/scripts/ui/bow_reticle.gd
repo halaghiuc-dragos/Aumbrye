@@ -1,7 +1,7 @@
 class_name BowReticle
 extends Control
 
-## `RG-01`: the crosshair drawn at the bow's projected impact point, with a draw-strength arc that
+## The crosshair drawn at the bow's projected impact point, with a draw-strength arc that
 ## fills as `_draw_charge` rises. A plain `_draw()` control rather than a texture -- the arc has to
 ## redraw every frame the charge changes, and there is no asset to author for a value that is
 ## continuous rather than a fixed set of frames.

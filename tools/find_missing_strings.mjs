@@ -30,6 +30,8 @@ function scan(dir) {
     const src = fs.readFileSync(p, "utf8");
     for (const m of src.matchAll(/\btr\(\s*"([A-Z][A-Z0-9_]{2,})"/g)) add(m[1], p);
     for (const m of src.matchAll(/\btr\(\s*'([A-Z][A-Z0-9_]{2,})'/g)) add(m[1], p);
+    // Static code reaches the same table through TranslationServer.translate().
+    for (const m of src.matchAll(/TranslationServer\.translate\(\s*"([A-Z][A-Z0-9_]{2,})"/g)) add(m[1], p);
     // tr("PREFIX_%s" % x) -> record prefix pattern for reporting only
     for (const m of src.matchAll(/"(SETTINGS_PAGE)_%s"/g)) add(m[1] + "_*", p);
   }

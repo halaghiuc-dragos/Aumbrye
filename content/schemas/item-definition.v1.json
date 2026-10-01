@@ -9,8 +9,6 @@
     "id",
     "name",
     "itemType",
-    "gridWidth",
-    "gridHeight",
     "stackSize"
   ],
   "properties": {
@@ -47,16 +45,6 @@
         "amulet",
         "relic"
       ]
-    },
-    "gridWidth": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 4
-    },
-    "gridHeight": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 4
     },
     "stackSize": {
       "type": "integer",
@@ -188,10 +176,6 @@
       "additionalProperties": {
         "type": "number"
       }
-    },
-    "maxDurability": {
-      "type": "number",
-      "minimum": 0
     },
     "runRelicId": {
       "type": "string"

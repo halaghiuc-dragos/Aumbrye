@@ -1,10 +1,9 @@
 extends RefCounted
 class_name ProjectileContainer
 
-## `PH-04`: arrows used to be parented to `tree.current_scene` -- correct only because the run root
-## happens to currently occupy that slot, not because anything says it must. A named container
-## under the actual run root is explicit about where a spawned projectile lives and is torn down
-## with everything else when that run scene unloads.
+## Projectiles live in a named container under the actual run root rather than under
+## `tree.current_scene`, which is the run root only by coincidence. It is explicit about where a
+## spawned projectile lives and is torn down with everything else when that run scene unloads.
 
 const CONTAINER_NAME := "Projectiles"
 const POOL_NAME := "ProjectilePool"

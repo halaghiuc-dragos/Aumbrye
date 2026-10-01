@@ -4,8 +4,8 @@
   "templatePrefix": "cathedral",
   "assetFolder": "cathedral",
   "roomCount": {
-    "min": 22,
-    "max": 26
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "cathedral_entrance",
@@ -56,24 +56,23 @@
     "rubble": [
       "res://scenes/props/cathedral/rubble_a.tscn",
       "res://scenes/props/cathedral/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/cathedral/banner.tscn",
-    "statue": "res://scenes/props/cathedral/statue.tscn",
-    "altar": "res://scenes/props/cathedral/altar.tscn",
-    "debrisPile": "res://scenes/props/cathedral/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "cathedral_acolyte",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "cathedral_warden",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "cathedral_shade",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "miniboss_cathedral_bell",
@@ -219,9 +218,9 @@
   "maxHeightLevel": 1,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 4,
-    "minDeadEnds": 4,
-    "branchMaxDepth": 12,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
     "loopBudget": 2,
     "maxGenerationAttempts": 256,
@@ -249,5 +248,6 @@
     "lift": -0.03,
     "vignette": 0.32
   },
-  "lootTablePath": "content/loot/tables/dark_cathedral.json"
+  "lootTablePath": "content/loot/tables/dark_cathedral.json",
+  "floorSurface": "wood"
 }

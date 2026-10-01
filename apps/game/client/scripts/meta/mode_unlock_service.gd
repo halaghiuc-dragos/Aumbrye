@@ -77,12 +77,19 @@ func is_unlocked(mode_id: String) -> bool:
 	if mode.is_empty():
 		push_error("ModeUnlockService: unknown mode id '%s'" % mode_id)
 		return false
+	if is_parked(mode_id):
+		return false
 	for requirement in mode.get("requirements", []):
 		if not requirement is Dictionary:
 			continue
 		if not _requirement_met(requirement):
 			return false
 	return true
+
+
+## A parked mode ships in the data but is switched off: its portal is hidden and it cannot be entered.
+func is_parked(mode_id: String) -> bool:
+	return bool(get_mode(mode_id).get("parked", false))
 
 
 ## Human-readable progress, one line per unmet requirement: "Reach Depth 3 of the Descent (2/3)".
@@ -93,7 +100,7 @@ func requirement_lines(mode_id: String) -> Array[String]:
 			continue
 		var req: Dictionary = requirement
 		var needed := int(req.get("value", 1))
-		var have := mini(_counter(str(req.get("type", ""))), needed)
+		var have := mini(int(ProgressCounters.trigger_progress(req).get("have", 0)), needed)
 		lines.append("%s (%d/%d)" % [str(req.get("text", "")), have, needed])
 	return lines
 
@@ -140,16 +147,4 @@ func _announced_flag() -> Dictionary:
 
 
 func _requirement_met(requirement: Dictionary) -> bool:
-	return _counter(str(requirement.get("type", ""))) >= int(requirement.get("value", 1))
-
-
-func _counter(requirement_type: String) -> int:
-	match requirement_type:
-		"dungeonDepth":
-			return DungeonTierService.get_max_unlocked_tier()
-		"dungeonDepthCleared":
-			return DungeonTierService.get_deepest_cleared()
-		"wavesCompletions":
-			return int(CharacterService.get_flag("waves_completions"))
-	push_warning("ModeUnlockService: unknown requirement type '%s'" % requirement_type)
-	return 0
+	return ProgressCounters.trigger_met(requirement)

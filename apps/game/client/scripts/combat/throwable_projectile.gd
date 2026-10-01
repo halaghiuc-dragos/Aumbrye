@@ -1,7 +1,7 @@
 extends Projectile
 class_name ThrowableProjectile
 
-## `RG-04`: a quick-slot throwable is a `Projectile` (same launch arc, same hitbox) that explodes
+## A quick-slot throwable is a `Projectile` (same launch arc, same hitbox) that explodes
 ## into a small AoE instead of just landing a single hit -- configured right after `instantiate()`,
 ## before `launch()`, so `_explode()` has everything it needs by the time either impact hook fires.
 
@@ -62,18 +62,12 @@ static func _throwable_visual_variant(archetype: String) -> Dictionary:
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var geometry: Mesh
 	if archetype == "lure":
-		var ring := TorusMesh.new()
-		ring.inner_radius = 0.15
-		ring.outer_radius = 0.3
-		geometry = ring
+		geometry = PropLibrary.bare_mesh("fx/lure_ring")
 		material.albedo_color = Color(0.82, 0.74, 0.45)
 		material.emission_enabled = true
 		material.emission = Color(0.38, 0.28, 0.08)
 	else:
-		var sphere := SphereMesh.new()
-		sphere.radius = 0.26
-		sphere.height = 0.52
-		geometry = sphere
+		geometry = PropLibrary.bare_mesh("fx/flask")
 		material.albedo_color = Color(0.32, 0.16, 0.08)
 		material.emission_enabled = true
 		material.emission = Color(0.5, 0.12, 0.03)
@@ -156,7 +150,9 @@ func _explode() -> void:
 		if status_can_apply and _status_id != "":
 			var controller := enemy.get_node_or_null("StatusController") as StatusController
 			if controller:
-				controller.apply_status(_status_id, _status_stacks, _status_duration)
+				controller.apply_status(
+					_status_id, _status_stacks, _status_duration, _owner_node, "direct"
+				)
 	if VfxService:
 		if hit_anything or _lure:
 			VfxService.play_rune_flare(origin)
@@ -175,7 +171,7 @@ func _has_line_of_effect(origin: Vector3, target: Vector3) -> bool:
 	return space.intersect_ray(query).is_empty()
 
 
-## `RG-04`: the lure item's identity trait -- redirects nearby patrolling enemies to investigate
+## The lure item's identity trait -- redirects nearby patrolling enemies to investigate
 ## the impact point, the same public hook `CastleEnemyBase._broadcast_alert()` already uses for
 ## one enemy noticing another's alert.
 func _draw_aggro(tree: SceneTree, origin: Vector3) -> void:

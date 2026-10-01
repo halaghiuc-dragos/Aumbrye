@@ -7,7 +7,6 @@ const BossRewardHallScript := preload("res://scripts/dungeon/boss_reward_hall.gd
 
 const BUILDER_SCRIPT := preload("res://scripts/dungeon/dungeon_builder.gd")
 const BOSS_ROOM_ID := "boss"
-const BOSS_GATE_DEPTH_THRESHOLD := 4.0
 const BossIntroScript := preload("res://scripts/ui/boss_intro_ui.gd")
 const ToastScene: PackedScene = preload("res://scenes/ui/achievement_toast.tscn")
 const EpilogueCardScript := preload("res://scripts/ui/epilogue_card.gd")
@@ -17,7 +16,7 @@ const CharacterFloorSnapScript := preload("res://scripts/art/characters/characte
 const XpShardPickupScript := preload("res://scripts/progression/xp_shard_pickup.gd")
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
 const RainFieldScript := preload("res://scripts/art/world/rain_field.gd")
-## `SY-08`: the courtyard room kind exists in every biome's catalog and is the one place a dungeon
+## The courtyard room kind exists in every biome's catalog and is the one place a dungeon
 ## floor is meant to read as outdoors -- see `_update_outdoor_lighting()`.
 const COURTYARD_RAIN_EXTENT := 12.0
 
@@ -29,6 +28,7 @@ var _player: CharacterBody3D
 var _builder: DungeonBuilder
 var _boss_door: Node
 var _boss_defeated := false
+var _death_handled := false
 var _hud: Control
 var _boss_intro: Control
 var _epilogue_card: Control
@@ -36,7 +36,7 @@ var _relic_offer: Control
 var _stair_menu: Control
 var _boss_intro_shown := false
 var _dungeon_def: Dictionary = {}
-## `BS-02`: the boss-entrance set piece -- camera pulls back to frame the boss, the fog gate seals
+## The boss-entrance set piece -- camera pulls back to frame the boss, the fog gate seals
 ## behind the player, phase 1's telegraph flashes, all skippable on any input after 0.6s.
 const BOSS_INTRO_DURATION := 2.6
 const BOSS_INTRO_SKIP_AFTER := 0.6
@@ -48,8 +48,7 @@ var _boss_intro_input_lock := 0
 var _boss_intro_skip_requested := false
 var _boss_intro_elapsed := 0.0
 const SNAPSHOT_DEBOUNCE_SEC := 2.0
-const PIT_DAMAGE_FRACTION := 0.1
-const PIT_RECOVERY_MARGIN := 8.0
+const PIT_RECOVERY_MARGIN := 1.0
 var _snapshot_dirty := false
 var _snapshot_timer := 0.0
 var _lowest_room_y := 0.0
@@ -68,13 +67,14 @@ func _ready() -> void:
 	_builder.boss_defeated.connect(_on_boss_defeated)
 	_builder.snapshot_dirty.connect(_persist_snapshot)
 	_builder.room_cleared.connect(_on_room_cleared)
+	_builder.secret_edge_revealed.connect(_on_secret_edge_revealed)
 	get_tree().node_added.connect(_on_run_node_added)
 	var snapshot := _take_run_snapshot_meta()
 	WorldState.restore_flags(snapshot.get("worldFlags", {}))
 	var def := _resolve_dungeon_definition()
 	if def.is_empty():
 		push_error("CastleRun: missing procgen dungeon definition")
-		RunFlow.return_to_hub("Dungeon data missing — could not load generated layout.")
+		RunFlow.return_to_hub(tr("RUN_DUNGEON_DATA_MISSING"))
 		return
 	var player_process_mode := Node.PROCESS_MODE_INHERIT
 	if _player:
@@ -86,10 +86,13 @@ func _ready() -> void:
 		SceneTransition.report_progress(get_tree(), ratio)
 	if not _builder.build_progress.is_connected(report_build):
 		_builder.build_progress.connect(report_build)
-	await _builder.build_from_definition(self, _player, def, true)
-	_bind_map_landmark_revealers()
+	var built: bool = await _builder.build_from_definition(self, _player, def, true)
 	if _builder.build_progress.is_connected(report_build):
 		_builder.build_progress.disconnect(report_build)
+	if not built:
+		SceneTransition.fail(get_tree(), tr("TRANSITION_BUILD_FAILED"))
+		return
+	_bind_map_landmark_revealers()
 	SceneTransition.finish(get_tree())
 	if _player:
 		_player.process_mode = player_process_mode
@@ -114,14 +117,11 @@ func _ready() -> void:
 	set_physics_process(true)
 	RunFlow._floor_transitioning = false
 	RunFlow._death_resolving = false
-	# One relic choice per ten-floor block, offered at the block's first floor rather than its
-	# boss -- consistent with why the very first one moved off the first boss to begin with (see
-	# `_offer_opening_umbral`), and the only way to keep the count exactly one per block: the old
-	# scheme also handed one out at every floor's boss, which is one a floor rather than one a
-	# block.
+	# A relic choice opens every floor, so a run's build is decided inside the run rather than in
+	# menus: the opening umbral is seeded on the run and the floor, so one seed offers the same three
+	# at a given floor.
 	var offer_umbral := (
 		not RunFlow.is_continue_restore()
-		and RunFloorConfig.floor_within_block(RunFlow.get_current_floor()) == 1
 		and not RunFlow.has_floor_transition()
 	)
 	RunFlow.clear_continue_restore()
@@ -131,9 +131,9 @@ func _ready() -> void:
 		call_deferred("_offer_opening_umbral")
 
 
-## UX-06: the floor-load overlay is free reading time -- everything here is already computed by
+## The floor-load overlay is free reading time -- everything here is already computed by
 ## the generator or the dungeon catalog, just never surfaced during the ~0.2-1s a load spends in
-## LocalProcgen's salt retries (`RM-12`).
+## LocalProcgen's salt retries.
 func _build_loading_flavor_lines(def: Dictionary) -> Array:
 	var lines: Array = []
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
@@ -157,8 +157,9 @@ func _build_loading_flavor_lines(def: Dictionary) -> Array:
 func _apply_biome_presentation(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	BiomeRegistry.apply_run_presentation(self, biome_id, RunFlow.get_run_mode())
+	AudioDirector.set_biome(biome_id)
 	_apply_player_viewmodel_theme(PixelStyle.theme_from_biome(biome_id))
-	# MD-03: the Waning should be visible, not just a line of text in a menu -- layered on top of
+	# The Waning should be visible, not just a line of text in a menu -- layered on top of
 	# the biome's own grade rather than replacing it.
 	if RunFlow.get_run_mode() == "endless":
 		PixelDioramaSettings.apply_waning_grade(RunFlow.get_current_floor())
@@ -185,10 +186,10 @@ func _resolve_dungeon_definition() -> Dictionary:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_persist_snapshot()
+		_persist_snapshot(true)
 
 
-## `BS-02`: raw engine input, not `PlayerInput.just_pressed` -- the whole point is that this still
+## Raw engine input, not `PlayerInput.just_pressed` -- the whole point is that this still
 ## fires while `PlayerInput` gameplay groups are blocked for the intro.
 func _unhandled_input(event: InputEvent) -> void:
 	if not _boss_intro_active or _boss_intro_elapsed < BOSS_INTRO_SKIP_AFTER:
@@ -218,18 +219,9 @@ func _physics_process(_delta: float) -> void:
 		_persist_snapshot()
 	elif room_id == "" and _player.global_position.y < _lowest_room_y - PIT_RECOVERY_MARGIN:
 		_recover_fallen_player()
-	if (
-		_boss_door
-		and not _boss_defeated
-		and _boss_door.call("is_opened")
-		and _is_player_deep_in_boss_room()
-	):
-		if not _boss_door.call("is_sealed"):
-			_boss_door.call("seal_door")
-			_persist_snapshot()
 
 
-## HD-01: the HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
+## The HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
 ## `configure_for_mode` is not called here on purpose: castle and endless share this scene and its
 ## HUD wiring by construction, and the contract's per-mode hiding only exists for Waves.
 func _wire_run_ui(def: Dictionary) -> void:
@@ -241,6 +233,7 @@ func _wire_run_ui(def: Dictionary) -> void:
 			_hud.connect("map_discovery_changed", map_changed)
 	if _hud and _hud.has_method("configure_minimap"):
 		_hud.call("configure_minimap", def)
+		_restore_found_secrets_on_map(def)
 	if _hud and _hud.has_method("set_minimap_floor_number"):
 		_hud.call("set_minimap_floor_number", RunFlow.get_current_floor())
 	if _hud and _hud.has_method("configure_keys"):
@@ -254,13 +247,29 @@ func _wire_run_ui(def: Dictionary) -> void:
 	add_child(_relic_offer)
 	_stair_menu = StairMenuScript.new()
 	add_child(_stair_menu)
-	# AD-04: a bounty finishing used to surface only at the results screen -- shown the moment it
-	# happens instead, through the same warning banner other run-level events already use.
+	# A bounty finishing is shown the moment it happens, through the same warning banner other
+	# run-level events use.
 	if QuestService and not QuestService.quest_updated.is_connected(_on_quest_updated):
 		QuestService.quest_updated.connect(_on_quest_updated)
-	# SY-02: a quest's counter moving used to produce no feedback at all mid-run.
+	# A quest's counter moving gives feedback mid-run.
 	if QuestService and not QuestService.quest_progress_advanced.is_connected(_on_quest_progress_advanced):
 		QuestService.quest_progress_advanced.connect(_on_quest_progress_advanced)
+
+
+## Secrets opened earlier on this floor are in the world before the map exists, so the map is told.
+func _restore_found_secrets_on_map(def: Dictionary) -> void:
+	for edge in def.get("edges", []):
+		if str(edge.get("kind", "")) != "secret":
+			continue
+		var from_id := str(edge.get("from", ""))
+		var to_id := str(edge.get("to", ""))
+		if WorldState.has_flag(WorldFlags.secret_opened(from_id)) or WorldState.has_flag(WorldFlags.secret_opened(to_id)):
+			_hud.call("reveal_map_edge", from_id, to_id)
+
+
+func _on_secret_edge_revealed(from_id: String, to_id: String) -> void:
+	if _hud and _hud.has_method("reveal_map_edge"):
+		_hud.call("reveal_map_edge", from_id, to_id)
 
 
 func _on_quest_updated(quest_id: String, _state: String) -> void:
@@ -293,6 +302,7 @@ func _notify_room(room_id: String) -> void:
 	if room_id == "":
 		return
 	_update_outdoor_lighting(room_id)
+	RunFlow.note_room_entered(room_id)
 	if _hud:
 		if _hud.has_method("mark_room_visited"):
 			_hud.call("mark_room_visited", room_id)
@@ -301,11 +311,18 @@ func _notify_room(room_id: String) -> void:
 	_update_branch_previews(room_id)
 	_update_objective_for_room(room_id)
 	_update_objective_text(room_id)
-	_persist_snapshot(true)
+	_persist_snapshot()
 	if _builder and _builder.has_method("wake_ambushers"):
 		_builder.call("wake_ambushers", room_id)
 	_maybe_bind_miniboss_bar(room_id)
-	if room_id == BOSS_ROOM_ID and not _boss_intro_shown:
+	if room_id == _get_boss_room_id() and not _boss_defeated and _boss_door:
+		if not _boss_door.call("is_opened") and not _boss_door.call("is_sealed"):
+			Teleport.to(_player, _builder.get_boss_door_outside_spawn())
+			player_room_id = _find_room_id_at(_player.global_position)
+			_boss_door.call("show_entry_blocked")
+			return
+		_boss_door.call("seal_door")
+	if room_id == _get_boss_room_id() and not _boss_intro_shown:
 		_boss_intro_shown = true
 		var boss_placement: Variant = _dungeon_def.get("placements", {}).get("boss", {})
 		var boss_id := "boss_castle_knight"
@@ -319,7 +336,7 @@ func _notify_room(room_id: String) -> void:
 		_play_boss_intro_sequence(boss_id, boss)
 
 
-## `SY-08`: every biome's room catalog carries a `courtyard` kind, but a dungeon floor never applies
+## Every biome's room catalog carries a `courtyard` kind, but a dungeon floor never applies
 ## weather or time of day -- both systems only ever ran in the hub and the waves arena. Reuses the
 ## exact same `VisualLighting`/`WeatherService` calls those two already use (see `hub.gd:_attach_weather()`
 ## and `BiomeRegistry.apply_run_presentation()`'s `"hub"` profile) rather than authoring a third path.
@@ -370,7 +387,7 @@ func _exit_tree() -> void:
 		WeatherService.set_outdoors(false)
 
 
-## `BS-02`: camera pulls back and orbits to frame the boss, the fog gate seals behind the player,
+## Camera pulls back and orbits to frame the boss, the fog gate seals behind the player,
 ## and phase 1's telegraph flashes -- all under `BOSS_INTRO_DURATION` and skippable on any input
 ## after `BOSS_INTRO_SKIP_AFTER`.
 func _play_boss_intro_sequence(boss_id: String, boss: Node) -> void:
@@ -380,10 +397,6 @@ func _play_boss_intro_sequence(boss_id: String, boss: Node) -> void:
 	if _boss_intro and _boss_intro.has_method("show_intro"):
 		_boss_intro.call("show_intro", boss_id, BOSS_INTRO_DURATION)
 	AudioDirector.play_stinger("boss_reveal")
-	if _boss_door and _boss_door.has_method("is_opened") and _boss_door.has_method("is_sealed"):
-		if _boss_door.call("is_opened") and not _boss_door.call("is_sealed"):
-			_boss_door.call("seal_door")
-			_persist_snapshot()
 	_boss_intro_input_lock = PlayerInput.block_groups(BOSS_INTRO_BLOCKED_GROUPS)
 	var camera := _find_orbit_camera()
 	var boss_node := boss as Node3D
@@ -417,7 +430,7 @@ func _find_orbit_camera() -> Node:
 	return _player.get_node_or_null("CameraPivot/SpringArm3D")
 
 
-## `BS-06`: binds the miniboss's smaller, pip-less bar (`HD-01`'s boss-bar path with `is_miniboss`)
+## Binds the miniboss's smaller, pip-less bar (the boss-bar path with `is_miniboss`)
 ## the moment the player walks into its room -- `combat_hud.bind_boss` unbinds itself on the
 ## miniboss's own `enemy_died`, so there is nothing to unwind here on the way out.
 func _maybe_bind_miniboss_bar(room_id: String) -> void:
@@ -470,7 +483,7 @@ func _announce_floor_entry(def: Dictionary) -> void:
 	var biome_id := BiomeRegistry.resolve_biome_id(def)
 	if RunFlow.get_run_mode() != "endless":
 		var floor_num := RunFlow.get_current_floor()
-		# MD-04: named at each block boundary, not just the floor's own theme label -- "which block
+		# Named at each block boundary, not just the floor's own theme label -- "which block
 		# am I starting" is exactly what the tier ladder answered before the run began.
 		if RunFloorConfig.floor_within_block(floor_num) == 1:
 			var block_num := RunFloorConfig.block_index(floor_num) + 1
@@ -497,7 +510,7 @@ func _announce_floor_entry(def: Dictionary) -> void:
 const ENDLESS_MILESTONE_FLOORS := 25
 
 
-## MD-03: a milestone every 25 floors naming the current multipliers, independent of the biome
+## A milestone every 25 floors naming the current multipliers, independent of the biome
 ## region card (which only fires on an actual biome change, not every 25th floor).
 func _maybe_show_endless_milestone() -> void:
 	var floor_num := RunFlow.get_current_floor()
@@ -542,7 +555,7 @@ func _update_objective_for_room(_room_id: String) -> void:
 		_hud.call("set_objective_world_position", target_room.global_position)
 
 
-## HD-09: one line saying what to do next, distinct from the world-space arrow `_update_objective_
+## One line saying what to do next, distinct from the world-space arrow `_update_objective_
 ## for_room` already draws -- castle names the stair goal (or calls out the boss once you have
 ## reached it), endless surfaces the Waning's pressure once the run has gone past the light.
 func _update_objective_text(room_id: String) -> void:
@@ -572,12 +585,19 @@ func register_boss_door(door: Node) -> void:
 	_boss_door = door
 	if door.has_signal("door_opened") and not door.door_opened.is_connected(_on_boss_door_opened):
 		door.door_opened.connect(_on_boss_door_opened)
-	if door.has_signal("door_sealed") and not door.door_sealed.is_connected(_persist_snapshot):
-		door.door_sealed.connect(_persist_snapshot)
+	if door.has_signal("door_sealed") and not door.door_sealed.is_connected(_on_boss_door_sealed):
+		door.door_sealed.connect(_on_boss_door_sealed)
 
 
 func _on_boss_door_opened() -> void:
-	_persist_snapshot()
+	_persist_snapshot(true)
+
+
+## The fight starts when the arena seals, not when the boss spawns with the floor.
+func _on_boss_door_sealed() -> void:
+	AudioDirector.play_boss_music()
+	RunFlow.begin_boss_fight()
+	_persist_snapshot(true)
 
 
 func _get_boss_room_id() -> String:
@@ -585,16 +605,6 @@ func _get_boss_room_id() -> String:
 	if boss_placement is Dictionary:
 		return str(boss_placement.get("roomId", BOSS_ROOM_ID))
 	return BOSS_ROOM_ID
-
-
-func _is_player_deep_in_boss_room() -> bool:
-	var room := _builder.get_room(_get_boss_room_id())
-	if room == null or _player == null:
-		return false
-	var local := room.to_local(_player.global_position)
-	var blockout := room.get_blockout()
-	var half_d := (blockout.room_depth if blockout else 28.0) * 0.5
-	return local.z > -half_d + BOSS_GATE_DEPTH_THRESHOLD
 
 
 func _is_in_boss_fight() -> bool:
@@ -653,7 +663,7 @@ func _build_room_neighbors(def: Dictionary) -> Dictionary:
 
 ## The player is almost always still in the room they were last in, or has just stepped through a
 ## door into one of its graph neighbours -- so check those before falling back to the full scan.
-## Load-bearing for `BG-03`'s Y test on the same call: a 28-room floor doing 28 transforms a frame
+## Load-bearing for Y test on the same call: a 28-room floor doing 28 transforms a frame
 ## to answer a question that changes a few times a minute was already wasteful before that landed.
 func _find_room_id_at(world_pos: Vector3) -> String:
 	if player_room_id != "":
@@ -736,7 +746,7 @@ func _place_at_stair_from_snapshot(snapshot: Dictionary) -> void:
 	var spawn_info := _builder.get_stair_spawn_global(stair_id, ascending)
 	if spawn_info.is_empty():
 		return
-	_player.global_position = spawn_info.get("position", _player.global_position)
+	Teleport.to(_player, spawn_info.get("position", _player.global_position))
 	_player.rotation.y = float(spawn_info.get("rotationY", _player.rotation.y))
 	player_room_id = stair_id
 
@@ -752,6 +762,9 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 	if rejected > 0:
 		push_warning("CastleRun: dropped %d invalid world flag(s) from snapshot" % rejected)
 	_builder.apply_snapshot(snapshot)
+	for ground_item in snapshot.get("groundItems", []):
+		if ground_item is Dictionary:
+			InventoryService.restore_world_pickup(ground_item as Dictionary)
 	var map_discovery: Variant = snapshot.get("mapDiscovery", {})
 	if map_discovery is Dictionary and _hud and _hud.has_method("import_map_discovery_state"):
 		_hud.call("import_map_discovery_state", map_discovery)
@@ -771,10 +784,13 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 		_restore_player_health(snapshot.get("player", {}))
 	elif snapshot.has("player"):
 		var player_state: Dictionary = snapshot.get("player", {})
-		_player.global_position = Vector3(
-			float(player_state.get("x", _player.global_position.x)),
-			float(player_state.get("y", _player.global_position.y)),
-			float(player_state.get("z", _player.global_position.z))
+		Teleport.to(
+			_player,
+			Vector3(
+				float(player_state.get("x", _player.global_position.x)),
+				float(player_state.get("y", _player.global_position.y)),
+				float(player_state.get("z", _player.global_position.z))
+			)
 		)
 		_player.rotation.y = float(player_state.get("rotationY", _player.rotation.y))
 		_restore_player_health(player_state)
@@ -824,10 +840,6 @@ func _raycast_floor_y(world_pos: Vector3) -> float:
 ## caught. Never lethal: falling out of the world is the game's fault, not the player's.
 func _recover_fallen_player() -> void:
 	_teleport_to_safe_spawn({"playerRoomId": player_room_id})
-	var health := _player.get_node_or_null("Health") as Health
-	if health:
-		var pit_damage := health.max_health * PIT_DAMAGE_FRACTION
-		health.take_damage(minf(pit_damage, maxf(health.current - 1.0, 0.0)))
 	RunFlow.emit_run_warning(tr("WARN_FELL"))
 
 
@@ -836,14 +848,14 @@ func _teleport_to_safe_spawn(snapshot: Dictionary) -> void:
 	if room_id != "":
 		var room := _builder.get_room(room_id)
 		if room != null:
-			_player.global_position = room.get_player_spawn_global()
+			Teleport.to(_player, room.get_player_spawn_global())
 			CharacterFloorSnapScript.snap_to_floor_below(_player)
 			player_room_id = room_id
 			return
 	var entrance_id := str(_dungeon_def.get("placements", {}).get("entrance", "entrance"))
 	var entrance := _builder.get_room(entrance_id)
 	if entrance != null:
-		_player.global_position = entrance.get_player_spawn_global()
+		Teleport.to(_player, entrance.get_player_spawn_global())
 		CharacterFloorSnapScript.snap_to_floor_below(_player)
 		player_room_id = entrance_id
 
@@ -854,7 +866,7 @@ func _apply_boss_fight_continue() -> void:
 	var boss: Node = _builder.get_tracked_enemy("boss")
 	if boss and is_instance_valid(boss) and boss.has_method("apply_state"):
 		boss.call("apply_state", {"alive": true})
-	_player.global_position = _builder.get_boss_door_outside_spawn()
+	Teleport.to(_player, _builder.get_boss_door_outside_spawn())
 	player_room_id = _find_room_id_at(_player.global_position)
 
 
@@ -882,6 +894,7 @@ func _capture_run_snapshot() -> Dictionary:
 		"clearedFloors": RunFlow._cleared_floors.duplicate(),
 		"enemies": _builder.capture_enemy_states(),
 		"loot": _builder.capture_loot_states(),
+		"groundItems": _capture_ground_items(),
 		"bossDefeated": _boss_defeated,
 		"bossDoorState": (
 			_boss_door.call("get_state_name")
@@ -901,6 +914,14 @@ func _capture_run_snapshot() -> Dictionary:
 	}
 
 
+func _capture_ground_items() -> Array:
+	var items: Array = []
+	for node in get_tree().get_nodes_in_group("world_item_pickup"):
+		if node.has_method("capture_state"):
+			items.append(node.call("capture_state"))
+	return items
+
+
 func persist_bonfire_checkpoint() -> void:
 	_builder.respawn_enemies()
 	var snapshot := _capture_run_snapshot()
@@ -915,11 +936,14 @@ func persist_bonfire_checkpoint() -> void:
 	active["checkpointBiomeId"] = RunFlow.current_biome_id
 	active["checkpointRules"] = RunFlow._capture_run_rules()
 	active["snapshot"] = snapshot.duplicate(true)
+	InventoryService.bank_run_loot()
 	LocalSave.set_active_run(active)
 	LocalSave.autosave_checkpoint()
 
 
-func _persist_snapshot(defer_write: bool = false) -> void:
+## Deferred by default: a room change or a pickup costs a timer, not a 200 KB write. Only the moments
+## that must survive a crash -- closing the game, the boss gate, the reward hall -- flush.
+func _persist_snapshot(flush: bool = false) -> void:
 	if not _should_persist_snapshot():
 		return
 	var snapshot := _capture_run_snapshot()
@@ -930,11 +954,11 @@ func _persist_snapshot(defer_write: bool = false) -> void:
 		return
 	active["schemaVersion"] = SaveMigrator.CURRENT_VERSION
 	active["snapshot"] = snapshot
-	LocalSave.set_active_run(active, not defer_write)
+	LocalSave.set_active_run(active, flush)
 
 
 func _on_map_discovery_changed() -> void:
-	_persist_snapshot(true)
+	_persist_snapshot()
 
 
 func _on_run_node_added(node: Node) -> void:
@@ -978,7 +1002,7 @@ func _update_map_landmark_revealers() -> void:
 		if player_xz.distance_to(landmark_xz) > float(entry.get("distance", 8.0)):
 			continue
 		if bool(_hud.call("reveal_landmark_room", str(entry.get("room_id", "")))):
-			_persist_snapshot(true)
+			_persist_snapshot()
 		_map_landmark_revealers.remove_at(index)
 
 
@@ -993,17 +1017,14 @@ func offer_umbral_relic() -> bool:
 	return true
 
 
-## The opening umbral. A relic choice before the first room, so the player knows what this run is
-## about inside the first minute instead of finding out at the first boss. Seeded on the run and
-## the block, so the same seed always opens the same three at a given block, and each ten-floor
-## block rolls its own set rather than repeating the first one.
+## The opening umbral. A relic choice before the first room of every floor, so the player knows what
+## this run is about inside the first minute instead of finding out at the first boss.
 func _offer_opening_umbral() -> void:
 	if _relic_offer == null or not is_instance_valid(_relic_offer):
 		return
 	if not _relic_offer.has_method("open_offer"):
 		return
-	var block := RunFloorConfig.block_index(RunFlow.get_current_floor())
-	_relic_offer.call("open_offer", "umbral:%d:%d" % [RunFlow.current_seed, block])
+	_relic_offer.call("open_offer", "umbral:%d:%d" % [RunFlow.current_seed, RunFlow.get_current_floor()])
 
 
 func _offer_boss_relic() -> void:
@@ -1027,9 +1048,7 @@ func _on_boss_defeated() -> void:
 	# shelves on every reload would turn a three-potion stock into an unlimited one.
 	BossRewardHallScript.restock_for_floor()
 	_open_boss_reward_hall()
-	# AD-02: a build-defining choice used to arrive once every ten floors -- every boss now offers
-	# one too, on top of that block-opening one, so a tier-1 run's floor bosses alone add several
-	# more decisions across the run.
+	# Every boss offers a build-defining choice on top of the floor-opening one.
 	call_deferred("_offer_boss_relic")
 
 
@@ -1050,14 +1069,14 @@ func _open_boss_reward_hall() -> void:
 	room.add_child(hall)
 	hall.setup(RunFlow.current_biome_id)
 	AudioDirector.play_dungeon_ambience()
-	_persist_snapshot()
+	_persist_snapshot(true)
 	if RunFlow.is_final_floor() and RunFlow.get_run_mode() == "castle":
 		CharacterService.set_flag("story_completed", true)
 		if _epilogue_card and _epilogue_card.has_method("show_epilogue"):
 			await _epilogue_card.call("show_epilogue", _build_epilogue_text())
 
 
-## `BS-07`: names what changed, not just that the tier ended -- the dungeon's own closing line
+## Names what changed, not just that the tier ended -- the dungeon's own closing line
 ## (one per dungeon, `EPILOGUE_<DUNGEON_ID>`, falling back to `EPILOGUE_DEFAULT` for a dungeon that
 ## has not been authored one), plus every fact this exact clear opens: the vault entry, the next
 ## difficulty tier, the next biome. Every fact below is read, never mutated -- `DungeonTierService`
@@ -1099,13 +1118,16 @@ func _dungeon_id_for_order(order: int) -> String:
 
 
 func _on_player_died() -> void:
+	if _death_handled:
+		return
+	_death_handled = true
 	if _boss_door:
 		_boss_door.call("release_door")
 	var recap: Dictionary = {}
 	var reactions := _player.get_node_or_null("CombatReactions") if _player else null
 	if reactions is PlayerCombatReactions:
 		recap = (reactions as PlayerCombatReactions).death_recap
-	await get_tree().create_timer(1.5).timeout
+	await get_tree().create_timer(1.5, false).timeout
 	RunFlow.on_player_died(recap)
 
 

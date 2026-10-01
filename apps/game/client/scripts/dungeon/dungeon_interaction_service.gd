@@ -47,7 +47,7 @@ func unregister_candidate(node: Node) -> void:
 
 func refresh() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
-	var camera := get_viewport().get_camera_3d()
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	var previous := _selected_id
 	_selected_id = _find_best_candidate(player, camera)
 	if previous == _selected_id:
@@ -65,6 +65,8 @@ func _physics_process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not PlayerInput.interact_just_pressed(event):
+		return
+	if MenuStack.depth() > 0 or PlayerInput.is_gameplay_blocked():
 		return
 	refresh()
 	var selected: Dictionary = _candidates.get(_selected_id, {}) as Dictionary

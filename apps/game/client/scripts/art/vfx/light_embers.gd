@@ -70,8 +70,7 @@ static func _assets(tint: Color, spread_scale: float) -> Dictionary:
 	var key := "%s_%.2f" % [tint.to_html(false), spread_scale]
 	if _cache.has(key):
 		return _cache[key]
-	var chunk := BoxMesh.new()
-	chunk.size = Vector3(0.05, 0.05, 0.05) * spread_scale
+	var chunk := PropLibrary.bare_mesh("fx/ember_chunk").duplicate() as ArrayMesh
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	mat.emission_sphere_radius = 0.11 * spread_scale
@@ -85,8 +84,8 @@ static func _assets(tint: Color, spread_scale: float) -> Dictionary:
 	)
 	mat.damping_min = 0.2
 	mat.damping_max = 0.6
-	mat.scale_min = 0.5
-	mat.scale_max = 1.1
+	mat.scale_min = 0.5 * spread_scale
+	mat.scale_max = 1.1 * spread_scale
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(tint.r, tint.g, tint.b, 0.95))
 	ramp.set_color(1, Color(tint.r * 0.6, tint.g * 0.25, tint.b * 0.1, 0.0))
@@ -100,7 +99,7 @@ static func _assets(tint: Color, spread_scale: float) -> Dictionary:
 	ember_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	ember_mat.disable_receive_shadows = true
 	ember_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	chunk.material = ember_mat
+	chunk.surface_set_material(0, ember_mat)
 	var assets := {"mesh": chunk, "process": mat}
 	_cache[key] = assets
 	return assets

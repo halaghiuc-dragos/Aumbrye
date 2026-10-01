@@ -2,8 +2,6 @@
   "id": "firebomb",
   "name": "Firebomb",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 8,
   "rarity": "common",
   "description": "Pitch in a clay shell. Lobbed at range, not underfoot -- an answer to whoever is shooting back.",

@@ -2,8 +2,6 @@
   "id": "mythic_aegis",
   "name": "Mythic Aegis",
   "itemType": "armor",
-  "gridWidth": 2,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "aumbral",
   "description": "A tower-forged buckler said to have turned a sovereign's blow once.",

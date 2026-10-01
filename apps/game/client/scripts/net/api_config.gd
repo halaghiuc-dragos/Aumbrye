@@ -6,7 +6,9 @@ signal version_mismatch
 
 enum CloudState { DISABLED, SIGNED_OUT, SYNCING, SYNCED, ERROR, VERSION_MISMATCH }
 
-const DEFAULT_BASE_URL := "https://api.aumbrye.example"
+## The game ships offline: the backend stays in the repo but nothing here talks to it until this is
+## switched on (see SIM-22 in the backlog).
+const ONLINE_ENABLED := false
 const CLIENT_VERSION := "0.6.0"
 const CONTENT_VERSION := "1"
 const REQUEST_TIMEOUT_SECONDS := 8.0
@@ -67,7 +69,7 @@ func auth_headers() -> PackedStringArray:
 
 
 func cloud_calls_enabled() -> bool:
-	return get_base_url() != "" and not version_mismatch_flag
+	return ONLINE_ENABLED and get_base_url() != "" and not version_mismatch_flag
 
 
 func set_cloud_state(state: CloudState, detail: String = "") -> void:
@@ -227,6 +229,8 @@ func _refresh_session_background() -> void:
 
 
 func _resolve_base_url() -> String:
+	if not ONLINE_ENABLED:
+		return ""
 	var resolved := ""
 	if _test_env_api_url != null:
 		resolved = str(_test_env_api_url).strip_edges()
@@ -246,8 +250,6 @@ func _resolve_base_url() -> String:
 		else:
 			dev_cfg = ContentLoader.load_json(DEV_API_CONFIG_PATH)
 		resolved = str(dev_cfg.get("apiBaseUrl", "")).strip_edges()
-	if resolved == "":
-		resolved = DEFAULT_BASE_URL
 	resolved = resolved.strip_edges().trim_suffix("/")
 	if _is_release_build() and not resolved.begins_with("https://"):
 		push_error("ApiConfig: refusing non-HTTPS base URL in a release build")

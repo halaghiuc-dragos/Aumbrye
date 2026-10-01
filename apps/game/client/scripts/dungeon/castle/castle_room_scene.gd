@@ -26,15 +26,49 @@ func _ready() -> void:
 			needs_rebuild = true
 		if blockout.accent_material == null:
 			blockout.accent_material = BiomeRegistry.get_accent_material(biome_id)
+		blockout.floor_surface = StringName(BiomeRegistry.get_floor_surface(biome_id))
+		blockout.relief_biome = biome_id
 		sync_kit_contract()
 		if needs_rebuild:
 			blockout._request_rebuild()
 		_apply_layout_variant_shape(blockout, biome_id)
+
+
+## Dressing reads which walls are open, so the builder calls this once it has closed every door
+## the floor's edges do not use, so clearance strips only stand in front of real openings.
+func dress() -> void:
+	var biome_id := _resolve_biome_id()
 	DioramaRoomDressing.apply_to_room(self, biome_id, room_id.hash())
 	_skin_untextured_props(biome_id)
 
 
-## RM-03: a biome's `content/rooms/<biome>.json` variant may override the template's default shape
+## Hands the blockout every solid prop standing in the room, once the builder has placed them all.
+func carve_navigation() -> void:
+	var blockout := get_blockout()
+	if blockout == null:
+		return
+	var obstacles: Array = []
+	_collect_nav_obstacles(self, blockout, obstacles)
+	blockout.carve_obstacles(obstacles)
+
+
+func _collect_nav_obstacles(node: Node, blockout: CastleBlockout, out: Array) -> void:
+	for child in node.get_children():
+		if child is StaticBody3D and child.has_meta("nav_obstacle"):
+			for shape_node in child.get_children():
+				if shape_node is CollisionShape3D and (shape_node as CollisionShape3D).shape is BoxShape3D:
+					var collision := shape_node as CollisionShape3D
+					out.append(
+						{
+							"pos": blockout.to_local(collision.global_position),
+							"size": (collision.shape as BoxShape3D).size,
+						}
+					)
+		else:
+			_collect_nav_obstacles(child, blockout, out)
+
+
+## A biome's `content/rooms/<biome>.json` variant may override the template's default shape
 ## (e.g. a `hall` authored as `round` for one biome). Goes through `shape_override`, not `shape`
 ## directly -- `sync_kit_contract()`'s `_apply_kind_spec()` re-derives `shape` from the kind spec on
 ## every rebuild, so a direct assignment here would be silently discarded the next time the room's
@@ -48,6 +82,8 @@ func _apply_layout_variant_shape(blockout: CastleBlockout, biome_id: String) -> 
 		var shape_str := RoomLayoutCatalog.shape_for(biome_id, template_id, variant)
 		if not shape_str.is_empty():
 			shape_name = StringName(shape_str)
+	if shape_name == &"split" or blockout.shape == &"split":
+		shape_name = &"rect"
 	if blockout.shape_override != shape_name:
 		blockout.shape_override = shape_name
 		blockout.sync_dimensions_from_kind()
@@ -70,6 +106,10 @@ func _skin_untextured_props(biome_id: String) -> void:
 	var props := get_node_or_null("Props") as Node3D
 	if props == null:
 		return
+	for placeholder_name: String in SCENE_PLACEHOLDER_MODELS:
+		var holder := props.get_node_or_null(placeholder_name) as Node3D
+		if holder != null and holder.get_child_count() == 0:
+			PropLibrary.attach(holder, SCENE_PLACEHOLDER_MODELS[placeholder_name], biome_id)
 	var accent := BiomeRegistry.get_accent_material(biome_id)
 	if accent == null:
 		return
@@ -86,17 +126,8 @@ func _skin_untextured_props(biome_id: String) -> void:
 				mesh_instance.set_surface_override_material(surface, accent)
 
 
-static func _has_any_material(mesh_instance: MeshInstance3D) -> bool:
-	if mesh_instance.material_override != null:
-		return true
-	if mesh_instance.mesh == null:
-		return true
-	for surface in mesh_instance.mesh.get_surface_count():
-		if mesh_instance.get_surface_override_material(surface) != null:
-			return true
-		if mesh_instance.mesh.surface_get_material(surface) != null:
-			return true
-	return false
+## Empty holders authored into room scenes, and the Blender model each one receives when the room is dressed.
+const SCENE_PLACEHOLDER_MODELS := {"StairRamp": "walls/ramp", "SecretCuePanel": "walls/cue_panel"}
 
 
 func sync_kit_contract() -> void:
@@ -199,16 +230,11 @@ func _ensure_marker(parent: Node3D, marker_name: String, local_pos: Vector3) -> 
 func _ensure_stair_ramp(props: Node3D, biome_id: String) -> void:
 	if props.get_node_or_null("StairRamp") != null:
 		return
-	var ramp := MeshInstance3D.new()
+	var ramp := Node3D.new()
 	ramp.name = "StairRamp"
-	var box := BoxMesh.new()
-	box.size = Vector3(4.0, 0.4, 12.0)
-	ramp.mesh = box
 	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(25.0)), Vector3(0.0, 1.2, 0.0))
-	var accent := BiomeRegistry.get_accent_material(biome_id)
-	if accent:
-		ramp.material_override = accent
 	props.add_child(ramp)
+	PropLibrary.attach(ramp, "walls/ramp", biome_id)
 
 
 func _ensure_boss_authored(_props: Node3D, biome_id: String) -> void:
@@ -219,16 +245,11 @@ func _ensure_boss_authored(_props: Node3D, biome_id: String) -> void:
 		add_child(authored)
 	if authored.get_child_count() > 0:
 		return
-	var dais := MeshInstance3D.new()
+	var dais := Node3D.new()
 	dais.name = "Dais"
-	var box := BoxMesh.new()
-	box.size = Vector3(10.0, 0.6, 10.0)
-	dais.mesh = box
-	dais.position = Vector3(0.0, 0.3, -4.0)
-	var accent := BiomeRegistry.get_accent_material(biome_id)
-	if accent:
-		dais.material_override = accent
+	dais.position = Vector3(0.0, 0.0, -4.0)
 	authored.add_child(dais)
+	PropLibrary.attach(dais, "walls/dais", biome_id)
 
 
 func _align_socket_rotations() -> void:

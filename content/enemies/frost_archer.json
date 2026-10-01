@@ -30,6 +30,7 @@
   "attacks": [
     {
       "id": "bolt",
+      "anim": "attack_shoot",
       "name": "Sent Bolt",
       "weight": 3,
       "windup_duration": 0.59,
@@ -42,11 +43,15 @@
       "telegraph_shape": "circle",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "parryable",
-      "knockback": 2.0
+      "attackClass": "blockable",
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "hex",
+      "anim": "attack_shoot",
       "name": "Long Hex",
       "weight": 2,
       "windup_duration": 1.11,
@@ -59,11 +64,15 @@
       "telegraph_shape": "circle",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "parryable",
-      "knockback": 2.5
+      "attackClass": "unblockable",
+      "knockback": 2.5,
+      "tags": [
+        "anti_roll"
+      ]
     },
     {
       "id": "ward_burst",
+      "anim": "attack_shoot",
       "name": "Ward Burst",
       "weight": 2,
       "windup_duration": 0.78,
@@ -76,8 +85,11 @@
       "telegraph_shape": "ring",
       "status_on_hit": "freeze",
       "status_stacks_on_hit": 1,
-      "attackClass": "unblockable",
-      "knockback": 2.5
+      "attackClass": "parryable",
+      "knockback": 2.5,
+      "tags": [
+        "gap_close"
+      ]
     }
   ]
 }

@@ -1,18 +1,31 @@
-# Castle room kit (ART-2.1)
+# Castle room kit
 
-Modular blockout templates for the Forgotten Castle vertical slice.
+One scene per room kind, each a `CastleRoomScene` with a `CastleBlockout` and a `DoorwaySocket` marker
+on every wall (N/E/S/W, see `scripts/dungeon/doorway_socket.gd`). Every scene ships with all four door
+flags off: a generated floor opens only the doorways its graph asks for.
 
-| Scene | `template_id` | Size (W×D) | Doors |
-|-------|---------------|------------|-------|
-| `castle_entrance.tscn` | `castle_entrance` | 16×12 | S |
-| `castle_stairs.tscn` | `castle_stairs` | 8×16 | N, S |
-| `castle_courtyard.tscn` | `castle_courtyard` | 20×20 | N, E, S, W (secret) |
-| `castle_hall.tscn` | `castle_hall` | 16×16 | W, E, S (shortcut) |
-| `castle_treasure.tscn` | `castle_treasure` | 10×10 | N |
-| `castle_secret.tscn` | `castle_secret` | 8×8 | E |
-| `castle_arena.tscn` | `castle_arena` | 24×24 | W, S |
-| `castle_boss.tscn` | `castle_boss` | 28×28 | N |
+A room's size and the doors its kind allows come from `KIND_SPECS` in
+`scripts/dungeon/procgen/room_template_catalog.gd`, not from the scene:
 
-Socket convention: `DoorwaySocket` markers (N/E/S/W). See `scripts/dungeon/doorway_socket.gd`.
+| Scene | Kind | Size (W×D) | Doors the kind allows |
+|-------|------|------------|-----------------------|
+| `castle_entrance.tscn` | `entrance` | 16×12 | all |
+| `castle_stairs.tscn` | `stairs` | 8×16 | all |
+| `castle_corridor.tscn` | `corridor` | 8×12 | N, S |
+| `castle_corridor_long.tscn` | `corridor_long` | 8×20 | N, S |
+| `castle_corridor_bend.tscn` | `corridor_bend` | 12×12 | N, E |
+| `castle_balcony.tscn` | `balcony` | 16×20 | N, S |
+| `castle_courtyard.tscn` | `courtyard` | 20×20 | all |
+| `castle_hall.tscn` | `hall` | 16×16 | all |
+| `castle_treasure.tscn` | `treasure` | 12×12 | N |
+| `castle_secret.tscn` | `secret` | 8×8 | E |
+| `castle_arena.tscn` | `arena` | 24×24 | N, S, W |
+| `castle_boss.tscn` | `boss` | 28×28 | N |
+| `castle_puzzle.tscn` | `puzzle` | 16×16 | all |
 
-Playable layout (editor fixture only, not on live play path): `scenes/dungeon/forgotten_castle_slice.tscn`. Production runs load `scenes/dungeon/castle_run.tscn` with procgen definitions; the slice fixture JSON is the default for `DungeonBuilder.build()` validation.
+Stair ramps and secret cue panels are placed by code (`castle_room_scene.gd`) from Blender models, so
+the scenes hold empty `StairRamp` and `SecretCuePanel` nodes.
+
+`scenes/dungeon/forgotten_castle_slice.tscn` is an editor fixture driven by
+`content/fixtures/forgotten_castle_slice.json`; the diagnostics use it. Production runs load
+`scenes/dungeon/castle_run.tscn` with a generated definition.

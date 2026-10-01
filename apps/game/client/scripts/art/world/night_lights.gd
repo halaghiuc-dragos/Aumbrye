@@ -10,10 +10,9 @@ const LIGHT_UP_WINDOW := 0.3
 
 const GROUP := &"world_light"
 
-# The dusk ramp, in degrees of solar elevation. It used to open at 22 degrees — an hour of daylight
-# still to go — so the lamps were already up while the sun was well clear of the rooftops. Opening
-# it just above the horizon means the first lamps light at sunset and the last are up once the sky
-# has gone.
+# The dusk ramp, in degrees of solar elevation. It opens just above the horizon, so the first lamps
+# light at sunset rather than while the sun is still well clear of the rooftops, and the last are up
+# once the sky has gone.
 const DUSK_START_DEG := 6.0
 const DUSK_END_DEG := -8.0
 

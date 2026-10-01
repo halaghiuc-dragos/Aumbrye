@@ -43,9 +43,9 @@ const BEHIND_CAMERA_FREEZE_DISTANCE := 145.0
 ## standing on a single frame.
 const PACE_EASE := 0.45
 
-## How quickly a figure turns to face its new bearing, in radians per second of easing.
-## Corners on the polylines and the turn at the end of a dead-end street both used to be
-## instantaneous, which at a hundred metres reads as a figure blinking round.
+## How quickly a figure turns to face its new bearing, in radians per second of easing. Corners on
+## the polylines and the turn at the end of a dead-end street are eased, because an instant turn at a
+## hundred metres reads as a figure blinking round.
 const TURN_RATE := 5.0
 
 ## Lanes. Every figure is given a fixed lateral offset from the street's centreline and
@@ -55,12 +55,9 @@ const TURN_RATE := 5.0
 ## own clock. A solver that shunted people apart would have been the opposite -- one
 ## person stopping to talk would ripple down the whole street.
 ##
-## Every lane is laid out to fit *on the carriageway*. The lanes used to be measured
-## outward from the kerb, which bought room for the wagons at the price of walking half
-## the village along the grass verge beside the road rather than on it. They are
-## measured inward from the kerb instead, and how many will fit is worked out per street
-## from what has to share it -- so a wagon takes the crown, riders sit just outside it,
-## and foot traffic gets whatever lanes are left between them and the kerb.
+## Every lane is laid out to fit *on the carriageway*, measured inward from the kerb, and how many
+## will fit is worked out per street from what has to share it -- so a wagon takes the crown, riders
+## sit just outside it, and foot traffic gets whatever lanes are left between them and the kerb.
 const CART_HALF := 0.90
 const HORSE_HALF := 0.31
 const FOOT_HALF := 0.25
@@ -201,7 +198,7 @@ func add_agent(
 	var route: Dictionary = _routes[route_slot]
 	var slots: Array[Dictionary] = []
 	for part in parts:
-		var mat_key: String = part["mat"]
+		var mat_key: String = "%s|%s" % [part["mat"], str(part.get("shape", "box"))]
 		if not _slots.has(mat_key):
 			_slots[mat_key] = []
 		var bucket: Array = _slots[mat_key]
@@ -339,12 +336,12 @@ func commit(materials: Dictionary, bounds: AABB) -> void:
 			continue
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
-		multimesh.mesh = PixelBoxBatch.unit_cube()
+		multimesh.mesh = PropLibrary.bare_mesh("crowd/%s" % mat_key.get_slice("|", 1))
 		multimesh.instance_count = bucket.size()
 		var node := MultiMeshInstance3D.new()
 		node.name = "Crowd_%s" % mat_key
 		node.multimesh = multimesh
-		node.material_override = materials.get(mat_key) as Material
+		node.material_override = materials.get(mat_key.get_slice("|", 0)) as Material
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		# The walk is stepped from _process, not physics, so the interpolator has no
 		# pair of physics frames to blend and would warn on every write. The crowd
@@ -449,8 +446,7 @@ func _visibility_state(agent: Dictionary) -> String:
 		if distance > CULL_DISTANCE:
 			return "culled"
 		return "visible"
-	if get_viewport():
-		camera = get_viewport().get_camera_3d()
+	camera = PixelDioramaViewport.get_gameplay_camera()
 	if camera == null:
 		# Headless/audit worlds have no camera; retain the authored route-radius LOD there.
 		return "visible"
@@ -559,7 +555,7 @@ func _draw(agent: Dictionary) -> void:
 	# same magnitude, so both feet lift by the same amount off a straight stance, and
 	# subtracting it plants them on the road. That is also where the walk's bob comes
 	# from -- the body dips as the stride opens and rises as it closes, twice a cycle,
-	# smoothly, instead of the sawtooth an abs() of a sine used to give it.
+	# smoothly.
 	origin.y -= float(agent["leg"]) * (1.0 - cos(lean))
 
 	var slots: Array = agent["slots"]
@@ -620,13 +616,13 @@ static func _sample(route: Dictionary, distance: float) -> Dictionary:
 
 static func villager_parts(cloth: String, skin: String) -> Array[Dictionary]:
 	return [
-		{"size": Vector3(0.46, 0.62, 0.30), "at": Vector3(0.0, 1.24, 0.0), "mat": cloth},
-		{"size": Vector3(0.50, 0.34, 0.34), "at": Vector3(0.0, 1.02, 0.0), "mat": cloth},
-		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 1.68, 0.0), "mat": skin},
-		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(-0.30, 1.24, 0.0), "mat": cloth, "limb": ARM_A},
-		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(0.30, 1.24, 0.0), "mat": cloth, "limb": ARM_B},
-		{"size": Vector3(0.16, 0.92, 0.18), "at": Vector3(-0.13, 0.46, 0.0), "mat": cloth, "limb": LEG_A},
-		{"size": Vector3(0.16, 0.92, 0.18), "at": Vector3(0.13, 0.46, 0.0), "mat": cloth, "limb": LEG_B},
+		{"size": Vector3(0.46, 0.62, 0.30), "at": Vector3(0.0, 1.24, 0.0), "mat": cloth, "shape": "torso"},
+		{"size": Vector3(0.50, 0.34, 0.34), "at": Vector3(0.0, 1.02, 0.0), "mat": cloth, "shape": "box"},
+		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 1.68, 0.0), "mat": skin, "shape": "head"},
+		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(-0.30, 1.24, 0.0), "mat": cloth, "limb": ARM_A, "shape": "arm"},
+		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(0.30, 1.24, 0.0), "mat": cloth, "limb": ARM_B, "shape": "arm"},
+		{"size": Vector3(0.16, 0.92, 0.18), "at": Vector3(-0.13, 0.46, 0.0), "mat": cloth, "limb": LEG_A, "shape": "leg"},
+		{"size": Vector3(0.16, 0.92, 0.18), "at": Vector3(0.13, 0.46, 0.0), "mat": cloth, "limb": LEG_B, "shape": "leg"},
 	]
 
 
@@ -634,7 +630,7 @@ static func villager_parts(cloth: String, skin: String) -> Array[Dictionary]:
 static func peasant_parts(cloth: String, skin: String, load_mat: String) -> Array[Dictionary]:
 	var parts := villager_parts(cloth, skin)
 	parts.append({
-		"size": Vector3(0.52, 0.36, 0.40), "at": Vector3(0.0, 1.62, -0.34), "mat": load_mat
+		"size": Vector3(0.52, 0.36, 0.40), "at": Vector3(0.0, 1.62, -0.34), "mat": load_mat, "shape": "bundle"
 	})
 	return parts
 
@@ -642,17 +638,17 @@ static func peasant_parts(cloth: String, skin: String, load_mat: String) -> Arra
 ## A soldier: mailed, helmed, with a spear held upright at the shoulder.
 static func soldier_parts(cloth: String, skin: String, iron: String) -> Array[Dictionary]:
 	return [
-		{"size": Vector3(0.50, 0.64, 0.32), "at": Vector3(0.0, 1.26, 0.0), "mat": iron},
-		{"size": Vector3(0.54, 0.30, 0.36), "at": Vector3(0.0, 1.44, 0.0), "mat": iron},
-		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 1.70, 0.0), "mat": skin},
-		{"size": Vector3(0.32, 0.18, 0.32), "at": Vector3(0.0, 1.84, 0.0), "mat": iron},
-		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(-0.31, 1.24, 0.0), "mat": iron, "limb": ARM_A},
-		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(0.31, 1.24, 0.0), "mat": iron, "limb": ARM_B},
-		{"size": Vector3(0.17, 0.92, 0.19), "at": Vector3(-0.14, 0.46, 0.0), "mat": cloth, "limb": LEG_A},
-		{"size": Vector3(0.17, 0.92, 0.19), "at": Vector3(0.14, 0.46, 0.0), "mat": cloth, "limb": LEG_B},
+		{"size": Vector3(0.50, 0.64, 0.32), "at": Vector3(0.0, 1.26, 0.0), "mat": iron, "shape": "torso"},
+		{"size": Vector3(0.54, 0.30, 0.36), "at": Vector3(0.0, 1.44, 0.0), "mat": iron, "shape": "box"},
+		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 1.70, 0.0), "mat": skin, "shape": "head"},
+		{"size": Vector3(0.32, 0.18, 0.32), "at": Vector3(0.0, 1.84, 0.0), "mat": iron, "shape": "helm"},
+		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(-0.31, 1.24, 0.0), "mat": iron, "limb": ARM_A, "shape": "arm"},
+		{"size": Vector3(0.14, 0.52, 0.16), "at": Vector3(0.31, 1.24, 0.0), "mat": iron, "limb": ARM_B, "shape": "arm"},
+		{"size": Vector3(0.17, 0.92, 0.19), "at": Vector3(-0.14, 0.46, 0.0), "mat": cloth, "limb": LEG_A, "shape": "leg"},
+		{"size": Vector3(0.17, 0.92, 0.19), "at": Vector3(0.14, 0.46, 0.0), "mat": cloth, "limb": LEG_B, "shape": "leg"},
 		# Spear, carried vertically so the patrol reads as armed at a distance.
-		{"size": Vector3(0.07, 2.5, 0.07), "at": Vector3(0.36, 1.55, 0.1), "mat": "timber"},
-		{"size": Vector3(0.11, 0.34, 0.11), "at": Vector3(0.36, 2.92, 0.1), "mat": iron},
+		{"size": Vector3(0.07, 2.5, 0.07), "at": Vector3(0.36, 1.55, 0.1), "mat": "timber", "shape": "pole"},
+		{"size": Vector3(0.11, 0.34, 0.11), "at": Vector3(0.36, 2.92, 0.1), "mat": iron, "shape": "spearhead"},
 	]
 
 
@@ -660,24 +656,24 @@ static func soldier_parts(cloth: String, skin: String, iron: String) -> Array[Di
 static func horseman_parts(cloth: String, skin: String, coat: String) -> Array[Dictionary]:
 	return [
 		# Horse.
-		{"size": Vector3(0.62, 0.78, 1.90), "at": Vector3(0.0, 1.32, 0.0), "mat": coat},
-		{"size": Vector3(0.42, 0.72, 0.46), "at": Vector3(0.0, 1.78, 1.02), "mat": coat},
-		{"size": Vector3(0.30, 0.34, 0.34), "at": Vector3(0.0, 2.10, 1.24), "mat": coat},
-		{"size": Vector3(0.14, 0.62, 0.14), "at": Vector3(0.0, 1.42, -1.02), "mat": coat},
-		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(-0.24, 0.47, 0.62), "mat": coat, "limb": LEG_A},
-		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(0.24, 0.47, 0.62), "mat": coat, "limb": LEG_B},
-		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(-0.24, 0.47, -0.62), "mat": coat, "limb": LEG_B},
-		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(0.24, 0.47, -0.62), "mat": coat, "limb": LEG_A},
+		{"size": Vector3(0.62, 0.78, 1.90), "at": Vector3(0.0, 1.32, 0.0), "mat": coat, "shape": "horse_body"},
+		{"size": Vector3(0.42, 0.72, 0.46), "at": Vector3(0.0, 1.78, 1.02), "mat": coat, "shape": "horse_neck"},
+		{"size": Vector3(0.30, 0.34, 0.34), "at": Vector3(0.0, 2.10, 1.24), "mat": coat, "shape": "horse_head"},
+		{"size": Vector3(0.14, 0.62, 0.14), "at": Vector3(0.0, 1.42, -1.02), "mat": coat, "shape": "horse_tail"},
+		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(-0.24, 0.47, 0.62), "mat": coat, "limb": LEG_A, "shape": "leg"},
+		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(0.24, 0.47, 0.62), "mat": coat, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(-0.24, 0.47, -0.62), "mat": coat, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.19, 0.94, 0.19), "at": Vector3(0.24, 0.47, -0.62), "mat": coat, "limb": LEG_A, "shape": "leg"},
 		# Rider, seated.
-		{"size": Vector3(0.44, 0.60, 0.30), "at": Vector3(0.0, 2.16, -0.06), "mat": cloth},
-		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 2.58, -0.06), "mat": skin},
+		{"size": Vector3(0.44, 0.60, 0.30), "at": Vector3(0.0, 2.16, -0.06), "mat": cloth, "shape": "torso"},
+		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 2.58, -0.06), "mat": skin, "shape": "head"},
 		# Arms carried forward and down, as they are on the reins rather than hanging.
-		{"size": Vector3(0.13, 0.44, 0.15), "at": Vector3(-0.28, 2.10, 0.22), "mat": cloth},
-		{"size": Vector3(0.13, 0.44, 0.15), "at": Vector3(0.28, 2.10, 0.22), "mat": cloth},
+		{"size": Vector3(0.13, 0.44, 0.15), "at": Vector3(-0.28, 2.10, 0.22), "mat": cloth, "shape": "arm"},
+		{"size": Vector3(0.13, 0.44, 0.15), "at": Vector3(0.28, 2.10, 0.22), "mat": cloth, "shape": "arm"},
 		# Thighs sit outside the barrel, not in it: at 0.34 they were a hand's width
 		# inside the horse, which shows as a leg that ends before the hip does.
-		{"size": Vector3(0.15, 0.50, 0.17), "at": Vector3(-0.40, 1.68, 0.12), "mat": cloth},
-		{"size": Vector3(0.15, 0.50, 0.17), "at": Vector3(0.40, 1.68, 0.12), "mat": cloth},
+		{"size": Vector3(0.15, 0.50, 0.17), "at": Vector3(-0.40, 1.68, 0.12), "mat": cloth, "shape": "leg"},
+		{"size": Vector3(0.15, 0.50, 0.17), "at": Vector3(0.40, 1.68, 0.12), "mat": cloth, "shape": "leg"},
 	]
 
 
@@ -689,44 +685,44 @@ static func cart_parts(
 ) -> Array[Dictionary]:
 	return [
 		# Draught horse, out in front of the shafts.
-		{"size": Vector3(0.68, 0.84, 1.96), "at": Vector3(0.0, 1.34, 1.80), "mat": coat},
-		{"size": Vector3(0.44, 0.74, 0.48), "at": Vector3(0.0, 1.82, 2.84), "mat": coat},
-		{"size": Vector3(0.32, 0.36, 0.36), "at": Vector3(0.0, 2.14, 3.06), "mat": coat},
-		{"size": Vector3(0.14, 0.62, 0.14), "at": Vector3(0.0, 1.44, 0.80), "mat": coat},
-		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(-0.26, 0.48, 2.42), "mat": coat, "limb": LEG_A},
-		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(0.26, 0.48, 2.42), "mat": coat, "limb": LEG_B},
-		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(-0.26, 0.48, 1.18), "mat": coat, "limb": LEG_B},
-		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(0.26, 0.48, 1.18), "mat": coat, "limb": LEG_A},
+		{"size": Vector3(0.68, 0.84, 1.96), "at": Vector3(0.0, 1.34, 1.80), "mat": coat, "shape": "horse_body"},
+		{"size": Vector3(0.44, 0.74, 0.48), "at": Vector3(0.0, 1.82, 2.84), "mat": coat, "shape": "horse_neck"},
+		{"size": Vector3(0.32, 0.36, 0.36), "at": Vector3(0.0, 2.14, 3.06), "mat": coat, "shape": "horse_head"},
+		{"size": Vector3(0.14, 0.62, 0.14), "at": Vector3(0.0, 1.44, 0.80), "mat": coat, "shape": "horse_tail"},
+		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(-0.26, 0.48, 2.42), "mat": coat, "limb": LEG_A, "shape": "leg"},
+		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(0.26, 0.48, 2.42), "mat": coat, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(-0.26, 0.48, 1.18), "mat": coat, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.20, 0.96, 0.20), "at": Vector3(0.26, 0.48, 1.18), "mat": coat, "limb": LEG_A, "shape": "leg"},
 		# Shafts running back from the collar to the wagon.
-		{"size": Vector3(0.10, 0.10, 1.70), "at": Vector3(-0.42, 1.05, 0.86), "mat": timber},
-		{"size": Vector3(0.10, 0.10, 1.70), "at": Vector3(0.42, 1.05, 0.86), "mat": timber},
+		{"size": Vector3(0.10, 0.10, 1.70), "at": Vector3(-0.42, 1.05, 0.86), "mat": timber, "shape": "box"},
+		{"size": Vector3(0.10, 0.10, 1.70), "at": Vector3(0.42, 1.05, 0.86), "mat": timber, "shape": "box"},
 		# Wagon body and its sideboards.
-		{"size": Vector3(1.32, 0.52, 2.40), "at": Vector3(0.0, 1.04, -0.60), "mat": timber},
-		{"size": Vector3(0.12, 0.44, 2.40), "at": Vector3(-0.66, 1.44, -0.60), "mat": timber},
-		{"size": Vector3(0.12, 0.44, 2.40), "at": Vector3(0.66, 1.44, -0.60), "mat": timber},
-		{"size": Vector3(1.32, 0.12, 0.44), "at": Vector3(0.0, 1.44, -1.78), "mat": timber},
+		{"size": Vector3(1.32, 0.52, 2.40), "at": Vector3(0.0, 1.04, -0.60), "mat": timber, "shape": "wagon"},
+		{"size": Vector3(0.12, 0.44, 2.40), "at": Vector3(-0.66, 1.44, -0.60), "mat": timber, "shape": "box"},
+		{"size": Vector3(0.12, 0.44, 2.40), "at": Vector3(0.66, 1.44, -0.60), "mat": timber, "shape": "box"},
+		{"size": Vector3(1.32, 0.12, 0.44), "at": Vector3(0.0, 1.44, -1.78), "mat": timber, "shape": "box"},
 		# The load, heaped above the boards so the cart reads as working, not empty.
-		{"size": Vector3(1.10, 0.56, 1.70), "at": Vector3(0.0, 1.56, -0.70), "mat": load_mat},
+		{"size": Vector3(1.10, 0.56, 1.70), "at": Vector3(0.0, 1.56, -0.70), "mat": load_mat, "shape": "load_heap"},
 		# Wheels, standing proud of the body on both sides.
-		{"size": Vector3(0.16, 1.02, 1.02), "at": Vector3(-0.74, 0.51, 0.28), "mat": timber},
-		{"size": Vector3(0.16, 1.02, 1.02), "at": Vector3(0.74, 0.51, 0.28), "mat": timber},
-		{"size": Vector3(0.16, 1.14, 1.14), "at": Vector3(-0.74, 0.57, -1.44), "mat": timber},
-		{"size": Vector3(0.16, 1.14, 1.14), "at": Vector3(0.74, 0.57, -1.44), "mat": timber},
+		{"size": Vector3(0.16, 1.02, 1.02), "at": Vector3(-0.74, 0.51, 0.28), "mat": timber, "shape": "wheel"},
+		{"size": Vector3(0.16, 1.02, 1.02), "at": Vector3(0.74, 0.51, 0.28), "mat": timber, "shape": "wheel"},
+		{"size": Vector3(0.16, 1.14, 1.14), "at": Vector3(-0.74, 0.57, -1.44), "mat": timber, "shape": "wheel"},
+		{"size": Vector3(0.16, 1.14, 1.14), "at": Vector3(0.74, 0.57, -1.44), "mat": timber, "shape": "wheel"},
 		# Carter on the board.
-		{"size": Vector3(0.46, 0.58, 0.30), "at": Vector3(0.0, 1.66, 0.42), "mat": cloth},
-		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 2.06, 0.42), "mat": skin},
-		{"size": Vector3(0.14, 0.44, 0.16), "at": Vector3(-0.28, 1.64, 0.60), "mat": cloth},
-		{"size": Vector3(0.14, 0.44, 0.16), "at": Vector3(0.28, 1.64, 0.60), "mat": cloth},
+		{"size": Vector3(0.46, 0.58, 0.30), "at": Vector3(0.0, 1.66, 0.42), "mat": cloth, "shape": "torso"},
+		{"size": Vector3(0.26, 0.26, 0.26), "at": Vector3(0.0, 2.06, 0.42), "mat": skin, "shape": "head"},
+		{"size": Vector3(0.14, 0.44, 0.16), "at": Vector3(-0.28, 1.64, 0.60), "mat": cloth, "shape": "arm"},
+		{"size": Vector3(0.14, 0.44, 0.16), "at": Vector3(0.28, 1.64, 0.60), "mat": cloth, "shape": "arm"},
 	]
 
 
 static func dog_parts(pelt: String) -> Array[Dictionary]:
 	return [
-		{"size": Vector3(0.30, 0.32, 0.78), "at": Vector3(0.0, 0.56, 0.0), "mat": pelt},
-		{"size": Vector3(0.26, 0.26, 0.30), "at": Vector3(0.0, 0.72, 0.52), "mat": pelt},
-		{"size": Vector3(0.10, 0.10, 0.34), "at": Vector3(0.0, 0.70, -0.52), "mat": pelt},
-		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(-0.11, 0.20, 0.26), "mat": pelt, "limb": LEG_A},
-		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(0.11, 0.20, 0.26), "mat": pelt, "limb": LEG_B},
-		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(-0.11, 0.20, -0.26), "mat": pelt, "limb": LEG_B},
-		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(0.11, 0.20, -0.26), "mat": pelt, "limb": LEG_A},
+		{"size": Vector3(0.30, 0.32, 0.78), "at": Vector3(0.0, 0.56, 0.0), "mat": pelt, "shape": "dog_body"},
+		{"size": Vector3(0.26, 0.26, 0.30), "at": Vector3(0.0, 0.72, 0.52), "mat": pelt, "shape": "dog_head"},
+		{"size": Vector3(0.10, 0.10, 0.34), "at": Vector3(0.0, 0.70, -0.52), "mat": pelt, "shape": "dog_tail"},
+		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(-0.11, 0.20, 0.26), "mat": pelt, "limb": LEG_A, "shape": "leg"},
+		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(0.11, 0.20, 0.26), "mat": pelt, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(-0.11, 0.20, -0.26), "mat": pelt, "limb": LEG_B, "shape": "leg"},
+		{"size": Vector3(0.11, 0.40, 0.11), "at": Vector3(0.11, 0.20, -0.26), "mat": pelt, "limb": LEG_A, "shape": "leg"},
 	]

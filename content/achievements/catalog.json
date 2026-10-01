@@ -214,7 +214,7 @@
     {
       "id": "ten_floor_clear",
       "name": "Depth Delver",
-      "description": "Clear all 10 floors of a dungeon run.",
+      "description": "Clear every floor of a dungeon run.",
       "category": "biome",
       "hidden": false
     },

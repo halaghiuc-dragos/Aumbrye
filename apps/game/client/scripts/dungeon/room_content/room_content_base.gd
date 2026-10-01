@@ -6,6 +6,12 @@ func configure(_entry: Dictionary, _definition: Dictionary) -> void:
 	pass
 
 
+## Chests this content spawned. The spawner registers them with the builder so their state is
+## saved and restored with the floor.
+func get_chests() -> Array[Node3D]:
+	return []
+
+
 func _content_root() -> Node3D:
 	var props := get_parent().get_node_or_null("Props")
 	return props as Node3D if props else get_parent() as Node3D
@@ -81,3 +87,34 @@ func _anchor(index: int = 0) -> Node3D:
 	fallback.transform = placement.get("transform", Transform3D.IDENTITY) as Transform3D
 	_content_root().add_child(fallback)
 	return fallback
+
+
+## Calls `on_entered` once, the first time the player walks into this room's interior (not the
+## doorway), for content that starts something when the room is entered.
+func watch_room_entry(on_entered: Callable) -> void:
+	var room := get_parent() as RoomTemplate
+	var blockout := room.get_blockout() if room != null and room.has_method("get_blockout") else null
+	if blockout == null:
+		return
+	var area := Area3D.new()
+	area.name = "EntryTrigger"
+	area.collision_layer = 0
+	area.collision_mask = 2
+	add_child(area)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(
+		maxf(1.0, blockout.room_width - CastleRoomConstants.DOOR_WIDTH),
+		CastleRoomConstants.WALL_HEIGHT,
+		maxf(1.0, blockout.room_depth - CastleRoomConstants.DOOR_WIDTH)
+	)
+	shape.shape = box
+	shape.position = Vector3(0.0, CastleRoomConstants.WALL_HEIGHT * 0.5, 0.0)
+	area.add_child(shape)
+	area.body_entered.connect(
+		func(body: Node3D) -> void:
+			if body.is_in_group("player"):
+				area.queue_free()
+				on_entered.call(body),
+		CONNECT_ONE_SHOT
+	)

@@ -17,13 +17,6 @@ static func _ensure_loaded() -> void:
 	_loaded = true
 
 
-static func roll_enemy_drop(
-	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
-) -> String:
-	var drops := roll_enemy_drops(enemy_seed, floor_index, difficulty_tier, dungeon_id)
-	return str(drops[0]) if not drops.is_empty() else ""
-
-
 static func roll_enemy_drops(
 	enemy_seed: int, floor_index: int = 1, difficulty_tier: int = 1, dungeon_id: String = ""
 ) -> Array[String]:

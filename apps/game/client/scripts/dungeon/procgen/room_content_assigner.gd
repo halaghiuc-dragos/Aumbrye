@@ -9,6 +9,16 @@ static var _branch_clue_profiles: Dictionary = {}
 static var _branch_clue_profiles_loaded := false
 
 
+## Rooms whose chest carries a stake: a cursed cache pays double and costs a floor-long curse, a
+## gauntlet chest sits behind a trap field and pays a relic offer to anyone who crosses unhurt, and a
+## timed cache seals thirty seconds after the player steps in.
+const RISK_CURSED := "cursed"
+const RISK_GAUNTLET := "gauntlet"
+const RISK_TIMED := "timed"
+const TIMED_CACHE_CHANCE := 0.2
+const CURSED_CACHE_CHANCE := 0.3
+
+
 static func assign(
 	graph: RoomGraph,
 	assignment: Dictionary,
@@ -19,7 +29,8 @@ static func assign(
 ) -> Dictionary:
 	var result := _assign_impl(graph, assignment, rng, config, biome_id, tier)
 	if result.get("ok", false):
-		_add_shortcut_gates(graph, assignment, rng, biome_id, tier, result)
+		var inputs: Dictionary = config.generation_inputs if config != null else {}
+		_add_shortcut_gates(graph, assignment, rng, biome_id, tier, result, inputs)
 		var content: Dictionary = result.get("content", {})
 		if (content.get("shortcutGates", []) as Array).is_empty():
 			var warnings: Array = result.get("warnings", [])
@@ -139,10 +150,8 @@ static func _try_assign_once(
 		var semantic: String = room["semantic_id"]
 		var layout_id: String = room["layout_id"]
 		var slot := graph.get_slot(layout_id)
-		# RM-15: a filler used to always get RoomContentTypes.EMPTY here regardless of anything
-		# else -- every filler was a room the player walks through with nothing in it, by design,
-		# which is what made a fifth of a floor read as pointless space. It now falls through to
-		# the same per-room content roll as any other off-path room below.
+		# A filler falls through to the same per-room content roll as any other off-path room below,
+		# so a fifth of a floor is not rooms with nothing in them.
 		if semantic in reserved_semantics:
 			room_content.append(_entry_for_special(room, slot))
 			continue
@@ -155,7 +164,7 @@ static func _try_assign_once(
 						"layoutId": layout_id,
 						"contentType": RoomContentTypes.COMBAT,
 						"templateId": "",
-						# RM-07: one lock-in per floor -- the room immediately before the boss, where
+						# One lock-in per floor -- the room immediately before the boss, where
 						# the game wants to test the player before the real test. See
 						# `room_arena_gate_content.gd` for what this flag actually builds.
 						"lockIn": true,
@@ -179,8 +188,7 @@ static func _try_assign_once(
 				}
 			)
 		)
-	_enforce_pacing(room_content, critical_semantic, reserved_semantics, config, rng)
-	_apply_pacing_beats(room_content, critical_semantic, reserved_semantics)
+	_apply_floor_recipe(room_content, graph, layout_semantic, critical_semantic, reserved_semantics, config, rng)
 	var locks: Array = []
 	if config.enable_locked_door and critical_semantic.size() >= 4:
 		var content_by_semantic := RoomLockPlacer.content_by_semantic(room_content)
@@ -222,7 +230,8 @@ static func _try_assign_once(
 		rng,
 		biome_id,
 		reserved_semantics,
-		tier
+		tier,
+		config.generation_inputs
 	)
 	var content := {
 		"roomContent": room_content,
@@ -300,75 +309,6 @@ static func _rest_allowed() -> bool:
 	return not RunModifierService.has_modifier(RunModifierService.MODIFIER_NO_REST)
 
 
-static func _enforce_pacing(
-	room_content: Array,
-	critical_semantic: Array[String],
-	reserved_semantics: Array[String],
-	config: RoomContentConfig,
-	rng: RandomNumberGenerator
-) -> void:
-	var by_room := {}
-	for entry in room_content:
-		if entry is Dictionary:
-			by_room[str((entry as Dictionary).get("roomId", ""))] = entry
-	_break_combat_runs(room_content, critical_semantic, by_room, reserved_semantics, config)
-	_guarantee_type(
-		room_content,
-		by_room,
-		reserved_semantics,
-		RoomContentTypes.REWARD,
-		config.min_reward_rooms,
-		critical_semantic,
-		rng
-	)
-	_guarantee_type(
-		room_content,
-		by_room,
-		reserved_semantics,
-		RoomContentTypes.LORE,
-		config.min_lore_rooms,
-		critical_semantic,
-		rng
-	)
-	_guarantee_type(
-		room_content,
-		by_room,
-		reserved_semantics,
-		RoomContentTypes.SHRINE,
-		config.min_shrine_rooms,
-		critical_semantic,
-		rng
-	)
-	if config.min_rest_rooms > 0 and _rest_allowed():
-		_guarantee_rest_before_boss(
-			room_content, by_room, critical_semantic, reserved_semantics, config
-		)
-
-
-static func _apply_pacing_beats(
-	room_content: Array, critical_semantic: Array[String], reserved_semantics: Array[String]
-) -> void:
-	var by_room := {}
-	for entry in room_content:
-		if entry is Dictionary:
-			by_room[str(entry.get("roomId", ""))] = entry
-	var beats := ["tension", "reveal", "choice", "pressure", "relief"]
-	for i in critical_semantic.size():
-		var entry: Dictionary = by_room.get(critical_semantic[i], {})
-		if entry.is_empty():
-			continue
-		var beat := str(beats[i % beats.size()])
-		entry["pacingBeat"] = beat
-		if not _is_mutable(entry, reserved_semantics):
-			continue
-		if beat == "reveal" and str(entry.get("contentType", "")) == RoomContentTypes.COMBAT:
-			_set_content_type(entry, RoomContentTypes.LORE)
-		elif beat == "choice" and str(entry.get("contentType", "")) == RoomContentTypes.EMPTY:
-			_set_content_type(entry, RoomContentTypes.REWARD)
-		elif beat == "relief" and str(entry.get("contentType", "")) == RoomContentTypes.COMBAT and _rest_allowed():
-			_set_content_type(entry, RoomContentTypes.REST)
-
-
 static func _set_content_type(entry: Dictionary, content_type: String) -> void:
 	entry["contentType"] = content_type
 	entry["templateId"] = str(RoomContentTypes.TEMPLATE_BY_TYPE.get(content_type, ""))
@@ -390,121 +330,103 @@ static func _is_mutable(entry: Dictionary, reserved_semantics: Array[String]) ->
 	return str(entry.get("templateId", "")) != "" or content_type != ""
 
 
-static func _break_combat_runs(
-	_room_content: Array,
-	critical_semantic: Array[String],
-	by_room: Dictionary,
-	reserved_semantics: Array[String],
-	config: RoomContentConfig
-) -> void:
-	if config.max_consecutive_combat <= 0:
-		return
-	var streak := 0
-	for room_id in critical_semantic:
-		var entry: Variant = by_room.get(room_id)
-		if not entry is Dictionary:
-			streak = 0
-			continue
-		if str((entry as Dictionary).get("contentType", "")) != RoomContentTypes.COMBAT:
-			streak = 0
-			continue
-		streak += 1
-		if streak <= config.max_consecutive_combat:
-			continue
-		if not _is_mutable(entry as Dictionary, reserved_semantics):
-			continue
-		var relief := RoomContentTypes.LORE
-		if _rest_allowed() and streak > config.max_consecutive_combat + 1:
-			relief = RoomContentTypes.REST
-		_set_content_type(entry as Dictionary, relief)
-		streak = 0
+const RECIPES_PATH := "content/progression/floor_recipes.json"
+const RECIPE_TYPES := {
+	"fight": RoomContentTypes.COMBAT,
+	"choice": RoomContentTypes.SHRINE,
+	"rest": RoomContentTypes.REST,
+	"lore": RoomContentTypes.LORE,
+	"reward": RoomContentTypes.REWARD,
+	"trial": RoomContentTypes.TRAP,
+	"merchant": RoomContentTypes.MERCHANT,
+}
+static var _recipes: Dictionary = {}
 
 
-static func _guarantee_type(
+static func _recipe_for(block_floor: int) -> Dictionary:
+	if _recipes.is_empty():
+		_recipes = ContentLoader.load_json(RECIPES_PATH).get("floors", {})
+	var floors := _recipes as Dictionary
+	return floors.get(str(clampi(block_floor, 1, floors.size())), floors.get("1", {}))
+
+
+## The floor's authored recipe (`content/progression/floor_recipes.json`) decides what every room
+## holds, so the order a floor is met in is designed rather than rolled: the critical path cycles the
+## recipe's `path` beats and ends on its `tail` (a rest before the arena and the boss), dead ends deal
+## out `branches` from a rotating start, and any other side room is a `side` beat. Rooms that carry
+## other content (a quest giver, a vault, the arena, the stairs) keep it.
+static func _apply_floor_recipe(
 	room_content: Array,
-	by_room: Dictionary,
-	reserved_semantics: Array[String],
-	content_type: String,
-	minimum: int,
+	graph: RoomGraph,
+	layout_semantic: Dictionary,
 	critical_semantic: Array[String],
+	reserved_semantics: Array[String],
+	config: RoomContentConfig,
 	rng: RandomNumberGenerator
 ) -> void:
-	if minimum <= 0:
+	var recipe := _recipe_for(config.block_floor)
+	if recipe.is_empty():
 		return
-	var present := 0
+	var no_trap: Array[String] = []
+	var start_slot := graph.get_slot(graph.start_id)
+	if start_slot != null:
+		no_trap.append(str(layout_semantic.get(graph.start_id, "")))
+		for dir in RoomGraphPaths._dirs():
+			var neighbour: RoomGraphSlot = graph.slots.get(start_slot.grid_pos + dir) as RoomGraphSlot
+			if neighbour != null:
+				no_trap.append(str(layout_semantic.get(neighbour.slot_id, "")))
+	var by_room := {}
+	var layout_of := {}
 	for entry in room_content:
-		if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == content_type:
-			present += 1
-	if present >= minimum:
-		return
-	var candidates: Array[Dictionary] = []
-	for entry in room_content:
-		if not entry is Dictionary:
+		if entry is Dictionary:
+			by_room[str((entry as Dictionary).get("roomId", ""))] = entry
+			layout_of[str((entry as Dictionary).get("roomId", ""))] = str((entry as Dictionary).get("layoutId", ""))
+	var path_rooms: Array[Dictionary] = []
+	for room_id in critical_semantic:
+		var entry: Dictionary = by_room.get(room_id, {})
+		if not entry.is_empty() and not bool(entry.get("lockIn", false)) and _is_mutable(entry, reserved_semantics):
+			path_rooms.append(entry)
+	var tail: Array = recipe.get("tail", [])
+	var cycle: Array = recipe.get("path", [])
+	for i in path_rooms.size():
+		var from_end := path_rooms.size() - 1 - i
+		var token := ""
+		if from_end < tail.size():
+			token = str(tail[tail.size() - 1 - from_end])
+		elif not cycle.is_empty():
+			token = str(cycle[i % cycle.size()])
+		_apply_beat(path_rooms[i], token, no_trap)
+	var branches: Array = recipe.get("branches", [])
+	var side: Array = recipe.get("side", [])
+	var branch_cursor := rng.randi_range(0, maxi(0, branches.size() - 1))
+	var side_cursor := rng.randi_range(0, maxi(0, side.size() - 1))
+	var off_path: Array[String] = []
+	for room_id in by_room:
+		if not critical_semantic.has(str(room_id)):
+			off_path.append(str(room_id))
+	off_path.sort()
+	for room_id in off_path:
+		var entry: Dictionary = by_room[room_id]
+		if not _is_mutable(entry, reserved_semantics):
 			continue
-		var room_id := str((entry as Dictionary).get("roomId", ""))
-		if room_id in critical_semantic:
-			continue
-		if not _is_mutable(entry as Dictionary, reserved_semantics):
-			continue
-		if str((entry as Dictionary).get("contentType", "")) == content_type:
-			continue
-		candidates.append(entry as Dictionary)
-	candidates.sort_custom(
-		func(a: Dictionary, b: Dictionary) -> bool:
-			return str(a.get("roomId", "")) < str(b.get("roomId", ""))
-	)
-	while present < minimum and not candidates.is_empty():
-		var idx := rng.randi_range(0, candidates.size() - 1)
-		_set_content_type(candidates[idx], content_type)
-		candidates.remove_at(idx)
-		present += 1
-	if present < minimum:
-		for room_id in critical_semantic:
-			if present >= minimum:
-				break
-			var entry: Variant = by_room.get(room_id)
-			if not entry is Dictionary:
-				continue
-			if not _is_mutable(entry as Dictionary, reserved_semantics):
-				continue
-			if str((entry as Dictionary).get("contentType", "")) == content_type:
-				continue
-			_set_content_type(entry as Dictionary, content_type)
-			present += 1
+		var slot := graph.get_slot(str(layout_of.get(room_id, "")))
+		if slot != null and slot.is_dead_end() and not branches.is_empty():
+			_apply_beat(entry, str(branches[branch_cursor % branches.size()]), no_trap)
+			branch_cursor += 1
+		elif not side.is_empty():
+			_apply_beat(entry, str(side[side_cursor % side.size()]), no_trap)
+			side_cursor += 1
 
 
-static func _guarantee_rest_before_boss(
-	room_content: Array,
-	by_room: Dictionary,
-	critical_semantic: Array[String],
-	reserved_semantics: Array[String],
-	config: RoomContentConfig
-) -> void:
-	if critical_semantic.size() < 3:
+static func _apply_beat(entry: Dictionary, token: String, no_trap: Array[String]) -> void:
+	var content_type: String = RECIPE_TYPES.get(token, "")
+	if content_type == "":
 		return
-	var window := maxi(1, config.rest_within_of_boss)
-	var start_index := maxi(0, critical_semantic.size() - 1 - window)
-	for i in range(critical_semantic.size() - 2, start_index - 1, -1):
-		var entry: Variant = by_room.get(critical_semantic[i])
-		if entry is Dictionary and str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REST:
-			return
-	for i in range(critical_semantic.size() - 2, start_index - 1, -1):
-		var entry: Variant = by_room.get(critical_semantic[i])
-		if not entry is Dictionary:
-			continue
-		if not _is_mutable(entry as Dictionary, reserved_semantics):
-			continue
-		_set_content_type(entry as Dictionary, RoomContentTypes.REST)
-		return
-	for entry in room_content:
-		if not entry is Dictionary:
-			continue
-		if str((entry as Dictionary).get("contentType", "")) == RoomContentTypes.REST:
-			return
-	for entry in room_content:
-		if entry is Dictionary and _is_mutable(entry as Dictionary, reserved_semantics):
-			_set_content_type(entry as Dictionary, RoomContentTypes.REST)
-			return
+	if content_type == RoomContentTypes.REST and not _rest_allowed():
+		content_type = RoomContentTypes.COMBAT
+	if content_type == RoomContentTypes.TRAP and no_trap.has(str(entry.get("roomId", ""))):
+		content_type = RoomContentTypes.COMBAT
+	_set_content_type(entry, content_type)
 
 
 static func _finalize_content_entries(
@@ -515,7 +437,8 @@ static func _finalize_content_entries(
 	rng: RandomNumberGenerator,
 	biome_id: String,
 	reserved_semantics: Array[String],
-	tier: int = 1
+	tier: int = 1,
+	inputs: Dictionary = {}
 ) -> Array:
 	var puzzles: Array = []
 	for entry in room_content:
@@ -533,7 +456,19 @@ static func _finalize_content_entries(
 		if content_type == RoomContentTypes.LORE:
 			entry["loreId"] = "%s:lore:%s" % [biome_id, room_id]
 		if content_type == RoomContentTypes.REWARD or content_type == RoomContentTypes.LOCKED_VAULT:
-			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type, tier)
+			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type, tier, inputs)
+		if content_type == RoomContentTypes.REWARD and rng.randf() < CURSED_CACHE_CHANCE:
+			entry["params"] = {"risk": RISK_CURSED}
+			var extra := _roll_chest_items(biome_id, rng, room_id, content_type, tier, inputs)
+			for i in extra.size():
+				(extra[i] as Dictionary)["instanceId"] = "%s_c%d" % [room_id, i]
+			(entry["items"] as Array).append_array(extra)
+		elif content_type == RoomContentTypes.REWARD and rng.randf() < TIMED_CACHE_CHANCE:
+			entry["params"] = {"risk": RISK_TIMED}
+		if content_type == RoomContentTypes.TRAP:
+			# A trap room guards a chest at its far end; crossing it unhurt earns a relic offer.
+			entry["items"] = _roll_chest_items(biome_id, rng, room_id, content_type, tier, inputs)
+			entry["params"] = {"risk": RISK_GAUNTLET}
 		if content_type == RoomContentTypes.NPC_QUEST:
 			var quest := _pick_dungeon_quest(biome_id, rng)
 			entry["questId"] = str(quest.get("questId", ""))
@@ -548,7 +483,32 @@ static func _finalize_content_entries(
 			if not puzzle.is_empty():
 				puzzles.append(puzzle)
 				entry["flagId"] = str(puzzle.get("flagId", ""))
+				_stock_puzzle_reward(
+					room_content, puzzle, reserved_semantics, biome_id, rng, tier, inputs
+				)
 	return puzzles
+
+
+## A gate that opens onto nothing is a chore, so the room behind a puzzle gate holds a chest.
+static func _stock_puzzle_reward(
+	room_content: Array,
+	puzzle: Dictionary,
+	reserved_semantics: Array[String],
+	biome_id: String,
+	rng: RandomNumberGenerator,
+	tier: int,
+	inputs: Dictionary
+) -> void:
+	var gate_room := str(puzzle.get("gateRoomId", ""))
+	for gate_entry in room_content:
+		if not gate_entry is Dictionary or str((gate_entry as Dictionary).get("roomId", "")) != gate_room:
+			continue
+		if _is_mutable(gate_entry as Dictionary, reserved_semantics):
+			_set_content_type(gate_entry as Dictionary, RoomContentTypes.REWARD)
+			(gate_entry as Dictionary)["items"] = _roll_chest_items(
+				biome_id, rng, gate_room, RoomContentTypes.REWARD, tier, inputs
+			)
+		return
 
 
 ## One-way circularity: a loop the lattice managed to seat flush becomes a real door the player can
@@ -562,7 +522,8 @@ static func _add_shortcut_gates(
 	rng: RandomNumberGenerator,
 	biome_id: String,
 	tier: int,
-	result: Dictionary
+	result: Dictionary,
+	inputs: Dictionary = {}
 ) -> void:
 	if graph.loop_edges.is_empty():
 		return
@@ -600,179 +561,71 @@ static func _add_shortcut_gates(
 		var locked_sem := sem_b if dist_a >= dist_b else sem_a
 		if used_open_rooms.has(open_sem):
 			continue
+		var gate := {
+			"gateId": "shortcut_%s_%s" % [locked_sem, open_sem],
+			"roomA": locked_sem,
+			"roomB": open_sem,
+			"openRoomId": open_sem,
+		}
+		# A barred door is only a shortcut if the floor stays winnable with it shut from that side:
+		# a loop the lattice realised as the only way into a pocket is a wall, not a shortcut.
+		content["shortcutGates"] = gates + [gate]
+		if not _floor_winnable(graph, layout_semantic, content):
+			continue
 		used_open_rooms[open_sem] = true
-		gates.append(
-			{
-				"gateId": "shortcut_%s_%s" % [locked_sem, open_sem],
-				"roomA": locked_sem,
-				"roomB": open_sem,
-				"openRoomId": open_sem,
-			}
-		)
+		gates.append(gate)
 		var open_entry: Variant = by_room.get(open_sem)
-		if open_entry is Dictionary and _is_mutable(open_entry as Dictionary, reserved_semantics):
+		if (
+			open_entry is Dictionary
+			and _is_mutable(open_entry as Dictionary, reserved_semantics)
+			and str((open_entry as Dictionary).get("contentType", "")) != RoomContentTypes.REST
+			and not bool((open_entry as Dictionary).get("lockIn", false))
+		):
 			_set_content_type(open_entry as Dictionary, RoomContentTypes.REWARD)
 			(open_entry as Dictionary)["items"] = _roll_armory_chest_items(
-				biome_id, rng, open_sem, tier
+				biome_id, rng, open_sem, tier, inputs
 			)
 	if gates.is_empty():
+		content.erase("shortcutGates")
 		return
 	content["shortcutGates"] = gates
 	result["content"] = content
 
 
-## RM-04: `_add_shortcut_gates` only fires when the lattice happened to seat a loop flush against
-## another room -- a floor where the solver closed no loops gets zero one-way doors, so the
-## soulslike "barred door, opened from the far side" beat appears on some floors and not others.
-## This guarantees at least one by promoting a dead-end branch when nothing else produced a gate.
-##
-## Orientation note: `RoomShortcutGateContent`'s barrier physically blocks *both* directions until
-## opened, and it can only be opened by a player standing on the `openRoomId` side. A genuine graph
-## dead end has exactly one edge -- its only connection to the rest of the floor -- so that edge
-## cannot be barred from the dead-end side without making the room (and its chest) permanently
-## unreachable. This deliberately orients the gate the other way: `openRoomId` is the dead end's
-## *critical-path parent*, which is always already reachable, so the barred door can always be
-## opened before it is ever an obstacle. The invariant this file's header states -- a one-way door
-## may never be the only route to anything the floor requires -- holds trivially for this
-## orientation, and is reverified below via `RoomGraphPaths.reachable_without_edge` before the gate
-## is accepted, exactly as it would be for a lock.
-static func _guarantee_one_way_gate(
-	graph: RoomGraph,
-	assignment: Dictionary,
-	rng: RandomNumberGenerator,
-	biome_id: String,
-	tier: int,
-	result: Dictionary
-) -> void:
-	var content: Dictionary = result.get("content", {})
-	var existing: Array = content.get("shortcutGates", [])
-	if not existing.is_empty():
-		return
-	var room_content: Array = content.get("roomContent", [])
-	if room_content.is_empty():
-		return
-	var layout_semantic := _layout_to_semantic(assignment)
-	var by_room: Dictionary = {}
-	for entry in room_content:
-		if entry is Dictionary:
-			by_room[str((entry as Dictionary).get("roomId", ""))] = entry
-	var distances := RoomGraphPaths.bfs_distances(graph, graph.start_id)
-	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
-	var candidate_layout := ""
-	var candidate_parent_layout := ""
-	var best_distance := -1
-	for cell in graph.occupied_cells():
-		var slot: RoomGraphSlot = graph.slots[cell]
-		if slot.is_filler or slot.slot_type == RoomGraphSlot.SlotType.SECRET:
-			continue
-		if not slot.is_dead_end():
-			continue
-		if slot.slot_id in [graph.start_id, graph.boss_id, graph.stairs_id]:
-			continue
-		var parent_id := _dead_end_parent_layout_id(graph, slot)
-		if parent_id == "":
-			continue
-		var parent_slot := graph.get_slot(parent_id)
-		if parent_slot == null or not parent_slot.on_critical_path:
-			continue
-		var sem := str(layout_semantic.get(slot.slot_id, ""))
-		var candidate_parent_sem := str(layout_semantic.get(parent_id, ""))
-		if (
-			sem == ""
-			or candidate_parent_sem == ""
-			or not by_room.has(sem)
-			or not by_room.has(candidate_parent_sem)
-		):
-			continue
-		var dist := int(distances.get(slot.slot_id, 0))
-		if dist > best_distance:
-			best_distance = dist
-			candidate_layout = slot.slot_id
-			candidate_parent_layout = parent_id
-	if candidate_layout == "":
-		return
-	if not _one_way_gate_is_safe(
-		graph, assignment, content, candidate_parent_layout, candidate_layout
-	):
-		return
-	var dead_end_sem := str(layout_semantic.get(candidate_layout, ""))
-	var parent_sem := str(layout_semantic.get(candidate_parent_layout, ""))
-	var gates: Array = [
-		{
-			"gateId": "shortcut_deadend_%s" % dead_end_sem,
-			"roomA": dead_end_sem,
-			"roomB": parent_sem,
-			"openRoomId": parent_sem,
-		}
-	]
-	var dead_end_entry: Variant = by_room.get(dead_end_sem)
-	if dead_end_entry is Dictionary and _is_mutable(dead_end_entry as Dictionary, reserved_semantics):
-		_set_content_type(dead_end_entry as Dictionary, RoomContentTypes.REWARD)
-		(dead_end_entry as Dictionary)["items"] = _roll_armory_chest_items(
-			biome_id, rng, dead_end_sem, tier
-		)
-	content["shortcutGates"] = gates
-	result["content"] = content
-
-
-## The dead-end slot's one neighbour, found straight from its door mask rather than from
-## `graph.walk_edges` -- a dead end by construction has exactly one open door, so this is
-## unambiguous, and it works the same whether that edge came from the walk or from a later loop.
-static func _dead_end_parent_layout_id(graph: RoomGraph, slot: RoomGraphSlot) -> String:
-	for dir in [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]:
-		if not (slot.door_mask & RoomGraphGeometry.dir_to_door(dir)):
-			continue
-		var neighbor := graph.get_slot_at(slot.grid_pos + dir)
-		if neighbor != null:
-			return neighbor.slot_id
-	return ""
-
-
-## Confirms cutting this edge (in the direction the gate blocks until opened) still leaves the
-## boss, the stairs and every key room reachable -- the same soundness test `RoomLockPlacer` runs
-## for a lock. The dead end itself is expected to drop out; that is the point of the gate.
-static func _one_way_gate_is_safe(
-	graph: RoomGraph,
-	assignment: Dictionary,
-	content: Dictionary,
-	parent_layout_id: String,
-	dead_end_layout_id: String
+## The boss, the stairs and every key room reachable from the entrance with only the keys, levers
+## and one-way doors the walk itself can earn.
+static func _floor_winnable(
+	graph: RoomGraph, layout_semantic: Dictionary, content: Dictionary
 ) -> bool:
-	var reachable := RoomGraphPaths.reachable_without_edge(
-		graph, parent_layout_id, dead_end_layout_id
+	var required: Array = []
+	for layout_id in [graph.boss_id, graph.stairs_id]:
+		var semantic := str(layout_semantic.get(layout_id, ""))
+		if semantic != "":
+			required.append(semantic)
+	for lock in content.get("locks", []):
+		if lock is Dictionary:
+			required.append_array((lock as Dictionary).get("keyRoomIds", []))
+	return RoomContentValidator._required_rooms_reachable(
+		graph,
+		layout_semantic,
+		content,
+		str(layout_semantic.get(graph.start_id, "")),
+		required
 	)
-	if graph.boss_id != "" and not reachable.has(graph.boss_id):
-		return false
-	if graph.stairs_id != "" and not reachable.has(graph.stairs_id):
-		return false
-	var layout_semantic := _layout_to_semantic(assignment)
-	var semantic_layout := {}
-	for layout_id in layout_semantic:
-		semantic_layout[str(layout_semantic[layout_id])] = layout_id
-	var locks: Array = content.get("locks", [])
-	for lock in locks:
-		if not lock is Dictionary:
-			continue
-		var key_rooms: Array = (lock as Dictionary).get(
-			"keyRoomIds", [(lock as Dictionary).get("keyRoomId", "")]
-		)
-		for key_sem in key_rooms:
-			var key_layout: String = str(semantic_layout.get(str(key_sem), ""))
-			if key_layout != "" and not reachable.has(key_layout):
-				return false
-	return true
 
 
 ## Loot for the room on the far side of a one-way shortcut -- rolled from the armory table rather
 ## than the general side-room table, and topped up with a forced pick if the roll came back without
 ## one, so the reward for taking the hard way around is never just consumables.
 static func _roll_armory_chest_items(
-	biome_id: String, rng: RandomNumberGenerator, room_id: String, tier: int
+	biome_id: String, rng: RandomNumberGenerator, room_id: String, tier: int, inputs: Dictionary
 ) -> Array:
 	var biome := BiomeRegistry.get_biome(biome_id)
 	if biome.is_empty():
 		return []
-	var table: Array = ProcgenLootRoller.roll_chest(biome, "armory", maxi(1, tier), rng)
+	var table: Array = ProcgenLootRoller.roll_chest(
+		biome, "armory", maxi(1, tier), rng, 0.0, inputs.get("lockedItems", [])
+	)
 	var has_equipment := false
 	for row in table:
 		if _is_equipment_item(str(row.get("itemId", ""))):
@@ -825,17 +678,16 @@ static func _roll_chest_items(
 	rng: RandomNumberGenerator,
 	room_id: String,
 	content_type: String,
-	tier: int = 1
+	tier: int = 1,
+	inputs: Dictionary = {}
 ) -> Array:
 	var biome := BiomeRegistry.get_biome(biome_id)
 	if biome.is_empty():
 		return []
 	var role := "secret" if content_type == RoomContentTypes.LOCKED_VAULT else "side"
-	# SY-08: the day half of the day/night mechanical tie -- night gets an extra enemy per combat
-	# room (`ProcgenPlacements._place_enemies()`'s `night_bonus`), day gets a little extra value in
-	# the chests it generates instead.
-	var day_bonus := 15.0 if DayNightService and not DayNightService.is_night() else 0.0
-	var table: Array = ProcgenLootRoller.roll_chest(biome, role, maxi(1, tier), rng, day_bonus)
+	var table: Array = ProcgenLootRoller.roll_chest(
+		biome, role, maxi(1, tier), rng, 0.0, inputs.get("lockedItems", [])
+	)
 	var items: Array = []
 	for i in table.size():
 		var row: Dictionary = table[i]
@@ -849,10 +701,9 @@ static func _roll_chest_items(
 	return items
 
 
-## SY-02: an accepted escort quest (`content/quests/*.json`, type `escort`) names a `targetNpcId`
-## that used to never actually appear in a run -- `dungeon_quests.json`'s matching `rescue_<name>`
-## entry now carries the same `targetNpcId`, so an active escort quest's NPC is preferred over the
-## uniform-random pick whenever this biome can place it.
+## An accepted escort quest (`content/quests/*.json`, type `escort`) names a `targetNpcId`;
+## `dungeon_quests.json`'s matching `rescue_<name>` entry carries the same id, so an active escort
+## quest's NPC is preferred over the uniform-random pick whenever this biome can place it.
 static func _pick_dungeon_quest(biome_id: String, rng: RandomNumberGenerator) -> Dictionary:
 	var quests: Array = []
 	for candidate in DungeonQuestCatalogScript.quests_for_biome(biome_id):
@@ -1103,8 +954,7 @@ static func _fallback_assignment(
 	var reserved_semantics := _reserved_semantics(graph, assignment, layout_semantic)
 	# A fallback is still a playable floor, not permission to discard the pacing contract. In
 	# particular, this keeps the guaranteed lore location present when a complex assignment rerolls.
-	_enforce_pacing(room_content, critical_semantic, reserved_semantics, config, rng)
-	_apply_pacing_beats(room_content, critical_semantic, reserved_semantics)
+	_apply_floor_recipe(room_content, graph, layout_semantic, critical_semantic, reserved_semantics, config, rng)
 	if critical_semantic.size() >= 4:
 		locks = RoomLockPlacer.place_locked_doors(
 			graph,
@@ -1131,7 +981,8 @@ static func _fallback_assignment(
 		rng,
 		biome_id,
 		reserved_semantics,
-		tier
+		tier,
+		config.generation_inputs
 	)
 	var content := {"roomContent": room_content, "locks": locks, "puzzles": puzzles}
 	var warnings: Array[String] = []
@@ -1162,3 +1013,4 @@ static func _fallback_assignment(
 		"used_fallback": true,
 		"warnings": warnings,
 	}
+

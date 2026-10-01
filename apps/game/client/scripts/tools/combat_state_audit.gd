@@ -79,10 +79,13 @@ func _ready() -> void:
 	body.set_meta("equipped_mass", 80.0)
 	body.set_meta("carry_capacity", 100.0)
 	stamina.current = 35.0
-	_check(not dodge._can_dash(), "Heavy equipped mass applies before affordability check")
+	var heavy_cost := dodge.get_resolved_dodge_cost()
+	_check(dodge._can_dash(), "Any stamina above zero starts a dodge")
 	body.set_meta("equipped_mass", 0.0)
+	_check(dodge.get_resolved_dodge_cost() < heavy_cost, "Heavy equipped mass raises the dodge cost")
+	stamina.current = 0.0
+	_check(not dodge._can_dash(), "An empty stamina bar cannot start a dodge")
 	stamina.current = 28.0
-	_check(dodge._can_dash(), "Light equipped mass applies before affordability check")
 	guard._enter_guard()
 	dodge.is_dodging = true
 	guard._physics_process(0.01)
@@ -90,7 +93,7 @@ func _ready() -> void:
 	_check(stamina._regen_state == Stamina.RegenState.SUPPRESSED, "Releasing guard cannot enable regen during roll")
 	dodge.reset_after_revive()
 
-	var floor_result := LocalProcgen.generate("forgotten_castle", 7919, 10, "castle", 1, 1, false, false, true)
+	var floor_result := LocalProcgen.generate("forgotten_castle", 7919, 10, "castle", 1, 1, false, true)
 	_check(bool(floor_result.get("ok", false)), "Final floor generates")
 	_check(int(floor_result.get("attempts", 0)) == 1, "Final floor must not reroll looking for unused locks")
 	print("COMBAT STATE RESULT %d failures" % _failures)

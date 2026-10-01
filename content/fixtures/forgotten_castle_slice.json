@@ -113,42 +113,50 @@
     {
       "from": "entrance",
       "to": "stairs",
-      "kind": "corridor"
+      "kind": "corridor",
+      "dir": "south"
     },
     {
       "from": "stairs",
       "to": "courtyard",
-      "kind": "corridor"
+      "kind": "corridor",
+      "dir": "south"
     },
     {
       "from": "courtyard",
       "to": "hall",
-      "kind": "door"
+      "kind": "door",
+      "dir": "east"
     },
     {
       "from": "courtyard",
       "to": "treasure",
-      "kind": "door"
+      "kind": "door",
+      "dir": "south"
     },
     {
       "from": "courtyard",
       "to": "secret",
-      "kind": "secret"
+      "kind": "secret",
+      "dir": "west"
     },
     {
       "from": "hall",
       "to": "arena",
-      "kind": "door"
+      "kind": "door",
+      "dir": "east"
     },
     {
       "from": "arena",
       "to": "boss",
-      "kind": "door"
+      "kind": "door",
+      "dir": "south"
     },
     {
       "from": "hall",
       "to": "stairs",
-      "kind": "shortcut"
+      "kind": "shortcut",
+      "dir": "north"
     }
   ],
   "placements": {

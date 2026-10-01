@@ -16,7 +16,7 @@ func _ready() -> void:
 	_build_ui()
 
 
-## `BS-02`: `total_duration` sizes the fade-in/hold/fade-out so the label matches whatever the
+## `total_duration` sizes the fade-in/hold/fade-out so the label matches whatever the
 ## caller's camera framing/skip window is, instead of a hardcoded 2.9s that could outlast it.
 func show_intro(boss_id: String, total_duration: float = 2.9) -> void:
 	var def := EnemyCatalog.get_definition(boss_id)

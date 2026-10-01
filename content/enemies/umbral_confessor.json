@@ -5,7 +5,7 @@
   "loreText": "It has not been given anything to forgive in years.",
   "scene": "res://scenes/enemies/umbral_confessor.tscn",
   "threat_cost": 100,
-  "isBoss": true,
+  "isElite": true,
   "health": 660,
   "poise": 330,
   "move_speed": 3.6,
@@ -33,6 +33,7 @@
   "attacks": [
     {
       "id": "probe",
+      "anim": "attack_heavy",
       "name": "Testing Thrust",
       "weight": 3,
       "windup_duration": 0.39,
@@ -44,11 +45,15 @@
       "max_range": 2.8,
       "telegraph_shape": "circle",
       "damage_type": "arcane",
-      "attackClass": "unblockable",
-      "knockback": 3.0
+      "attackClass": "blockable",
+      "knockback": 3.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "cleave",
+      "anim": "attack_sweep",
       "name": "High Cleave",
       "weight": 2,
       "windup_duration": 0.94,
@@ -60,11 +65,12 @@
       "max_range": 3.08,
       "telegraph_shape": "cone",
       "damage_type": "arcane",
-      "attackClass": "unblockable",
+      "attackClass": "parryable",
       "knockback": 3.5
     },
     {
       "id": "chain",
+      "anim": "attack_heavy",
       "name": "Measured Chain",
       "weight": 2,
       "windup_duration": 0.55,
@@ -94,11 +100,12 @@
           "knockback": 3.5
         }
       ],
-      "attackClass": "unblockable",
+      "attackClass": "blockable",
       "knockback": 3.0
     },
     {
       "id": "sig_recitation",
+      "anim": "attack_heavy",
       "name": "Recitation",
       "weight": 1.1,
       "windup_duration": 1.45,
@@ -128,7 +135,11 @@
         }
       ],
       "attackClass": "unblockable",
-      "knockback": 3.0
+      "knockback": 3.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     }
   ],
   "phases": [
@@ -150,7 +161,7 @@
           "max_range": 2.8,
           "telegraph_shape": "circle",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -200,7 +211,7 @@
               "knockback": 3.5
             }
           ],
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.0
         }
       ]
@@ -223,7 +234,7 @@
           "max_range": 2.8,
           "telegraph_shape": "circle",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.0
         },
         {
@@ -239,7 +250,7 @@
           "max_range": 3.08,
           "telegraph_shape": "cone",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "blockable",
           "knockback": 3.5
         },
         {
@@ -255,7 +266,7 @@
           "max_range": 3.5,
           "telegraph_shape": "cone",
           "damage_type": "arcane",
-          "attackClass": "unblockable",
+          "attackClass": "parryable",
           "knockback": 3.5
         },
         {

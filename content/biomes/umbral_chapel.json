@@ -4,8 +4,8 @@
   "templatePrefix": "umbral",
   "assetFolder": "umbral",
   "roomCount": {
-    "min": 26,
-    "max": 30
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "umbral_entrance",
@@ -56,32 +56,33 @@
     "rubble": [
       "res://scenes/props/umbral/rubble_a.tscn",
       "res://scenes/props/umbral/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/umbral/banner.tscn",
-    "statue": "res://scenes/props/umbral/statue.tscn",
-    "altar": "res://scenes/props/umbral/altar.tscn",
-    "debrisPile": "res://scenes/props/umbral/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "umbral_penitent",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "umbral_censer",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "umbral_cowl",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "umbral_reliquary_golem",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "umbral_confessor",
-      "weight": 1
+      "weight": 1,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -241,11 +242,11 @@
   "maxHeightLevel": 2,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 5,
-    "minDeadEnds": 5,
-    "branchMaxDepth": 9,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -253,5 +254,6 @@
     "corridorRatio": 0.2,
     "floorSilhouette": "cross"
   },
-  "lootTablePath": "content/loot/tables/umbral_chapel.json"
+  "lootTablePath": "content/loot/tables/umbral_chapel.json",
+  "floorSurface": "wood"
 }

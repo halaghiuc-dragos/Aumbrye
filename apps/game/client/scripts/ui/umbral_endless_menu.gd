@@ -28,7 +28,7 @@ var _stake_label: Label
 var _stake_card: PanelContainer
 var _preview_seed := 0
 
-## MD-03: a real risk/reward card for the stake, not a plain label -- bordered and tinted danger
+## A real risk/reward card for the stake, not a plain label -- bordered and tinted danger
 ## red so it reads as a warning the moment a skip is picked, distinct from the button list above.
 static func _stake_card_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -64,14 +64,14 @@ func open_menu() -> void:
 	_show_main_panel()
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.push(self)
 	_new_button.grab_focus()
 
 
 func close_menu() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.pop(self)
 	menu_closed.emit()
 
 
@@ -79,15 +79,11 @@ func is_open() -> bool:
 	return visible
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		if _skip_panel.visible:
-			_show_main_panel()
-		else:
-			close_menu()
+func _on_cancel_requested() -> void:
+	if _skip_panel.visible:
+		_show_main_panel()
+	else:
+		close_menu()
 
 
 func _refresh_continue_state() -> void:
@@ -112,7 +108,7 @@ func _refresh_continue_state() -> void:
 	_refresh_alt_modes()
 
 
-## MD-05: "One Life" (ironman: endless + permadeath) used to be reachable only through the tower
+## "One Life" (ironman: endless + permadeath) is listed here as well as on the tower
 ## board. Rebuilt every open so a mode unlocked mid-session shows up without reopening.
 func _refresh_alt_modes() -> void:
 	if _alt_mode_row == null:

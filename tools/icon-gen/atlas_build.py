@@ -40,7 +40,7 @@ import item_icons as items_mod  # noqa: E402
 import minimap_icons as minimap_mod  # noqa: E402
 import pixel  # noqa: E402
 import status_icons as status_mod  # noqa: E402
-from generated_manifest import write_generated_bytes_set  # noqa: E402
+from asset_io import write_bytes_set  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "apps" / "game" / "client" / "assets" / "ui"
@@ -430,8 +430,7 @@ def report() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="verify only, write nothing")
-    parser.add_argument("--dry-run", action="store_true", help="validate ownership and staged bytes without writing")
-    parser.add_argument("--force", action="store_true", help="explicitly replace unowned/manual outputs")
+    parser.add_argument("--dry-run", action="store_true", help="report what would change without writing")
     parser.add_argument("--report", action="store_true", help="print the alignment report")
     args = parser.parse_args()
 
@@ -453,26 +452,7 @@ def main() -> None:
         return
 
     outputs = collect()
-    source_paths = [
-        Path(__file__).resolve(),
-        Path(__file__).resolve().parent / "curated.py",
-        Path(__file__).resolve().parent / "item_icons.py",
-        Path(__file__).resolve().parent / "minimap_icons.py",
-        Path(__file__).resolve().parent / "pixel.py",
-        Path(__file__).resolve().parent / "status_icons.py",
-        *[
-            path
-            for path in sorted((ROOT / "content" / "items").rglob("*.json"))
-            if path.name != "catalog.json"
-        ],
-    ]
-    published = write_generated_bytes_set(
-        outputs,
-        generator=Path(__file__).resolve(),
-        sources=source_paths[1:],
-        force=args.force,
-        dry_run=args.dry_run,
-    )
+    published = write_bytes_set(outputs, dry_run=args.dry_run)
     print("%s %d icon-sheet outputs (%d changed)" % (
         "validated" if args.dry_run else "published", len(outputs), len(published)
     ))

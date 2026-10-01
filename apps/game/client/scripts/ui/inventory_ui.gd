@@ -66,12 +66,12 @@ var _hover_equip_slot := ""
 
 ## Which device is currently driving the panel.
 ##
-## The tooltip used to be resolved from the hover *and* the keyboard cursor in one pass, falling
-## back to the selection when nothing was hovered. With a mouse that reads as a bug: move the
-## pointer off the grid and the description of the last item you clicked stays on screen, pointing
-## at nothing. The two models want different answers to "what is the player looking at" -- a
-## pointer is looking at what it is over, and nothing when it is over nothing; a cursor is always
-## somewhere. Tracking which one is live lets each answer for itself.
+## The tooltip is resolved from the hover *or* the keyboard cursor, not both in one pass. With a mouse,
+## falling back to the selection when nothing is hovered reads as a bug: move the pointer off the grid
+## and the description of the last item you clicked would stay on screen, pointing at nothing. The two
+## models want different answers to "what is the player looking at" -- a pointer is looking at what it
+## is over, and nothing when it is over nothing; a cursor is always somewhere. Tracking which one is
+## live lets each answer for itself.
 enum InputMode { POINTER, CURSOR }
 
 var _input_mode: InputMode = InputMode.CURSOR
@@ -118,9 +118,8 @@ func _ready() -> void:
 		symbol_bus.symbols_invalidated.connect(_on_symbols_invalidated)
 	InputGlyphServiceScript.connect_device_family_changed(_rebuild_footer_hints)
 	_refresh_all()
-	# HD-03: `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
+	# `make_center_panel()` only styles the panel shell -- the pixel-filter sweep needs to
 	# run after the grid cells and equipment panel exist.
-	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _inventory() -> GridInventory:
@@ -142,13 +141,15 @@ func _bind_inventory_context() -> void:
 	_refresh_all()
 
 
+## A closed bag has nothing to redraw: `show_inventory()` rebuilds it all on open, so a pickup or a
+## potion mid-fight costs nothing here.
 func _on_main_inventory_changed() -> void:
-	if not _waves_mode:
+	if not _waves_mode and _inventory_open:
 		_refresh_all()
 
 
 func _on_waves_inventory_changed() -> void:
-	if _waves_mode:
+	if _waves_mode and _inventory_open:
 		_refresh_all()
 
 
@@ -210,8 +211,6 @@ func is_open() -> bool:
 
 
 func _build_ui_shell() -> void:
-	for child in get_children():
-		child.queue_free()
 	_backdrop = GameUISkinScript.make_backdrop(self)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	var panel := GameUISkinScript.make_center_panel(
@@ -377,19 +376,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_confirm_action()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("ui_left"):
-		_navigate(Vector2i(-1, 0))
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_right"):
-		_navigate(Vector2i(1, 0))
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_up"):
-		_navigate(Vector2i(0, -1))
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_down"):
-		_navigate(Vector2i(0, 1))
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("sprint"):
+	if event.is_action_pressed("sprint"):
 		_cycle_sort()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("lock_on"):
@@ -420,10 +407,11 @@ func _process(_delta: float) -> void:
 	_drag_ghost.global_position = get_global_mouse_position() - half
 
 
+## The bag opens in the hub or a run with nothing else on top, never over a menu or a front-end screen.
 func toggle() -> void:
 	if _inventory_open:
 		hide_inventory()
-	else:
+	elif PlayerControls.allows_player_ui() and not get_tree().paused and MenuStack.depth() == 0:
 		show_inventory()
 
 
@@ -460,10 +448,6 @@ const STAT_PANEL_DOWN := "#e07a7a"
 
 const STAT_PANEL_OFFENCE: Array[String] = [
 	"physicalDamage",
-	"fireDamage",
-	"frostDamage",
-	"poisonDamage",
-	"arcaneDamage",
 	"damagePercent",
 	"critChance",
 	"poiseDamage",
@@ -656,33 +640,19 @@ func _refresh_grid() -> void:
 		if slot.is_empty():
 			continue
 		var dimmed := _has_active_filter() and not visible_set.has(i)
-		var def := _item_def(slot.get("itemId", ""))
-		var w: int = int(def.get("gridWidth", 1))
-		var h: int = int(def.get("gridHeight", 1))
-		var ox: int = int(slot.get("x", 0))
-		var oy: int = int(slot.get("y", 0))
-		var rarity := inv.get_slot_rarity(slot)
-		var upgrade := BlacksmithServiceScript.get_slot_upgrade_level(slot)
-		for dy in h:
-			for dx in w:
-				var gx := ox + dx
-				var gy := oy + dy
-				var idx := gy * inv.grid_width + gx
-				if idx < 0 or idx >= _cells.size():
-					continue
-				occupied[idx] = true
-				_cells[idx].set_meta(CELL_HAS_ITEM, true)
-				var is_origin := dx == 0 and dy == 0
-				_set_cell_content(
-					_cells[idx], rarity, upgrade if is_origin else 0, slot if is_origin else {}
-				)
-				if dimmed:
-					_cells[idx].self_modulate = Color(1, 1, 1, 0.35)
-				elif i == _drag_index:
-					_cells[idx].self_modulate = Color(1.1, 1.0, 0.55)
-				elif _is_equipped_instance(slot):
-					_cells[idx].self_modulate = Color(0.75, 0.85, 1.0)
-				_cells[idx].set_meta(CELL_BASE_MODULATE, _cells[idx].self_modulate)
+		var idx := i
+		if idx >= _cells.size():
+			continue
+		occupied[idx] = true
+		_cells[idx].set_meta(CELL_HAS_ITEM, true)
+		_set_cell_content(
+			_cells[idx], inv.get_slot_rarity(slot), BlacksmithServiceScript.get_slot_upgrade_level(slot), slot
+		)
+		if dimmed:
+			_cells[idx].self_modulate = Color(1, 1, 1, 0.35)
+		elif i == _drag_index:
+			_cells[idx].self_modulate = Color(1.1, 1.0, 0.55)
+		_cells[idx].set_meta(CELL_BASE_MODULATE, _cells[idx].self_modulate)
 	_highlight_cursor()
 
 
@@ -900,7 +870,7 @@ func _described_equip_slot() -> String:
 
 
 ## Which grid slot the player is looking at, or -1. Same split: off the grid, a pointer is looking
-## at nothing, and saying so is the whole fix for the description that used to stay behind.
+## at nothing, so no description stays behind.
 func _described_grid_index() -> int:
 	if _input_mode == InputMode.POINTER:
 		return _index_at_grid_cell(_hover_grid_index) if _hover_grid_index >= 0 else -1
@@ -1445,18 +1415,6 @@ func _index_at_grid_cell(cell_index: int) -> int:
 	return inv.find_slot_at(gx, gy)
 
 
-func _is_equipped_instance(slot: Dictionary) -> bool:
-	var inv := _inventory()
-	var instance_id: String = slot.get("instanceId", "")
-	if instance_id == "":
-		return false
-	for slot_name in Equipment.SLOT_ORDER:
-		var eq: Dictionary = inv.equipped.get(slot_name, {})
-		if eq.get("instanceId", "") == instance_id:
-			return true
-	return false
-
-
 func _item_def(item_id: String) -> Dictionary:
 	return ItemCatalog.get_definition(item_id)
 
@@ -1593,7 +1551,7 @@ func _on_action_drop_pressed() -> void:
 		_refresh_all()
 
 
-## IV-05: salvage is reachable mid-run, not only at the hub blacksmith -- away from the hub it
+## Salvage is reachable mid-run, not only at the hub blacksmith -- away from the hub it
 ## yields at ForgeService.AWAY_FROM_HUB_YIELD_MULT so a full bag on a deep floor is a real
 ## trade-off (destroy for a partial refund) rather than a wall.
 func _on_action_salvage_pressed() -> void:
@@ -1608,18 +1566,19 @@ func _on_action_salvage_pressed() -> void:
 	var preview := ForgeServiceScript.salvage_preview(slot, away_from_hub)
 	var item_def := _item_def(slot.get("itemId", ""))
 	var item_name := ContentTextScript.name(item_def, str(slot.get("itemId", "")))
-	var parts: PackedStringArray = []
-	for material_id in preview:
-		parts.append("%s x%d" % [str(material_id), int(preview[material_id])])
-	var yield_text := ", ".join(parts) if parts.size() > 0 else tr("SMITH_SALVAGED")
-	MenuShellScript.show_confirmation(
-		self,
-		tr("SMITH_SALVAGE_CONFIRM_TITLE"),
-		tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
-		_do_salvage.bind(inventory, instance_id, away_from_hub),
-		Callable(),
-		tr("SMITH_SALVAGE"),
-		tr("UI_CANCEL")
+	var yield_text := ItemCatalog.display_amounts(preview)
+	if yield_text == "":
+		yield_text = tr("SMITH_SALVAGED")
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("SMITH_SALVAGE_CONFIRM_TITLE"),
+			tr("SMITH_SALVAGE_CONFIRM_MESSAGE") % [item_name, yield_text],
+			tr("SMITH_SALVAGE"),
+			tr("UI_CANCEL"),
+			_do_salvage.bind(inventory, instance_id, away_from_hub),
+			Callable(),
+			true
+		)
 	)
 
 

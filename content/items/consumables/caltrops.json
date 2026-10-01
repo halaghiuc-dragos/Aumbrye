@@ -2,8 +2,6 @@
   "id": "caltrops",
   "name": "Caltrops",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 8,
   "rarity": "common",
   "description": "Scattered behind you, and remembered too late by whoever follows.",

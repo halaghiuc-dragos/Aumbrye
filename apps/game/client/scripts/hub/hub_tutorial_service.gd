@@ -39,7 +39,7 @@ static func load_catalog() -> void:
 		_catalog_ids.append(tip_id)
 
 
-## AD-07: a contextual teaching pass that fires once per account, triggered by the event that
+## A contextual teaching pass that fires once per account, triggered by the event that
 ## makes it relevant rather than a menu the player has to go find. Each hint is recorded as its
 ## own `CharacterService` flag so it never repeats, and the flags survive `reset_for_character()`
 ## on purpose -- this teaches the combat model itself, not this character's progress.
@@ -83,6 +83,11 @@ static func _queue_combat_teaching(seen_flag: String, teaching_key: String) -> v
 	if not bool(flags.get(seen_flag, false)):
 		CharacterService.set_flag(seen_flag, true)
 		CharacterService.set_flag(FLAG_PENDING_COMBAT_TEACHING, flags.get(FLAG_PENDING_COMBAT_TEACHING, []))
+		# Taught at the moment it matters, once per character; the hub recap stays as a reminder.
+		if RunFlow != null and RunFlow.is_run_active():
+			RunFlow.run_warning.emit(String(TranslationServer.translate(teaching_key)))
+			if VfxService != null:
+				VfxService.push_time_scale(&"combat_teaching", 0.3, 600)
 
 
 static func queue_combat_teaching_flags(

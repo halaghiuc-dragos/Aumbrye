@@ -2,8 +2,6 @@
   "id": "frost_flask",
   "name": "Frost Flask",
   "itemType": "consumable",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 8,
   "rarity": "magic",
   "description": "Cold enough that the glass is the part you have to be careful with.",

@@ -143,7 +143,7 @@ static func telegraph_radius_scale() -> float:
 const TELEGRAPH_EMPHASIS_RIM_SCALE := 1.5
 
 
-## `AX-01`: the assist doesn't just make the ring bigger (`telegraph_radius_scale()`), it makes the
+## The assist doesn't just make the ring bigger (`telegraph_radius_scale()`), it makes the
 ## ring itself easier to see -- a thicker rim tick holds up better at a distance and under a
 ## colourblind remap than a larger-but-equally-thin one.
 static func telegraph_rim_thickness_scale() -> float:
@@ -419,7 +419,7 @@ static func get_telegraph_class_color(attack_class: String) -> Color:
 			return _default_telegraph_class_color(attack_class)
 
 
-## `AX-01`: the colour triad above is still colour-only -- a greyscale screenshot collapses all
+## The colour triad above is still colour-only -- a greyscale screenshot collapses all
 ## three classes into the same ring. This is the second, independent channel: the *pattern* the
 ## ground ring is built from, read by `VfxService._telegraph_rim_ring()` and friends. Solid for
 ## blockable (the default, least dangerous read), a dashed ring for parryable (a broken line reads

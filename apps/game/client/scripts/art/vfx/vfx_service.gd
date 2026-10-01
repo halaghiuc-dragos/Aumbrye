@@ -9,8 +9,10 @@ const DECAL_POOL_MAX := 24
 
 const TRAIL_ARC_DEGREES := 150.0
 const TRAIL_LIFETIME := 0.24
+const WEAPON_SWEEP_LIFETIME := 0.17
 
 const EMISSIVE_SHADER_PATH := "res://assets/shared/pixel_diorama_emissive.gdshader"
+const PARTICLE_SHADER_PATH := "res://assets/shared/pixel_particle.gdshader"
 const TRAIL_SHADER_PATH := "res://assets/shared/pixel_diorama_trail.gdshader"
 const EFFECTS_PATH := "content/vfx/effects.json"
 
@@ -31,13 +33,17 @@ var _chunk_meshes: Dictionary = {}
 var _decal_textures: Dictionary = {}
 
 var _burst_pool: Array[CPUParticles3D] = []
-var _gpu_burst_pool: Array[GPUParticles3D] = []
+## GPU bursts come from pools of a fixed `amount` (8, 16 or 32) and a burst asks for a share of that
+## through `amount_ratio`. Writing `amount` on a pooled node reallocates its buffers every time.
+const GPU_AMOUNT_BUCKETS: Array[int] = [8, 16, 32]
+var _gpu_burst_pools: Dictionary = {}
+var _gpu_cursors: Dictionary = {}
 var _decal_pool: Array[Decal] = []
 var _burst_cursor := 0
-var _gpu_cursor := 0
 var _decal_cursor := 0
 
 var _sweep_entries: Array[Dictionary] = []
+var _weapon_sweeps: Array[Dictionary] = []
 var _telegraphs: Array[Dictionary] = []
 var _free_nodes: Array[Node] = []
 
@@ -70,8 +76,6 @@ class TelegraphHandle extends RefCounted:
 			glyph.look_at(glyph.global_position + Vector3(forward.x, 0.0, forward.z), Vector3.UP)
 
 var _time_scale_requests: Dictionary = {}
-const MAX_AGGREGATE_ATTACK_HITSTOP_MS := 180
-var _attack_hitstop_budget_until_ms := 0
 var _shake_amount := 0.0
 var _shake_decay_rate := 9.0
 var _shake_until_ms := 0
@@ -95,6 +99,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if (
 		_sweep_entries.is_empty()
+		and _weapon_sweeps.is_empty()
 		and _free_nodes.is_empty()
 		and _time_scale_requests.is_empty()
 		and _telegraphs.is_empty()
@@ -103,6 +108,7 @@ func _process(delta: float) -> void:
 		set_process(false)
 		return
 	_sweep_pools(delta)
+	_update_weapon_sweeps(delta)
 	_update_telegraphs(delta)
 	_update_time_scale()
 	if _shake_until_ms > 0 and Time.get_ticks_msec() >= _shake_until_ms:
@@ -114,6 +120,46 @@ func _process(delta: float) -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_free_nodes.clear()
+
+
+var _warmed := false
+
+
+## Shaders compile the first time something is drawn with them, which shows up as a hitch in the
+## middle of a fight. This draws each effect material once, tiny and off-screen, while the loading
+## screen is up.
+func warm_up() -> void:
+	if _warmed or DisplayServer.get_name() == "headless":
+		return
+	_warmed = true
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(8, 8)
+	viewport.own_world_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	add_child(viewport)
+	var camera := Camera3D.new()
+	camera.position = Vector3(0.0, 0.0, 2.0)
+	viewport.add_child(camera)
+	var variants := {}
+	variants["%.2f_false" % 0.85] = [0.85, false]
+	for effect in _effects.values():
+		for layer in (effect as Dictionary).get("layers", []):
+			if layer is Dictionary:
+				var emission := float((layer as Dictionary).get("emission", 0.0))
+				var billboard := bool((layer as Dictionary).get("billboard", false))
+				variants["%.2f_%s" % [emission, billboard]] = [emission, billboard]
+	var materials: Array[Material] = [_trail_material(Color.WHITE, 1.0)]
+	for variant in variants.values():
+		materials.append(_particle_material(Color.WHITE, float(variant[0]), bool(variant[1])))
+	for material in materials:
+		var probe := MeshInstance3D.new()
+		probe.mesh = _chunk_mesh("shard_small")
+		probe.material_override = material
+		probe.scale = Vector3.ONE * 0.05
+		viewport.add_child(probe)
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	viewport.queue_free()
 
 
 static func clear_particle_material_cache() -> void:
@@ -150,10 +196,14 @@ func _init_pools() -> void:
 		var cpu := _make_cpu_burst_node("BurstPool%d" % i)
 		_root.add_child(cpu)
 		_burst_pool.append(cpu)
-	for i in mini(GPU_BURST_POOL_MAX, 8):
-		var gpu := _make_gpu_burst_node("GpuBurstPool%d" % i)
-		_root.add_child(gpu)
-		_gpu_burst_pool.append(gpu)
+	for bucket in GPU_AMOUNT_BUCKETS:
+		var pool: Array = []
+		_gpu_burst_pools[bucket] = pool
+		_gpu_cursors[bucket] = 0
+		for i in 2:
+			var gpu := _make_gpu_burst_node("GpuBurstPool%d_%d" % [bucket, i], bucket)
+			_root.add_child(gpu)
+			pool.append(gpu)
 	for i in mini(DECAL_POOL_MAX, 12):
 		var decal := _make_decal_node("DecalPool%d" % i)
 		_root.add_child(decal)
@@ -178,7 +228,8 @@ func _ready_vfx_root() -> void:
 	_root.name = "VfxRoot"
 	add_child(_root)
 	_burst_pool.clear()
-	_gpu_burst_pool.clear()
+	_gpu_burst_pools.clear()
+	_gpu_cursors.clear()
 	_decal_pool.clear()
 	_init_pools()
 
@@ -219,10 +270,9 @@ func resolve_combat_anchor(body: Node3D) -> Array:
 	return [pos, forward]
 
 
-## A presentation sample of the *live* damage volume.  Trails used to use a fixed decorative
-## arc, which could imply a reach different from the active hitbox.  This contract deliberately
-## begins with the same CollisionShape3D that Hitbox queries, then falls back to the old anchor
-## only for actors without melee geometry (bows, effects and legacy scenes).
+## A presentation sample of the *live* damage volume, so a trail never implies a reach different
+## from the active hitbox. It begins with the same CollisionShape3D that Hitbox queries, and falls back
+## to a fixed anchor only for actors without melee geometry (bows, effects and legacy scenes).
 func resolve_combat_trajectory(body: Node3D) -> Dictionary:
 	var anchor := resolve_combat_anchor(body)
 	var base: Vector3 = anchor[0]
@@ -309,10 +359,26 @@ func play_crit_spark(
 	play("crit_spark", world_pos, direction, Color(0, 0, 0, 0), normal)
 
 
-func play_blood_decal(
-	world_pos: Vector3, direction: Vector3 = Vector3.FORWARD, normal: Vector3 = Vector3.UP
+## What a hit leaves behind depends on what was hit: blood on flesh and armour, but shards and a
+## spark on crystal, slime on an ooze, dust and bone chips on the dead, a spark on stone.
+const HIT_MATERIAL_EFFECTS := {
+	"flesh": "blood_decal",
+	"armour": "blood_decal",
+	"crystal": "crystal_hit_decal",
+	"ooze": "ooze_hit_decal",
+	"bone": "bone_hit_decal",
+	"stone": "stone_hit_decal",
+}
+
+
+func play_hit_decal(
+	hit_material: String,
+	world_pos: Vector3,
+	direction: Vector3 = Vector3.FORWARD,
+	normal: Vector3 = Vector3.UP
 ) -> void:
-	play("blood_decal", world_pos, direction, Color(0, 0, 0, 0), normal)
+	var effect_id := str(HIT_MATERIAL_EFFECTS.get(hit_material, "blood_decal"))
+	play(effect_id, world_pos, direction, Color(0, 0, 0, 0), normal)
 
 
 func play_impact_decal(
@@ -366,22 +432,40 @@ func play_footstep(
 	_foot_alt = not _foot_alt
 	var foot_pos := world_pos + side * 0.18 * foot_side
 	var normal := ground_normal.normalized() if ground_normal.length_squared() > 0.01 else Vector3.UP
-	play(effect_id, foot_pos, forward, Color.WHITE, normal, {"ground_normal": normal})
-
-
-func play_weapon_trail(
-	world_pos: Vector3,
-	forward: Vector3 = Vector3.FORWARD,
-	tint: Color = Color(1.0, 0.95, 0.72),
-	radius: float = 1.05
-) -> void:
-	play("weapon_trail", world_pos, forward, tint, Vector3.UP, {"radius": radius})
+	play(effect_id, foot_pos, forward, Color.TRANSPARENT, normal, {"ground_normal": normal})
 
 
 func play_weapon_trajectory(base: Vector3, tip: Vector3, tint: Color = Color(1.0, 0.95, 0.72)) -> void:
 	if tip.distance_squared_to(base) <= 0.0001:
 		return
 	_build_weapon_trail_segment(base, tip, tint)
+
+
+## Samples the visible weapon itself in its own World3D. First-person models live in a
+## separate viewport, so placing this effect beside the blade avoids world/viewmodel drift.
+func start_weapon_sweep(blade: MeshInstance3D) -> void:
+	if blade == null or not is_instance_valid(blade) or not blade.is_inside_tree():
+		return
+	if blade.mesh == null:
+		return
+	var visual_parent := blade.get_parent() as Node3D
+	if visual_parent == null:
+		return
+	var visual := MeshInstance3D.new()
+	visual.name = "BladeSweep"
+	visual.top_level = true
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	visual.mesh = ImmediateMesh.new()
+	visual.material_override = _trail_material(Color(1.0, 0.92, 0.72, 0.75), 0.9)
+	visual_parent.add_child(visual)
+	visual.global_transform = Transform3D.IDENTITY
+	_weapon_sweeps.append({
+		"blade": blade,
+		"visual": visual,
+		"remaining": WEAPON_SWEEP_LIFETIME,
+		"samples": [],
+	})
+	set_process(true)
 
 
 ## The triad lives in AccessibilitySettings alongside the damage-number colours, because it has to
@@ -430,26 +514,6 @@ func request_hitstop(duration_ms: int, strength: float = 0.05) -> void:
 	var scaled_duration := maxi(1, roundi(duration_ms * accessibility_scale))
 	var scaled_strength := lerpf(1.0, strength, accessibility_scale)
 	push_time_scale(&"vfx_hitstop", scaled_strength, scaled_duration)
-
-
-func request_attack_hitstop(root_attack_id: String, duration_ms: int, strength: float = 0.05) -> void:
-	if root_attack_id == "":
-		request_hitstop(duration_ms, strength)
-		return
-	if not PixelDioramaSettings.hitstop_enabled:
-		return
-	var accessibility_scale := AccessibilitySettings.hitstop_scale()
-	if accessibility_scale <= 0.0:
-		return
-	var now_ms := Time.get_ticks_msec()
-	if now_ms >= _attack_hitstop_budget_until_ms:
-		_attack_hitstop_budget_until_ms = now_ms + MAX_AGGREGATE_ATTACK_HITSTOP_MS
-	var remaining_budget := _attack_hitstop_budget_until_ms - now_ms
-	if remaining_budget <= 0:
-		return
-	var scaled_duration := mini(maxi(1, roundi(duration_ms * accessibility_scale)), remaining_budget)
-	var scaled_strength := lerpf(1.0, strength, accessibility_scale)
-	push_time_scale(StringName("vfx_hitstop:%s" % root_attack_id), scaled_strength, scaled_duration)
 
 
 func push_time_scale(id: StringName, scale: float, duration_ms: int = 0) -> void:
@@ -543,6 +607,17 @@ func _play_layer(
 			_play_decal_layer(layer, world_pos, direction, normal, overrides)
 		"ribbon":
 			_play_ribbon_layer(layer, world_pos, direction, tint_override, overrides)
+		"ground_imprint":
+			_build_ground_imprint(
+				world_pos, direction, normal, _color_from_layer(layer, tint_override),
+				float(layer.get("size", 0.38)), float(layer.get("lifetime", 0.28)),
+				bool(layer.get("closed", false))
+			)
+		"impact_flash":
+			_build_impact_flash(
+				world_pos, direction, _color_from_layer(layer, tint_override),
+				float(layer.get("size", 0.42)), float(layer.get("lifetime", 0.16))
+			)
 		"glyph":
 			_play_glyph_layer(layer, world_pos, direction, tint_override, overrides)
 		"impact":
@@ -639,6 +714,83 @@ func _play_ribbon_layer(
 	_build_weapon_trail(world_pos, forward, tint, radius, lifetime, arc, emission)
 
 
+## Two low, fading crescents read as a foot touching the surface without spraying
+## billboard debris. Water closes the outline into a ripple.
+func _build_ground_imprint(
+	world_pos: Vector3, direction: Vector3, normal: Vector3,
+	tint: Color, size: float, lifetime: float, closed: bool
+) -> void:
+	var up := normal.normalized() if normal.length_squared() > 0.1 else Vector3.UP
+	var forward := direction - up * direction.dot(up)
+	if forward.length_squared() < 0.01:
+		forward = Vector3.FORWARD
+	forward = forward.normalized()
+	var side := up.cross(forward).normalized()
+	var visual := MeshInstance3D.new()
+	visual.name = "GroundImprint"
+	visual.top_level = true
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mesh := ImmediateMesh.new()
+	visual.mesh = mesh
+	visual.material_override = _trail_material(Color(tint.r, tint.g, tint.b, 0.48), 0.08)
+	_root.add_child(visual)
+	visual.global_transform = Transform3D.IDENTITY
+	var center := world_pos + up * 0.025
+	var arc_count := 1 if closed else 2
+	for arc_index in arc_count:
+		var start := 0.0 if closed else float(arc_index) * PI + PI * 0.12
+		var sweep := TAU if closed else PI * 0.76
+		mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+		for i in 13:
+			var t := float(i) / 12.0
+			var angle := start + sweep * t
+			var radial := side * cos(angle) + forward * sin(angle) * 1.22
+			var alpha := 0.7 if closed else sin(PI * t) * 0.7
+			mesh.surface_set_color(Color(1.0, 1.0, 1.0, alpha))
+			mesh.surface_add_vertex(center + radial * (size * 0.5))
+			mesh.surface_add_vertex(center + radial * (size * 0.5 - 0.035))
+		mesh.surface_end()
+	var fade := create_tween()
+	fade.tween_property(visual, "transparency", 1.0, lifetime)
+	_schedule_free(visual, lifetime + 0.03)
+
+
+## A short, fixed four-point glint keeps contact readable without scattering
+## independent shards that linger after the animation has moved on.
+func _build_impact_flash(
+	world_pos: Vector3, direction: Vector3, tint: Color, size: float, lifetime: float
+) -> void:
+	var forward := direction.normalized() if direction.length_squared() > 0.01 else Vector3.FORWARD
+	var side := forward.cross(Vector3.UP)
+	if side.length_squared() < 0.01:
+		side = Vector3.RIGHT
+	side = side.normalized()
+	var up := side.cross(forward).normalized()
+	var visual := MeshInstance3D.new()
+	visual.name = "ImpactGlint"
+	visual.top_level = true
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mesh := ImmediateMesh.new()
+	visual.mesh = mesh
+	visual.material_override = _trail_material(Color(tint.r, tint.g, tint.b, 0.75), 0.75)
+	_root.add_child(visual)
+	visual.global_transform = Transform3D.IDENTITY
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for raw_axis in [side, -side, up, -up]:
+		var axis: Vector3 = raw_axis
+		var across: Vector3 = up if absf(axis.dot(side)) > 0.9 else side
+		var tip: Vector3 = world_pos + axis * size
+		mesh.surface_set_color(Color(1.0, 1.0, 1.0, 0.7))
+		mesh.surface_add_vertex(world_pos + across * 0.045)
+		mesh.surface_add_vertex(world_pos - across * 0.045)
+		mesh.surface_set_color(Color(1.0, 1.0, 1.0, 0.05))
+		mesh.surface_add_vertex(tip)
+	mesh.surface_end()
+	var fade := create_tween()
+	fade.tween_property(visual, "transparency", 1.0, lifetime)
+	_schedule_free(visual, lifetime + 0.03)
+
+
 func _play_glyph_layer(
 	layer: Dictionary,
 	world_pos: Vector3,
@@ -724,9 +876,10 @@ func _emit_gpu_burst(
 	lifetime: float,
 	cfg: Dictionary
 ) -> void:
-	var particles := _acquire_gpu_burst()
+	var bucket := _amount_bucket(amount)
+	var particles := _acquire_gpu_burst(bucket)
 	particles.name = node_name
-	particles.amount = maxi(4, amount)
+	particles.amount_ratio = clampf(float(maxi(1, amount)) / float(bucket), 0.05, 1.0)
 	particles.lifetime = lifetime
 	particles.explosiveness = float(cfg.get("explosiveness", 0.8))
 	particles.randomness = float(cfg.get("randomness", 0.35))
@@ -757,10 +910,20 @@ func _acquire_burst() -> CPUParticles3D:
 	return _acquire_from_pool(_burst_pool, _burst_cursor, BURST_POOL_MAX, _make_cpu_burst_node)
 
 
-func _acquire_gpu_burst() -> GPUParticles3D:
-	_gpu_cursor = _next_cursor(_gpu_burst_pool, _gpu_cursor)
+func _amount_bucket(amount: int) -> int:
+	for bucket in GPU_AMOUNT_BUCKETS:
+		if amount <= bucket:
+			return bucket
+	return GPU_AMOUNT_BUCKETS[GPU_AMOUNT_BUCKETS.size() - 1]
+
+
+func _acquire_gpu_burst(bucket: int) -> GPUParticles3D:
+	var pool: Array = _gpu_burst_pools[bucket]
+	var cursor := _next_cursor(pool, int(_gpu_cursors[bucket]))
+	_gpu_cursors[bucket] = cursor
 	return _acquire_from_pool(
-		_gpu_burst_pool, _gpu_cursor, GPU_BURST_POOL_MAX, _make_gpu_burst_node
+		pool, cursor, GPU_BURST_POOL_MAX,
+		func(node_name: String) -> GPUParticles3D: return _make_gpu_burst_node(node_name, bucket)
 	)
 
 
@@ -775,11 +938,9 @@ func _next_cursor(pool: Array, cursor: int) -> int:
 
 ## First idle node, else a new one up to the cap, else the node the round-robin cursor is on.
 ##
-## The victim used to be chosen by least-recently-acquired, tracked in a generation counter and
-## three parallel arrays kept in step with the pools. That only decides which effect gets cut short
-## when the pool is full *and* every node in it is still emitting — at which point an effect is
-## being dropped either way, and cycling spreads the loss instead of repeatedly stealing the same
-## node.
+## The cursor only decides which effect gets cut short when the pool is full *and* every node in it is
+## still emitting. An effect is being dropped either way, and cycling spreads the loss instead of
+## repeatedly stealing the same node.
 func _acquire_from_pool(pool: Array, cursor: int, cap: int, factory: Callable) -> Variant:
 	for node in pool:
 		if not _is_pool_node_busy(node):
@@ -825,13 +986,13 @@ func _make_cpu_burst_node(node_name: String) -> CPUParticles3D:
 	return particles
 
 
-func _make_gpu_burst_node(node_name: String) -> GPUParticles3D:
+func _make_gpu_burst_node(node_name: String, bucket: int = 16) -> GPUParticles3D:
 	var particles := GPUParticles3D.new()
 	particles.name = node_name
 	particles.emitting = false
 	particles.one_shot = true
 	particles.top_level = true
-	particles.amount = 24
+	particles.amount = bucket
 	particles.lifetime = 0.3
 	particles.explosiveness = 0.9
 	particles.draw_pass_1 = _chunk_mesh("shard_small")
@@ -929,33 +1090,103 @@ func _sweep_pools(delta: float) -> void:
 				_free_nodes.append(node)
 
 
+func _update_weapon_sweeps(delta: float) -> void:
+	for i in range(_weapon_sweeps.size() - 1, -1, -1):
+		var entry: Dictionary = _weapon_sweeps[i]
+		var blade := entry.get("blade") as MeshInstance3D
+		var visual := entry.get("visual") as MeshInstance3D
+		var remaining := float(entry.get("remaining", 0.0)) - delta
+		if remaining <= 0.0 or not is_instance_valid(blade) or not blade.is_inside_tree() or not is_instance_valid(visual):
+			if is_instance_valid(visual):
+				visual.queue_free()
+			_weapon_sweeps.remove_at(i)
+			continue
+		var blade_points := _visible_blade_points(blade)
+		if blade_points.is_empty():
+			visual.queue_free()
+			_weapon_sweeps.remove_at(i)
+			continue
+		var base: Vector3 = blade_points["base"]
+		var tip: Vector3 = blade_points["tip"]
+		var samples: Array = entry.get("samples", [])
+		for j in range(samples.size() - 1, -1, -1):
+			var sample: Dictionary = samples[j]
+			sample["age"] = float(sample.get("age", 0.0)) + delta
+			if float(sample["age"]) >= WEAPON_SWEEP_LIFETIME:
+				samples.remove_at(j)
+			else:
+				samples[j] = sample
+		if base.distance_to(tip) >= 0.15 and base.distance_to(tip) <= 2.5:
+			if not samples.is_empty():
+				var previous: Dictionary = samples.back()
+				var previous_base: Vector3 = previous["base"]
+				var previous_tip: Vector3 = previous["tip"]
+				if base.distance_to(previous_base) > 1.25 or tip.distance_to(previous_tip) > 1.25:
+					samples.clear()
+			if samples.is_empty() or tip.distance_to((samples.back() as Dictionary)["tip"]) > 0.025:
+				samples.append({"base": base, "tip": tip, "age": 0.0})
+		while samples.size() > 12:
+			samples.remove_at(0)
+		var ribbon := visual.mesh as ImmediateMesh
+		ribbon.clear_surfaces()
+		if samples.size() >= 2:
+			ribbon.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+			for sample in samples:
+				var alpha := 0.72 * (1.0 - float(sample["age"]) / WEAPON_SWEEP_LIFETIME)
+				ribbon.surface_set_color(Color(1.0, 1.0, 1.0, alpha))
+				ribbon.surface_add_vertex(sample["base"])
+				ribbon.surface_add_vertex(sample["tip"])
+			ribbon.surface_end()
+		entry["remaining"] = remaining
+		entry["samples"] = samples
+		_weapon_sweeps[i] = entry
+
+
+func _visible_blade_points(blade: MeshInstance3D) -> Dictionary:
+	if blade.mesh == null:
+		return {}
+	var bounds := blade.mesh.get_aabb()
+	var span := bounds.size
+	var center := bounds.position + span * 0.5
+	var axis := Vector3.RIGHT
+	var reach := span.x * 0.5
+	if span.y > span.x and span.y >= span.z:
+		axis = Vector3.UP
+		reach = span.y * 0.5
+	elif span.z > span.x and span.z > span.y:
+		axis = Vector3.BACK
+		reach = span.z * 0.5
+	if reach < 0.08:
+		return {}
+	return {
+		"base": blade.to_global(center - axis * reach),
+		"tip": blade.to_global(center + axis * reach),
+	}
+
+
 func _next_pool_token(node: Node) -> int:
 	var token := int(node.get_meta("pool_token", 0)) + 1
 	node.set_meta("pool_token", token)
 	return token
 
 
-func _particle_material(color: Color, emission_energy: float, billboard: bool = false) -> Material:
-	var key := "%s_%.2f_%s" % [color.to_html(false), emission_energy, billboard]
+## The particle's own colour (`COLOR`) carries the tint, so the material depends only on how bright
+## it glows and whether it faces the camera; `color` is kept for the callers that set it on the
+## particles themselves.
+func _particle_material(_color: Color, emission_energy: float, billboard: bool = false) -> Material:
+	var key := "%.2f_%s" % [emission_energy, billboard]
 	if _particle_material_cache.has(key):
 		return _particle_material_cache[key] as Material
 	if billboard:
 		var flake := StandardMaterial3D.new()
 		flake.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		flake.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		flake.albedo_color = color
-		flake.emission_enabled = emission_energy > 0.0
-		flake.emission = color
-		flake.emission_energy_multiplier = emission_energy
+		flake.vertex_color_use_as_albedo = true
 		_particle_material_cache[key] = flake
 		return flake
 	var mat := ShaderMaterial.new()
-	mat.shader = load(EMISSIVE_SHADER_PATH) as Shader
-	mat.set_shader_parameter("color_core", color)
-	mat.set_shader_parameter("color_edge", color.darkened(0.25))
+	mat.shader = load(PARTICLE_SHADER_PATH) as Shader
 	mat.set_shader_parameter("emission_energy", emission_energy)
-	mat.set_shader_parameter("grain_strength", 0.0)
-	mat.set_shader_parameter("pulse_speed", 0.0)
 	PixelDioramaSettings.apply_to_shader_material(mat)
 	_particle_material_cache[key] = mat
 	PixelDioramaSettings.track(mat)
@@ -992,16 +1223,12 @@ func _chunk_mesh(chunk_id: String) -> Mesh:
 			quad.orientation = PlaneMesh.FACE_Z
 		built = quad
 	else:
-		var box := BoxMesh.new()
+		var chunk_size := Vector3(float(sizes[0]), float(sizes[0]), float(sizes[0]))
 		if sizes.size() >= 3:
-			box.size = PixelStyle.snap_size_to_pixel_grid(
-				Vector3(float(sizes[0]), float(sizes[1]), float(sizes[2]))
-			)
-		else:
-			box.size = PixelStyle.snap_size_to_pixel_grid(
-				Vector3(float(sizes[0]), float(sizes[0]), float(sizes[0]))
-			)
-		built = box
+			chunk_size = Vector3(float(sizes[0]), float(sizes[1]), float(sizes[2]))
+		built = PropLibrary.scaled_mesh(
+			"fx/debris_%s" % "abc"[absi(chunk_id.hash()) % 3], PixelStyle.snap_size_to_pixel_grid(chunk_size)
+		)
 	_chunk_meshes[chunk_id] = built
 	return built
 
@@ -1021,34 +1248,18 @@ func _pick_decal_texture(decal_id: String) -> Texture2D:
 		paths.append(String(entry))
 	var loaded: Array[Texture2D] = []
 	for path in paths:
-		var tex: Texture2D = null
-		if ResourceLoader.exists(path):
-			tex = load(path) as Texture2D
-		if tex == null:
-			if FileAccess.file_exists(path):
-				var img := Image.load_from_file(path)
-				if img:
-					tex = ImageTexture.create_from_image(img)
+		var tex := load(path) as Texture2D if ResourceLoader.exists(path) else null
 		if tex != null:
 			loaded.append(tex)
 	if loaded.is_empty():
-		var fallback := _procedural_decal_texture(decal_id)
-		_decal_textures[decal_id] = fallback
-		return fallback
+		push_error("VfxService: decal '%s' has no loadable texture" % decal_id)
+		_decal_textures[decal_id] = null
+		return null
 	if loaded.size() == 1:
 		_decal_textures[decal_id] = loaded[0]
 		return loaded[0]
 	_decal_textures[decal_id] = loaded
 	return loaded[randi() % loaded.size()]
-
-
-func _procedural_decal_texture(decal_id: String) -> Texture2D:
-	var color := Color(0.35, 0.32, 0.28, 0.7)
-	var scatter := 0.55
-	if "blood" in decal_id:
-		color = Color(0.55, 0.08, 0.06, 0.85)
-		scatter = 0.35
-	return _make_decal_texture(color, scatter)
 
 
 func _spawn_decal(
@@ -1086,19 +1297,6 @@ func _spawn_decal(
 		decal.set_meta("decal_fade_tween", tween)
 		tween.tween_property(decal, "modulate:a", 0.0, fade).set_delay(maxf(0.0, lifetime - fade))
 	_schedule_decal_return(decal, lifetime)
-
-
-func _make_decal_texture(color: Color, scatter: float) -> Texture2D:
-	var size := 32
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var center := Vector2(size * 0.5, size * 0.5)
-	for y in size:
-		for x in size:
-			var dist := Vector2(x, y).distance_to(center) / float(size)
-			if dist < scatter + randf() * 0.08:
-				img.set_pixel(x, y, color)
-	return ImageTexture.create_from_image(img)
 
 
 func _build_weapon_trail(
@@ -1285,8 +1483,8 @@ func _telegraph_ring(
 		_telegraph_rim_ring(glyph, radius * 0.72, rim_mat, 18, 0.22, "solid")
 
 
-## `AX-01`: the second, colour-independent channel for an attack class. `"solid"` places every
-## segment (the pre-`AX-01` behaviour); `"dashed"` places only every other one, so a greyscale
+## The second, colour-independent channel for an attack class. `"solid"` places every
+## segment (the earlier behaviour); `"dashed"` places only every other one, so a greyscale
 ## screenshot still reads a broken ring rather than a full one; `"double"` is handled by the caller,
 ## which draws this ring a second time at a smaller radius -- doubling up here instead would just
 ## make a solid ring look like a slightly thicker solid ring.
@@ -1373,7 +1571,7 @@ func _telegraph_annulus_fill(
 	parent.add_child(fill)
 
 
-## `AX-01`: one long edge box reads as solid either way, so a dashed line needs actual gaps rather
+## One long edge box reads as solid either way, so a dashed line needs actual gaps rather
 ## than a shorter mesh -- built here as a row of short segments with a skipped gap between each.
 func _telegraph_edge_line(
 	glyph: Node3D, rim_mat: Material, x: float, length: float, pattern: String
@@ -1416,7 +1614,7 @@ func _telegraph_cone(
 	for i in segments:
 		var angle := lerpf(-half, half, float(i) / float(segments - 1))
 		var on_edge := i == 0 or i == segments - 1
-		# `AX-01`: the two boundary edges are what makes this shape a wedge rather than a blob --
+		# The two boundary edges are what makes this shape a wedge rather than a blob --
 		# dashing only thins the arc ticks between them, never the edges themselves.
 		if pattern == "dashed" and not on_edge and i % 2 == 1:
 			continue

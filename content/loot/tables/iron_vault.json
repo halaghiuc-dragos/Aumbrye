@@ -62,14 +62,6 @@
         "weight": 1
       },
       {
-        "itemId": "unique_rimeglass_pendant",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "unique_the_long_winter",
         "quantity": [
           1,
@@ -130,23 +122,7 @@
         "weight": 10
       },
       {
-        "itemId": "graysteel_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
         "itemId": "graysteel_greatsword",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
-        "itemId": "graysteel_greaves",
         "quantity": [
           1,
           1
@@ -186,14 +162,6 @@
         "weight": 10
       },
       {
-        "itemId": "graysteel_pendant",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 10
-      },
-      {
         "itemId": "graysteel_shortsword",
         "quantity": [
           1,
@@ -219,14 +187,6 @@
       },
       {
         "itemId": "castle_crown",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 4
-      },
-      {
-        "itemId": "frost_gauntlets",
         "quantity": [
           1,
           1

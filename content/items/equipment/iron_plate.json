@@ -2,8 +2,6 @@
   "id": "iron_plate",
   "name": "Iron Plate",
   "itemType": "armor",
-  "gridWidth": 2,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "common",
   "description": "Riveted plates scavenged from fallen wardens. Heavy, honest, unremarkable.",

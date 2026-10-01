@@ -10,7 +10,7 @@ const BOUNDS_MAX_STALE_FRAMES := 6
 const BOUNDS_MOVEMENT_ALLOWANCE := 3.0
 const MAX_FLANKERS := 2
 
-## `EN-08`: a flanker's target bearing, in degrees either side of the player's own facing.
+## A flanker's target bearing, in degrees either side of the player's own facing.
 const FLANK_ANGLE_DEG := 100.0
 ## Roles are re-run on a timer, not only on membership change, so they follow the player turning.
 const REASSIGN_INTERVAL_MSEC := 1500
@@ -236,7 +236,7 @@ static func maybe_reassign(room_id: int) -> void:
 	_assign_roles(record)
 
 
-## `EN-08`: roles are sorted by bearing from the player's own facing, not by insertion order --
+## Roles are sorted by bearing from the player's own facing, not by insertion order --
 ## `ENGAGER` goes to whoever is nearest the front arc, `FLANKER` to whoever is nearest the ±90°
 ## arcs *among those left over*, so a flanker actually flanks instead of just being third in line.
 static func _assign_roles(record: Dictionary) -> void:

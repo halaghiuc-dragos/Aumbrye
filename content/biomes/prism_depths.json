@@ -4,8 +4,8 @@
   "templatePrefix": "prism",
   "assetFolder": "prism",
   "roomCount": {
-    "min": 22,
-    "max": 26
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "prism_entrance",
@@ -56,32 +56,33 @@
     "rubble": [
       "res://scenes/props/prism/rubble_a.tscn",
       "res://scenes/props/prism/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/prism/banner.tscn",
-    "statue": "res://scenes/props/prism/statue.tscn",
-    "altar": "res://scenes/props/prism/altar.tscn",
-    "debrisPile": "res://scenes/props/prism/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "prism_shardling",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "prism_lantern",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "prism_refractor",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "prism_facet_golem",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "prism_cantor",
-      "weight": 1
+      "weight": 1,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -223,11 +224,11 @@
   "maxHeightLevel": 2,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 5,
-    "minDeadEnds": 5,
-    "branchMaxDepth": 8,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 4,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -252,5 +253,6 @@
     "lift": 0.02,
     "vignette": 0.22
   },
-  "lootTablePath": "content/loot/tables/prism_depths.json"
+  "lootTablePath": "content/loot/tables/prism_depths.json",
+  "floorSurface": "stone"
 }

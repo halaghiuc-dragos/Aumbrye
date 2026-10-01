@@ -21,7 +21,8 @@ static func place(
 	tier: int,
 	player_level: int,
 	floor_index: int,
-	graph: RoomGraph = null
+	graph: RoomGraph = null,
+	inputs: Dictionary = {}
 ) -> Dictionary:
 	var enemies_rng := ProcgenRng.stream(run_seed, "enemies")
 	var loot_rng := ProcgenRng.stream(run_seed, "loot")
@@ -29,9 +30,11 @@ static func place(
 	var cover_rng := ProcgenRng.stream(run_seed, "cover")
 	var boss_rng := ProcgenRng.stream_with_mix(run_seed, "boss", tier * 1009 + floor_index * 9176)
 	var enemies_result := _place_enemies(
-		biome, assignment, run_seed, tier, player_level, floor_index, enemies_rng, graph
+		biome, assignment, run_seed, tier, player_level, floor_index, enemies_rng, graph, inputs
 	)
-	var miniboss_result := _place_miniboss(biome, assignment, run_seed, tier, floor_index, graph)
+	var miniboss_result := _place_miniboss(
+		biome, assignment, run_seed, tier, floor_index, graph, inputs
+	)
 	var loot_result := _place_loot(
 		biome,
 		assignment,
@@ -41,7 +44,8 @@ static func place(
 		loot_rng,
 		traps_rng,
 		boss_rng,
-		graph
+		graph,
+		inputs
 	)
 	if not loot_result.get("ok", true):
 		return loot_result
@@ -66,7 +70,7 @@ static func place(
 	}
 
 
-## `BS-06`: one named fight every third floor (3, 6, 9...) that is not the floor boss -- placed in a
+## One named fight every third floor (3, 6, 9...) that is not the floor boss -- placed in a
 ## dead-end room, entirely outside `_place_enemies`' shared threat budget since this is a guaranteed
 ## encounter rather than a purchased one, with its own guaranteed equipment drop (the same
 ## `roll_chest("armory", ...)` pattern `MODIFIER_BOSS_HOARD` uses for the boss room).
@@ -76,10 +80,11 @@ static func _place_miniboss(
 	run_seed: int,
 	tier: int,
 	floor_index: int,
-	graph: RoomGraph
+	graph: RoomGraph,
+	inputs: Dictionary
 ) -> Dictionary:
 	var empty := {"enemies": [], "loot": []}
-	# Block-relative, not the raw run-wide floor counter -- floors 3/6/9 of *this* ten-floor block,
+	# Block-relative, not the raw run-wide floor counter -- floor 3 of *this* five-floor block,
 	# never its floor 10, which `generate()` already routed to `_generate_final_floor()` and its own
 	# arena/boss line before this function is ever reached.
 	if RunFloorConfig.floor_within_block(floor_index) % 3 != 0:
@@ -117,7 +122,7 @@ static func _place_miniboss(
 				room_id,
 				"%s_miniboss_drop" % room_id,
 				chest_anchors[chest_anchors.size() - 1],
-				ProcgenLootRoller.roll_chest(biome, "armory", tier + 1, rng)
+				ProcgenLootRoller.roll_chest(biome, "armory", tier + 1, rng, 0.0, inputs.get("lockedItems", []))
 			)
 		)
 	return {"enemies": enemies, "loot": loot}
@@ -146,6 +151,12 @@ static func _pick_dead_end_room(assignment: Dictionary, graph: RoomGraph) -> Dic
 	return candidates[0]
 
 
+const PACK_ROOM_CHANCE := 0.65
+## Budget floor per combat room, in cheapest-enemy units: 1 pays for each room's guaranteed enemy and
+## the rest buys the second to fourth enemy of the pack rooms.
+const PACK_BUDGET_FACTOR := 2.6
+
+
 static func _place_enemies(
 	biome: Dictionary,
 	assignment: Dictionary,
@@ -154,15 +165,17 @@ static func _place_enemies(
 	player_level: int,
 	floor_index: int,
 	rng: RandomNumberGenerator,
-	graph: RoomGraph = null
+	graph: RoomGraph = null,
+	inputs: Dictionary = {}
 ) -> Dictionary:
+	biome = _biome_with_introduced_enemies(biome, RunFloorConfig.floor_within_block(floor_index))
 	var biome_id := str(biome.get("id", ""))
-	# `EN-12`: an elite exists in every normal run, not only under the `elite_packs`/`elite_vigil`
+	# An elite exists in every normal run, not only under the `elite_packs`/`elite_vigil`
 	# run modifiers -- one guaranteed elite from floor 3 onward, skipped on a miniboss floor
-	# (`BS-06` already reserves that floor's off-path dead end for a harder, named fight with its
+	# (an earlier step already reserves that floor's off-path dead end for a harder, named fight with its
 	# own guaranteed drop, and two forced fights in the same room would just be noise).
 	var block_floor := RunFloorConfig.floor_within_block(floor_index)
-	var default_elite := block_floor >= 3 and block_floor % 3 != 0
+	var default_elite := block_floor >= 2 and block_floor % 3 != 0
 	var elite_rule := (
 		default_elite
 		or RunModifierService.has_modifier(RunModifierService.MODIFIER_ELITE_PACKS)
@@ -181,7 +194,7 @@ static func _place_enemies(
 	var elite_room := {}
 	if default_elite:
 		# The guaranteed elite belongs in the off-path room the reward for exploring should be a
-		# harder fight, not whichever combat room happens to sort first -- reuse `BS-06`'s own
+		# harder fight, not whichever combat room happens to sort first -- reuse own
 		# dead-end pick and move it to the front so pass one's `is_first_in_room` forcing below
 		# lands there.
 		elite_room = _pick_dead_end_room(assignment, graph)
@@ -205,7 +218,7 @@ static func _place_enemies(
 			+ float(budgets.get("threatPerTier", 35)) * float(tier - 1)
 			+ float(player_level) * 5.0
 		),
-		float(combat_rooms.size()) * min_cost
+		float(combat_rooms.size()) * min_cost * PACK_BUDGET_FACTOR
 	)
 	var placements: Array = []
 	var state := {"threat_used": 0.0, "elites_placed": 0, "role_counts": {}, "room_role_counts": {}}
@@ -214,6 +227,8 @@ static func _place_enemies(
 		door_distances = RoomGraphPaths.bfs_distances(graph, graph.start_id)
 	var room_anchor_idx := {}
 	var room_max: Dictionary = {}
+	## Rooms that run an encounter template: room id -> the role each of its enemies fills.
+	var room_slots: Dictionary = {}
 	for room in combat_rooms:
 		var room_id := str(room.get("semantic_id", ""))
 		room_anchor_idx[room_id] = 0
@@ -221,17 +236,23 @@ static func _place_enemies(
 		if graph != null:
 			var layout_id: String = room.get("layout_id", "")
 			depth = int(door_distances.get(layout_id, 0))
-		var night_bonus := 1 if DayNightService and DayNightService.is_night() else 0
-		# SY-08: the one mechanical tie the plan asked for -- a floor started at night rolls one
-		# extra enemy per combat room's cap (still spent from the same shared threat budget below,
-		# so this raises the ceiling rather than guaranteeing the extra body).
-		room_max[room_id] = clampi(1 + int(depth / 3.0) + int((tier - 1) / 2.0) + night_bonus, 1, 5)
+		room_max[room_id] = clampi(1 + int(depth / 3.0) + int((tier - 1) / 2.0), 1, 5)
+		# Some combat rooms are set pieces: a pack of two to four, so roles, flanking and attack
+		# tokens actually engage instead of every fight being a duel.
+		if rng.randf() < PACK_ROOM_CHANCE:
+			var encounter := _pick_encounter(biome.get("enemyPool", []), block_floor, depth, rng)
+			if encounter.is_empty():
+				room_max[room_id] = maxi(int(room_max[room_id]), 2 + rng.randi_range(0, 1 + int(depth >= 4)))
+			else:
+				room_slots[room_id] = encounter.get("slots", [])
+				room_max[room_id] = (room_slots[room_id] as Array).size()
 	# Pass one: every combat room gets its guaranteed first enemy before any room gets a second.
 	for room in combat_rooms:
 		var anchors: Array = _room_anchors(biome_id, run_seed, room, "enemy")
 		var placed: Dictionary = _attempt_place_enemy(
 			biome, room, anchors, room_anchor_idx, rng, budget, state, elite_rule,
-			elites_required, elite_bonus_roll, true
+			elites_required, elite_bonus_roll, true, false,
+			_slot_role(room_slots, str(room.get("semantic_id", "")), 0)
 		)
 		if not placed.is_empty():
 			placements.append(placed)
@@ -245,7 +266,7 @@ static func _place_enemies(
 				var db: int = door_distances.get(str(b.get("layout_id", "")), 0)
 				return da > db
 		)
-	# RM-08: at most one ambush on the floor, and only on a room's second-or-later enemy (never the
+	# At most one ambush on the floor, and only on a room's second-or-later enemy (never the
 	# guaranteed first one from pass one above, so a room always reads as inhabited from the
 	# doorway). Eligible = depth from entrance >= 3 and not the entrance or one of its neighbours
 	# (`_spawn_safe_room_ids`) -- an ambush in the first two rooms teaches the wrong lesson before
@@ -268,12 +289,13 @@ static func _place_enemies(
 			var anchors: Array = _room_anchors(biome_id, run_seed, room, "enemy")
 			var placed: Dictionary = _attempt_place_enemy(
 				biome, room, anchors, room_anchor_idx, rng, budget, state, elite_rule,
-				elites_required, elite_bonus_roll, false, ambush_eligible
+				elites_required, elite_bonus_roll, false, ambush_eligible,
+				_slot_role(room_slots, room_id, extra_slot)
 			)
 			if not placed.is_empty():
 				placements.append(placed)
 	var loot: Array = []
-	# `EN-12` item 3: the guaranteed elite pays out the same way `BS-06`'s guaranteed miniboss
+	# Item 3: the guaranteed elite pays out the same way guaranteed miniboss
 	# does -- one armory-tier chest at its own room, not a chance roll on the corpse.
 	if default_elite and not elite_room.is_empty() and int(state["elites_placed"]) > 0:
 		var elite_room_id := str(elite_room.get("semantic_id", ""))
@@ -284,7 +306,7 @@ static func _place_enemies(
 					elite_room_id,
 					"%s_elite_drop" % elite_room_id,
 					elite_chest_anchors[elite_chest_anchors.size() - 1],
-					ProcgenLootRoller.roll_chest(biome, "armory", tier, rng)
+					ProcgenLootRoller.roll_chest(biome, "armory", tier, rng, 0.0, inputs.get("lockedItems", []))
 				)
 			)
 	return {"enemies": placements, "loot": loot, "threat_used": state["threat_used"]}
@@ -304,14 +326,16 @@ static func _attempt_place_enemy(
 	elites_required: int,
 	elite_bonus_roll: bool,
 	is_first_in_room: bool,
-	ambush_eligible: bool = false
+	ambush_eligible: bool = false,
+	wanted_role: String = ""
 ) -> Dictionary:
 	var room_id := str(room.get("semantic_id", ""))
 	var composition: Dictionary = biome.get("roleComposition", {})
 	var room_role_counts: Dictionary = state["room_role_counts"].get(room_id, {})
+	var pool: Array = _pool_for_role(biome.get("enemyPool", []), wanted_role)
 	for _attempt in 4:
 		var entry := _pick_weighted_composed(
-			biome.get("enemyPool", []), rng, composition, state["role_counts"], room_role_counts
+			pool, rng, composition, state["role_counts"], room_role_counts
 		)
 		if entry.is_empty():
 			return {}
@@ -319,7 +343,7 @@ static func _attempt_place_enemy(
 		if _is_reserved_boss_enemy(enemy_id, biome):
 			continue
 		var threat_cost := _enemy_threat_cost(enemy_id)
-		# RM-08: the one floor-wide ambush ignores the shared budget, the same guarantee pass
+		# The one floor-wide ambush ignores the shared budget, the same guarantee pass
 		# one already gives every room's first enemy -- by the time a room reaches its second
 		# or later slot the budget is usually thin, so gating the ambush behind leftover budget
 		# meant the 35% roll almost always landed where the placement would fail anyway and
@@ -327,7 +351,7 @@ static func _attempt_place_enemy(
 		if float(state["threat_used"]) + threat_cost > budget and not ambush_eligible:
 			return {}
 		var idx: int = room_anchor_idx.get(room_id, 0)
-		# RM-08: an ambush/delayed spawn always takes the last anchor in the list -- a stand-in for
+		# An ambush/delayed spawn always takes the last anchor in the list -- a stand-in for
 		# "the far anchor" the plan asks for, without the doorway-relative geometry a precise
 		# "behind the door the player entered" placement would need.
 		var offset: Vector3 = anchors[anchors.size() - 1] if ambush_eligible else anchors[idx % anchors.size()]
@@ -350,11 +374,94 @@ static func _attempt_place_enemy(
 			"sampleNavmesh": true,
 			"isElite": is_elite,
 		}
+		if is_elite:
+			placement["affixId"] = EliteAffixes.pick(rng)
 		if ambush_eligible:
 			placement["trigger"] = "ambush"
 			state["ambush_placed"] = true
 		return placement
 	return {}
+
+
+## The encounter templates (`content/encounters/encounters.json`): a set piece names the role each of
+## its two to four enemies fills, so a pack room poses one question (hold the line under fire, break
+## a shield wall, ...) instead of rolling a random crowd.
+static var _encounters_cache: Array = []
+
+
+static func _encounters() -> Array:
+	if _encounters_cache.is_empty():
+		var doc: Dictionary = ContentLoader.load_json("content/encounters/encounters.json")
+		_encounters_cache = doc.get("encounters", [])
+	return _encounters_cache
+
+
+## A weighted template whose roles the biome can all supply this deep into the block, or {}.
+static func _pick_encounter(
+	pool: Array, block_floor: int, depth: int, rng: RandomNumberGenerator
+) -> Dictionary:
+	var roles := {}
+	for entry in pool:
+		var enemy_id := str((entry as Dictionary).get("enemyId", ""))
+		if not _is_boss_typed(enemy_id):
+			roles[_enemy_role(enemy_id)] = true
+	var eligible: Array = []
+	var total := 0
+	for encounter: Dictionary in _encounters():
+		if int(encounter.get("minFloor", 1)) > block_floor or int(encounter.get("minDepth", 0)) > depth:
+			continue
+		var supplied := true
+		for role in encounter.get("slots", []):
+			if not roles.has(str(role)):
+				supplied = false
+				break
+		if supplied:
+			eligible.append(encounter)
+			total += maxi(1, int(encounter.get("weight", 1)))
+	if eligible.is_empty():
+		return {}
+	var roll := rng.randi_range(0, total - 1)
+	for encounter: Dictionary in eligible:
+		roll -= maxi(1, int(encounter.get("weight", 1)))
+		if roll < 0:
+			return encounter
+	return eligible[eligible.size() - 1]
+
+
+static func _is_boss_typed(enemy_id: String) -> bool:
+	return _enemy_role(enemy_id) == "boss"
+
+
+static func _slot_role(room_slots: Dictionary, room_id: String, slot: int) -> String:
+	var slots: Array = room_slots.get(room_id, [])
+	return str(slots[slot]) if slot < slots.size() else ""
+
+
+## The pool entries that fill `role`; the whole pool when none do or no role is wanted.
+static func _pool_for_role(pool: Array, role: String) -> Array:
+	if role == "":
+		return pool
+	var matching: Array = []
+	for entry in pool:
+		if _enemy_role(str((entry as Dictionary).get("enemyId", ""))) == role:
+			matching.append(entry)
+	return matching if not matching.is_empty() else pool
+
+
+## The biome with only the enemies a player has been introduced to by `block_floor`: each pool entry
+## names the first floor it can appear on (`minFloor`), so the full roster does not arrive in room
+## one. The first entry always stays, so a pool never empties.
+static func _biome_with_introduced_enemies(biome: Dictionary, block_floor: int) -> Dictionary:
+	var pool: Array = biome.get("enemyPool", [])
+	var kept: Array = []
+	for entry in pool:
+		if int((entry as Dictionary).get("minFloor", 1)) <= block_floor:
+			kept.append(entry)
+	if kept.is_empty() and not pool.is_empty():
+		kept.append(pool[0])
+	var narrowed := biome.duplicate()
+	narrowed["enemyPool"] = kept
+	return narrowed
 
 
 ## The cheapest non-boss enemy in the biome's pool, in threat points -- the unit the guaranteed
@@ -383,9 +490,11 @@ static func _place_loot(
 	loot_rng: RandomNumberGenerator,
 	traps_rng: RandomNumberGenerator,
 	boss_rng: RandomNumberGenerator,
-	graph: RoomGraph = null
+	graph: RoomGraph = null,
+	inputs: Dictionary = {}
 ) -> Dictionary:
 	var biome_id := str(biome.get("id", ""))
+	var locked_items: Array = inputs.get("lockedItems", [])
 	var loot: Array = []
 	var traps: Array = []
 	var secrets: Array = []
@@ -400,7 +509,7 @@ static func _place_loot(
 				treasure_room["semantic_id"],
 				"treasure_main",
 				chest_anchors[0],
-				ProcgenLootRoller.roll_chest(biome, "treasure", tier, loot_rng)
+				ProcgenLootRoller.roll_chest(biome, "treasure", tier, loot_rng, 0.0, locked_items)
 			)
 		)
 	for room in rooms:
@@ -456,7 +565,7 @@ static func _place_loot(
 					room["semantic_id"],
 					"secret_vault_%d" % secrets.size(),
 					secret_anchors[0],
-					ProcgenLootRoller.roll_chest(biome, secret_role, secret_tier, loot_rng)
+					ProcgenLootRoller.roll_chest(biome, secret_role, secret_tier, loot_rng, 0.0, locked_items)
 				)
 			)
 	var combat_rooms: Array = _sorted_combat_rooms(assignment)
@@ -483,7 +592,7 @@ static func _place_loot(
 				side_room["semantic_id"],
 				"%s_side" % side_room["semantic_id"],
 				side_anchors[0],
-				ProcgenLootRoller.roll_chest(biome, side_role, tier, loot_rng)
+				ProcgenLootRoller.roll_chest(biome, side_role, tier, loot_rng, 0.0, locked_items)
 			)
 		)
 	if combat_rooms.size() > 0:
@@ -507,7 +616,7 @@ static func _place_loot(
 				armory_room["semantic_id"],
 				"%s_armory" % armory_room["semantic_id"],
 				armory_offset,
-				ProcgenLootRoller.roll_chest(biome, "armory", tier, loot_rng)
+				ProcgenLootRoller.roll_chest(biome, "armory", tier, loot_rng, 0.0, locked_items)
 			)
 		)
 	var spawn_safe_ids := _spawn_safe_room_ids(graph)
@@ -569,7 +678,11 @@ static func _place_loot(
 				"sampleNavmesh": true,
 			}
 		)
-	var boss_pool: Array = biome.get("bossPool", [])
+	# Only a block's last floor (`_generate_final_floor`) fields a real boss; every floor before it
+	# ends on a miniboss.
+	var boss_pool: Array = biome.get("minibossPool", [])
+	if boss_pool.is_empty():
+		boss_pool = biome.get("bossPool", [])
 	var boss_entry: Dictionary = (
 		_pick_weighted(boss_pool, boss_rng)
 		if not boss_pool.is_empty()
@@ -598,7 +711,7 @@ static func _place_loot(
 				boss_room["semantic_id"],
 				"boss_hoard",
 				hoard_anchors[hoard_anchors.size() - 1],
-				ProcgenLootRoller.roll_chest(biome, hoard_role, tier + 2, loot_rng)
+				ProcgenLootRoller.roll_chest(biome, hoard_role, tier + 2, loot_rng, 0.0, locked_items)
 			)
 		)
 	return {
@@ -684,7 +797,7 @@ static func _cover_entry(room_id: String, offset: Vector3, kind: String) -> Dict
 	}
 
 
-## RM-03: a room's biome layout variant may name a `coverPattern` ("ring", "corridor", "scatter" or
+## A room's biome layout variant may name a `coverPattern` ("ring", "corridor", "scatter" or
 ## "none") instead of leaving cover to the template's authored anchor list. "scatter" (or an
 ## unauthored room, which has no variant) keeps the original anchor-based placement unchanged.
 static func _cover_for_pattern(
@@ -826,22 +939,6 @@ static func _weighted_pick_index(pool: Array, rng: RandomNumberGenerator) -> int
 	return pool.size() - 1
 
 
-static func _off_path_combat_rooms(assignment: Dictionary, graph: RoomGraph) -> Array:
-	if graph == null:
-		return _sorted_combat_rooms(assignment)
-	var critical: Array[String] = RoomGraphPaths.critical_path_ids(graph)
-	var critical_set := {}
-	for layout_id in critical:
-		critical_set[layout_id] = true
-	var result: Array = []
-	for room in assignment.get("rooms", []):
-		if room.get("type", "") != "combat":
-			continue
-		if not critical_set.has(room.get("layout_id", "")):
-			result.append(room)
-	return result
-
-
 static func _pick_trap(biome: Dictionary, rng: RandomNumberGenerator) -> String:
 	var pool: Array = biome.get("trapPool", [])
 	if pool.is_empty():
@@ -893,6 +990,8 @@ static func _is_reserved_boss_enemy(enemy_id: String, biome: Dictionary) -> bool
 	for entry in biome.get("bossPool", []):
 		if str(entry.get("enemyId", "")) == enemy_id:
 			return true
+	if bool(EnemyCatalog.get_definition(enemy_id).get("isBoss", false)):
+		return true
 	if (
 		enemy_id.begins_with("boss_")
 		or enemy_id.begins_with("miniboss_")
@@ -902,7 +1001,7 @@ static func _is_reserved_boss_enemy(enemy_id: String, biome: Dictionary) -> bool
 	return false
 
 
-## `EN-11`: nudges the independent per-slot roll toward the biome's authored role mix
+## Nudges the independent per-slot roll toward the biome's authored role mix
 ## (`roleComposition`, e.g. `{"melee": 0.5, "ranged": 0.3, "shield": 0.2}`) instead of leaving every
 ## slot an independent roll off the flat weighted list -- that is what turned the late biomes into
 ## the early biomes with bigger numbers. A biome with no rule (or an empty `role_counts` so far)
@@ -949,7 +1048,7 @@ static func _pick_weighted_composed(
 
 
 ## The role a composition rule reasons about. Falls back to the enemy's `enemy_type` content field
-## (`melee`/`ranged`/`shield`) -- the same field `EN-10`'s roster work already authors on every
+## (`melee`/`ranged`/`shield`) -- the same field roster work already authors on every
 ## enemy, so a composition rule needs no new per-enemy tagging to exist.
 static func _enemy_role(enemy_id: String) -> String:
 	if enemy_id.is_empty():

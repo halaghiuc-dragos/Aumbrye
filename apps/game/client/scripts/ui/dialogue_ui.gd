@@ -14,13 +14,12 @@ const BLOCKED_GROUPS := [PlayerInput.Group.COMBAT, PlayerInput.Group.INTERACT]
 
 var _runner: DialogueRunner
 var _choice_buttons: Array[Button] = []
-var _selected_index := 0
 var _input_lock_handle := 0
 var _closing := false
 var _starting := false
 var _ended_while_starting := false
 
-## UX-04: a typewriter reveal that a press completes -- reduced_motion (and a text length under
+## A typewriter reveal that a press completes -- reduced_motion (and a text length under
 ## the minimum worth animating) skips straight to the full line, matching how every other motion
 ## setting in this project degrades.
 const TYPEWRITER_CHARS_PER_SEC := 42.0
@@ -66,11 +65,9 @@ func start_dialogue(
 	if result == DialogueRunner.StartResult.COMPLETED:
 		_cleanup_dialogue(true)
 		return true
-	visible = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
 	if _input_lock_handle == 0:
 		_input_lock_handle = PlayerInput.block_groups(BLOCKED_GROUPS)
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	MenuStack.show_modal(self)
 	return true
 
 
@@ -90,16 +87,19 @@ func _cleanup_dialogue(notify_closed: bool) -> void:
 	_reveal_tween = null
 	_is_revealing = false
 	var was_open := visible or _input_lock_handle != 0
-	visible = false
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	PlayerInput.release_group_block(_input_lock_handle)
 	_input_lock_handle = 0
-	PlayerControls.capture_mouse_if_allowed()
+	MenuStack.hide_modal(self)
 	if notify_closed and was_open:
 		closed.emit()
 
 
+func _on_cancel_requested() -> void:
+	close()
+
+
 func _exit_tree() -> void:
+	MenuStack.pop(self)
 	PlayerInput.release_group_block(_input_lock_handle)
 	_input_lock_handle = 0
 
@@ -121,15 +121,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_skip_reveal()
 		return
-	if event.is_action_pressed("ui_up"):
-		_move_selection(-1)
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_down"):
-		_move_selection(1)
-		get_viewport().set_input_as_handled()
+	# Focus is the selection: the GUI moves it with up and down and presses the focused choice on
+	# accept. This only steps in when focus has wandered off the choices.
+	var focused_index := _choice_buttons.find(get_viewport().gui_get_focus_owner())
+	if event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
+		if focused_index < 0:
+			_choice_buttons[0].grab_focus()
+			get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		_activate_choice(_selected_index)
+		_activate_choice(maxi(focused_index, 0))
 
 
 func _on_panel_gui_input(event: InputEvent) -> void:
@@ -209,7 +210,6 @@ func _rebuild_choices(choices: Array) -> void:
 	for btn in _choice_buttons:
 		btn.queue_free()
 	_choice_buttons.clear()
-	_selected_index = 0
 	for i in choices.size():
 		var choice: Dictionary = choices[i]
 		var btn := GameUISkinScript.make_button(str(choice.get("text", "???")))
@@ -218,14 +218,9 @@ func _rebuild_choices(choices: Array) -> void:
 		var choice_id := str(choice.get("_choiceId", ""))
 		btn.set_meta("choice_id", choice_id)
 		btn.pressed.connect(func() -> void: _activate_choice(idx))
-		btn.mouse_entered.connect(
-			func() -> void:
-				_selected_index = idx
-				_update_selection_visual()
-		)
+		btn.mouse_entered.connect(btn.grab_focus)
 		_choices_box.add_child(btn)
 		_choice_buttons.append(btn)
-	_update_selection_visual()
 	if not _choice_buttons.is_empty():
 		_choice_buttons[0].grab_focus()
 
@@ -237,22 +232,6 @@ func _activate_choice(index: int) -> void:
 	if index < 0 or index >= _choice_buttons.size():
 		return
 	_runner.select_choice_id(str(_choice_buttons[index].get_meta("choice_id", "")))
-
-
-func _move_selection(delta: int) -> void:
-	if _choice_buttons.is_empty():
-		return
-	_selected_index = wrapi(_selected_index + delta, 0, _choice_buttons.size())
-	_update_selection_visual()
-
-
-func _update_selection_visual() -> void:
-	for i in _choice_buttons.size():
-		var btn: Button = _choice_buttons[i]
-		if i == _selected_index:
-			btn.modulate = Color(1.2, 1.2, 0.9)
-		else:
-			btn.modulate = Color.WHITE
 
 
 func _on_dialogue_ended() -> void:

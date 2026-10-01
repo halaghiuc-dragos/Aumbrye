@@ -11,7 +11,7 @@ const WORLD_COLLISION_MASK := CombatLayers.WORLD_OCCLUDERS
 @export var team: String = "player"
 
 @export var rehit_interval := 0.0
-## `RG-03`: set by `Projectile` on its own hitbox -- lets `Guard` tell a shot arrow apart from a
+## Set by `Projectile` on its own hitbox -- lets `Guard` tell a shot arrow apart from a
 ## melee swing when it intercepts the hit.
 var is_projectile := false
 
@@ -84,7 +84,6 @@ func enable() -> void:
 	monitoring = true
 	set_physics_process(true)
 	_has_swept_transform = false
-	_root_attack_id = ""
 	_scan_overlaps()
 
 
@@ -102,6 +101,7 @@ func disable() -> void:
 	_execution_target = null
 	_execution_kind = ""
 	_has_swept_transform = false
+	_root_attack_id = ""
 
 
 func set_execution(target: Node, kind: String) -> void:
@@ -205,7 +205,7 @@ func _scan_overlaps() -> void:
 	_has_swept_transform = true
 
 
-## `PH-03`: verified directly against this engine build -- `intersect_shape()` does **not** honour
+## Verified directly against this engine build -- `intersect_shape()` does **not** honour
 ## `PhysicsShapeQueryParameters3D.motion`; a query built with a non-zero `motion` returns exactly
 ## the same result as a static test at `transform`. `cast_motion()` is the call that actually
 ## respects it: it returns the safe/unsafe fraction of `motion` the shape can travel before

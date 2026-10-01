@@ -34,6 +34,7 @@
   "attacks": [
     {
       "id": "snap",
+      "anim": "attack_shoot",
       "name": "Snap",
       "weight": 3,
       "windup_duration": 0.43,
@@ -47,10 +48,14 @@
       "telegraph_shape": "circle",
       "damage_type": "physical",
       "attackClass": "blockable",
-      "knockback": 2.0
+      "knockback": 2.0,
+      "tags": [
+        "punish_heal"
+      ]
     },
     {
       "id": "lunge",
+      "anim": "attack_shoot",
       "name": "Lunge",
       "weight": 2,
       "windup_duration": 1.01,
@@ -64,11 +69,16 @@
       "max_range": 4.94,
       "telegraph_shape": "line",
       "damage_type": "physical",
-      "attackClass": "parryable",
-      "knockback": 2.0
+      "attackClass": "unblockable",
+      "knockback": 2.0,
+      "tags": [
+        "gap_close",
+        "anti_roll"
+      ]
     },
     {
       "id": "worry",
+      "anim": "attack_shoot",
       "name": "Worry",
       "weight": 2,
       "windup_duration": 0.54,

@@ -37,7 +37,14 @@ static func clear() -> void:
 static func build_entry(results: Dictionary) -> Dictionary:
 	var highlights: Variant = results.get("highlights", {})
 	var highlight_dict: Dictionary = highlights if highlights is Dictionary else {}
+	var recap: Variant = results.get("death_recap", {})
+	var death: Dictionary = recap if recap is Dictionary else {}
 	return {
+		"deathRoomId": str(results.get("death_room", "")),
+		"killedBy": str(death.get("enemyId", "")),
+		"killingAttack": str(death.get("attackName", "")),
+		"killingAttackClass": str(death.get("attackClass", "")),
+		"slowestRooms": results.get("slowest_rooms", []),
 		"outcome": str(results.get("outcome", "")),
 		"runMode": str(results.get("run_mode", "castle")),
 		"modeId": str(results.get("alternate_mode", "")),

@@ -11,33 +11,30 @@ const BAR_TEX_W := 28
 const BAR_TEX_H := 3
 const FILL_TEX_W := BAR_TEX_W - 2
 const FILL_TEX_H := 1
-const BAR_WORLD_W := BAR_TEX_W * PixelStyle.WORLD_PIXEL
-const BAR_WORLD_H := BAR_TEX_H * PixelStyle.WORLD_PIXEL
 const ATTACK_BAR_OFFSET_PIXELS := -4
 
 const POISE_BAR_OFFSET_PIXELS := 4
 const ATTACK_BAR_OFFSET_Y := ATTACK_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
 const POISE_BAR_OFFSET_Y := POISE_BAR_OFFSET_PIXELS * PixelStyle.WORLD_PIXEL
-const FILL_WORLD_W := FILL_TEX_W * PixelStyle.WORLD_PIXEL
 const BAR_BORDER_COLOR := Color(0.02, 0.02, 0.02, 1.0)
 const BAR_WELL_COLOR := Color(0.04, 0.04, 0.04, 1.0)
 const HEALTH_FILL_COLOR := Color(0.9, 0.15, 0.1, 1.0)
 const POISE_FILL_COLOR := Color(0.82, 0.74, 0.45, 1.0)
 ## Draw order for the stacked quads. `BILLBOARD_FIXED_Y` turns the *quad* to face the camera and
 ## leaves the node's own axes alone, so neither `position.z` nor `position.x` can be used to
-## order or align these — local axes are fixed world directions unrelated to the bar on screen.
+## order or align these -- local axes are fixed world directions unrelated to the bar on screen.
 ## Sprite3D quads are transparent and write no depth, so coplanar layers composite purely by
 ## render priority, which is the same from every angle and still hides correctly behind walls.
 const BAR_PRIORITY_BG := 0
 const BAR_PRIORITY_FILL := 1
-## `Sprite3D` quads write no depth, so the glyph must outrank the fill it sits above (`EN-04`'s
+## `Sprite3D` quads write no depth, so the glyph must outrank the fill it sits above
 ## trap) or it composites underneath instead of over it.
 const BAR_PRIORITY_GLYPH := 2
 const DEFAULT_HEIGHT := 2.2
 const MAX_VISIBLE_DISTANCE := 25.0
 const DISTANCE_CHECK_INTERVAL := 0.5
 
-## `EN-12`: gold reads as "this one is worth more" against the same palette every other status
+## Gold reads as "this one is worth more" against the same palette every other status
 ## colour in this file already uses -- red damage, tan poise, class-tinted telegraphs.
 const ELITE_NAME_COLOR := Color(0.95, 0.78, 0.25, 1.0)
 const ELITE_NAME_OFFSET_Y := (BAR_TEX_H * PixelStyle.WORLD_PIXEL) + 0.14
@@ -58,6 +55,15 @@ var _in_range := true
 var _distance_timer: Timer
 var _elite_label: Label3D
 var _execution_label: Label3D
+## Bars appear once an enemy has noticed the player or been hurt, and fade a few seconds after the
+## fight is over, so a room of idle enemies is not a room of floating gauges.
+const OUT_OF_COMBAT_SECONDS := 4.0
+const FADE_SECONDS := 0.6
+var _engaged := false
+var _aggroed := false
+var _last_health_value := -1.0
+var _idle_timer: Timer
+var _fade_tween: Tween
 
 
 func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise = null) -> void:
@@ -67,6 +73,10 @@ func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise =
 	_build_distance_timer()
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
+	_idle_timer = Timer.new()
+	_idle_timer.one_shot = true
+	_idle_timer.timeout.connect(_fade_out)
+	add_child(_idle_timer)
 	_on_health_changed(health.current, health.max_health)
 	if poise:
 		_poise = poise
@@ -74,7 +84,7 @@ func setup(health: Health, height_offset: float = DEFAULT_HEIGHT, poise: Poise =
 		poise.poise_broken.connect(_on_poise_broken)
 
 
-## `EN-12`: the name plate that tells you this fight is not like the others -- lazily built so
+## The name plate that tells you this fight is not like the others -- lazily built so
 ## every non-elite enemy (the overwhelming majority) pays nothing for it.
 func mark_elite(display_name: String) -> void:
 	if display_name == "":
@@ -88,7 +98,7 @@ func mark_elite(display_name: String) -> void:
 		_elite_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 		_elite_label.modulate = ELITE_NAME_COLOR
 		_elite_label.position.y = ELITE_NAME_OFFSET_Y
-		_elite_label.no_depth_test = true
+		_elite_label.no_depth_test = false
 		_elite_label.render_priority = BAR_PRIORITY_GLYPH + 1
 		add_child(_elite_label)
 	_elite_label.text = display_name
@@ -112,7 +122,62 @@ func _check_distance() -> void:
 
 
 func _apply_visibility() -> void:
-	visible = _alive and _in_range
+	visible = _alive and _in_range and _engaged
+
+
+## The enemy noticed the player (or lost them): the bars show while it is aggroed and fade after.
+func set_aggro(aggroed: bool) -> void:
+	_aggroed = aggroed
+	if aggroed:
+		_engage()
+	else:
+		_restart_idle_timer()
+
+
+func _engage() -> void:
+	if _fade_tween != null and _fade_tween.is_valid():
+		_fade_tween.kill()
+	_set_transparency(0.0)
+	_engaged = true
+	_apply_visibility()
+	_restart_idle_timer()
+
+
+func _restart_idle_timer() -> void:
+	if _idle_timer != null and not _aggroed:
+		_idle_timer.start(OUT_OF_COMBAT_SECONDS)
+
+
+func _fade_out() -> void:
+	if _aggroed or not _engaged:
+		return
+	if _fade_tween != null and _fade_tween.is_valid():
+		_fade_tween.kill()
+	_fade_tween = create_tween()
+	_fade_tween.tween_method(_set_transparency, 0.0, 1.0, FADE_SECONDS)
+	_fade_tween.tween_callback(
+		func() -> void:
+			_engaged = false
+			_apply_visibility()
+			_set_transparency(0.0)
+	)
+
+
+func _set_transparency(value: float) -> void:
+	for child in get_children():
+		if child is GeometryInstance3D:
+			(child as GeometryInstance3D).transparency = value
+
+
+## A respawned enemy starts out of combat again.
+func reset_engagement() -> void:
+	_aggroed = false
+	_engaged = false
+	_last_health_value = -1.0
+	if _fade_tween != null and _fade_tween.is_valid():
+		_fade_tween.kill()
+	_set_transparency(0.0)
+	_apply_visibility()
 
 
 func _build_sprites() -> void:
@@ -196,12 +261,10 @@ func _show_execution_window() -> void:
 		_execution_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
 		_execution_label.modulate = EXECUTION_LABEL_COLOR
 		_execution_label.position.y = EXECUTION_LABEL_OFFSET_Y
-		_execution_label.no_depth_test = true
+		_execution_label.no_depth_test = false
 		_execution_label.render_priority = BAR_PRIORITY_GLYPH + 1
 		add_child(_execution_label)
 	_execution_label.visible = true
-
-
 
 
 func begin_attack_telegraph(_duration: float, attack_class: String = "blockable") -> void:
@@ -249,6 +312,8 @@ static func _fill_step_texture(step: int) -> ImageTexture:
 
 func _apply_fill(sprite: Sprite3D, ratio: float) -> void:
 	var steps := int(round(clampf(ratio, 0.0, 1.0) * float(FILL_TEX_W)))
+	if ratio > 0.0:
+		steps = maxi(1, steps)
 	sprite.texture = _fill_step_texture(steps)
 
 
@@ -273,6 +338,9 @@ func _on_health_changed(current: float, max_value: float) -> void:
 	var ratio: float = 0.0 if max_value <= 0.0 else clampf(current / max_value, 0.0, 1.0)
 	_apply_fill(_fill_sprite, ratio)
 	_alive = ratio > 0.0
+	if _last_health_value >= 0.0 and current < _last_health_value - 0.001:
+		_engage()
+	_last_health_value = current
 	_apply_visibility()
 
 

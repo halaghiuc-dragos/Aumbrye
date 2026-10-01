@@ -39,11 +39,8 @@ func _scan(dir_path: String) -> void:
 	dir.list_dir_end()
 
 
+## A script that failed to compile can still come back from `load()` (it is cached as a dependency
+## of another), so the loaded script is also asked whether it can be used.
 func _compiles_clean(path: String) -> bool:
-	var source := FileAccess.get_file_as_string(path)
-	if source.is_empty():
-		return true
-	var script := GDScript.new()
-	script.source_code = source
-	script.resource_path = path
-	return script.reload(true) == OK
+	var script := load(path) as GDScript
+	return script != null and script.can_instantiate()

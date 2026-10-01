@@ -4,8 +4,8 @@
   "templatePrefix": "vault",
   "assetFolder": "vault",
   "roomCount": {
-    "min": 20,
-    "max": 24
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "vault_entrance",
@@ -56,32 +56,33 @@
     "rubble": [
       "res://scenes/props/vault/rubble_a.tscn",
       "res://scenes/props/vault/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/vault/banner.tscn",
-    "statue": "res://scenes/props/vault/statue.tscn",
-    "altar": "res://scenes/props/vault/altar.tscn",
-    "debrisPile": "res://scenes/props/vault/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "iron_ratchet",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "iron_needle",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "iron_sentinel",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "iron_bellows_golem",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     },
     {
       "enemyId": "iron_foreman",
-      "weight": 1
+      "weight": 1,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -150,14 +151,6 @@
     ],
     "side": [
       {
-        "itemId": "castle_gauntlets",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
-      {
         "itemId": "swift_step_charm",
         "quantity": [
           1,
@@ -225,11 +218,11 @@
   "maxHeightLevel": 2,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 5,
-    "minDeadEnds": 5,
-    "branchMaxDepth": 6,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
+    "branchMaxDepth": 4,
     "maxNeighborCount": 4,
-    "loopBudget": 3,
+    "loopBudget": 2,
     "maxGenerationAttempts": 256,
     "maxWalkAttempts": 8192,
     "allow2x2Blocks": true,
@@ -255,5 +248,6 @@
     "lift": -0.01,
     "vignette": 0.28
   },
-  "lootTablePath": "content/loot/tables/iron_vault.json"
+  "lootTablePath": "content/loot/tables/iron_vault.json",
+  "floorSurface": "stone"
 }

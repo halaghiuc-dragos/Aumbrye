@@ -2,7 +2,7 @@ extends Node
 
 ## Loads and instantiates every scene in the project and reports what is wrong with it.
 ##
-## There are 285 scenes. Opening them by hand is not a check anyone repeats, so this is the form
+## Opening every scene by hand is not a check anyone repeats, so this is the form
 ## the "go through every scene" pass takes: each one is instantiated for real, added to the tree,
 ## given a frame to run its _ready, and inspected. A scene that cannot load, a script that errors
 ## on entry, a mesh with no material, a shadow setting that disagrees with its neighbours -- all of
@@ -23,7 +23,7 @@ const SKIP_SCENES: PackedStringArray = [
 	"res://scenes/hub/hub.tscn",
 ]
 
-## VS-04: `castle_run.tscn` is skipped above for cost, but that meant the one place the review
+## `castle_run.tscn` is skipped above for cost, but that meant the one place the review
 ## called out by name -- "a flat untextured grey rectangle where a doorway should be" -- was never
 ## actually inspected, since the static room `.tscn` files it's built from are mostly placeholders
 ## that get skinned procedurally at build time. This builds one real floor per biome instead (far
@@ -51,7 +51,7 @@ func _ready() -> void:
 		await _check_scene(path)
 	await _check_built_floors()
 	await _check_hud_matrix()
-	_check_prop_kits()
+	await _check_prop_kits()
 	_report()
 	print("SCENE SWEEP RESULT %d failures across %d scenes" % [_failures, _scanned])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -118,7 +118,7 @@ func _check_scene(path: String) -> void:
 	instance.free()
 
 
-## VS-04: one built floor per biome, the same material/shadow inspection every static scene gets.
+## One built floor per biome, the same material/shadow inspection every static scene gets.
 func _check_built_floors() -> void:
 	var biome_prefixes := {
 		"forgotten_castle": "castle", "crystal_caverns": "crystal", "poison_swamp": "swamp",
@@ -132,7 +132,7 @@ func _check_built_floors() -> void:
 		if _verbose:
 			print("  .. %s" % label)
 		var result: Dictionary = LocalProcgenScript.generate(
-			biome_id, 424242, 1, str(biome_prefixes.get(biome_id, "castle")), 1, 1, false, false, true
+			biome_id, 424242, 1, str(biome_prefixes.get(biome_id, "castle")), 1, 1, false, false, 0
 		)
 		if not result.get("ok", false):
 			_note(label, "generation_failed", str(result.get("error", "?")), true)
@@ -148,8 +148,8 @@ func _check_built_floors() -> void:
 		parent.free()
 
 
-## SY-09/HD-04: `combat_hud.gd`'s `configure_for_mode()` is the one place that decides which
-## elements a mode gets; this checks it against the same table the plan's HD-04 pastes above that
+## `combat_hud.gd`'s `configure_for_mode()` is the one place that decides which
+## elements a mode gets; this checks it against the same table the plan's pastes above that
 ## function -- minimap, branch previews and the key row are the elements the table marks "waves".
 ## Everything else in the table is either always-on (never toggled by mode) or content-driven (boss
 ## bar, objective text), so those are not re-tested here.
@@ -197,7 +197,7 @@ func _check_hud_matrix() -> void:
 	hud.free()
 
 
-## RM-21: `ResourceLoader.exists()` is true for a three-line placeholder scene
+## `ResourceLoader.exists()` is true for a three-line placeholder scene
 ## (`[gd_scene]` / blank / `[node type="Node3D"]`) exactly as much as for a real one -- existence is
 ## not content. This walks every biome's `propKit` block (`content/biomes/<id>.json`) and fails any
 ## entry whose scene has no `MeshInstance3D` descendant, so a biome that regresses to a stub prop
@@ -221,6 +221,9 @@ func _check_prop_kits() -> void:
 		if rubble is Array:
 			for entry in rubble:
 				paths.append(str(entry))
+		var kit_dir := str(kit.get("pillar", "")).get_base_dir()
+		for extra_kind in ["statue", "altar", "banner", "debris_pile"]:
+			paths.append("%s/%s.tscn" % [kit_dir, extra_kind])
 		if paths.is_empty():
 			_note(
 				label,
@@ -230,7 +233,7 @@ func _check_prop_kits() -> void:
 			)
 			continue
 		for path in paths:
-			_check_prop_kit_scene(label, path)
+			await _check_prop_kit_scene(label, path)
 
 
 func _check_prop_kit_scene(label: String, path: String) -> void:
@@ -245,6 +248,9 @@ func _check_prop_kit_scene(label: String, path: String) -> void:
 	if instance == null:
 		_note(label, "prop_kit_no_geometry", "%s failed to instantiate" % path, true)
 		return
+	# Kit pieces attach their Blender model when they enter the tree.
+	add_child(instance)
+	await get_tree().process_frame
 	if not _has_mesh_instance(instance):
 		_note(
 			label,
@@ -255,7 +261,7 @@ func _check_prop_kit_scene(label: String, path: String) -> void:
 			) % path,
 			true
 		)
-	instance.free()
+	instance.queue_free()
 
 
 func _has_mesh_instance(node: Node) -> bool:

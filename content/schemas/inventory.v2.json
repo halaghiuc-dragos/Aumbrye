@@ -60,7 +60,6 @@
         },
         "rollSeed": { "type": "integer" },
         "upgradeLevel": { "type": "integer", "minimum": 0 },
-        "durability": { "type": "number", "minimum": 0, "maximum": 100 },
         "keyId": { "type": "string" },
         "lockId": { "type": "string" },
         "keyLabel": { "type": "string" }
@@ -82,8 +81,7 @@
           "items": { "$ref": "#/$defs/rolledAffix" }
         },
         "rollSeed": { "type": "integer" },
-        "upgradeLevel": { "type": "integer", "minimum": 0 },
-        "durability": { "type": "number", "minimum": 0, "maximum": 100 }
+        "upgradeLevel": { "type": "integer", "minimum": 0 }
       }
     }
   }

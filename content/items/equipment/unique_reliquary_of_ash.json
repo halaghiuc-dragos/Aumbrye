@@ -3,14 +3,11 @@
   "name": "Reliquary of Ash",
   "itemType": "weapon",
   "equipmentSlot": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 3,
   "stackSize": 1,
   "rarity": "epic",
   "description": "The hilt is a reliquary. What it holds was already burned when it was placed inside.",
   "value": 490,
   "lootValue": 245,
-  "maxDurability": 90,
   "unique": true,
   "baseId": "rapier",
   "biome": "dark_cathedral",
@@ -29,8 +26,8 @@
     }
   ],
   "stats": {
-    "fireDamage": 14,
-    "critChance": 0.051
+    "critChance": 0.051,
+    "physicalDamage": 14
   },
   "weaponId": "sword_basic"
 }

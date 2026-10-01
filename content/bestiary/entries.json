@@ -297,14 +297,6 @@
       "mastered": "It carried the sealed measures down. It never carried anything back up."
     },
     {
-      "enemyId": "swamp_hag",
-      "name": "Swamp Hag",
-      "biomeId": "poison_swamp",
-      "sighted": "She still keeps to a household routine that no longer has a household.",
-      "studied": "She hexes on a cycle, not on a read. Learn the cycle and the hex is free. Resists poison 70%, physical 15%.",
-      "mastered": "Nettle knew her name and will not say it, which is a kind of answer."
-    },
-    {
       "enemyId": "swamp_leech",
       "name": "Swamp Leech",
       "biomeId": "poison_swamp",
@@ -327,14 +319,6 @@
       "sighted": "It works at range because it cannot survive at close.",
       "studied": "One step of pressure ends it. It has no melee at all. It shrugs off nothing in particular.",
       "mastered": "The venom is a filtration product. Something upstream is being filtered."
-    },
-    {
-      "enemyId": "swamp_swarm",
-      "name": "Swamp Swarm",
-      "biomeId": "poison_swamp",
-      "sighted": "Many, and each one negligible, and that is the design.",
-      "studied": "Wide sweeps only. Single-target work loses the trade every time. It shrugs off nothing in particular.",
-      "mastered": "They came up through the drains when the drains stopped being maintained."
     },
     {
       "enemyId": "swamp_toad",

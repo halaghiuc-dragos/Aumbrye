@@ -6,7 +6,6 @@ const PREFIXES_PATH := "content/affixes/prefixes.json"
 const SUFFIXES_PATH := "content/affixes/suffixes.json"
 const RARITY_PATH := "content/affixes/rarity_rules.json"
 const RarityRegistryScript := preload("res://scripts/loot/rarity_registry.gd")
-const ItemQualityScript := preload("res://scripts/items/item_quality.gd")
 const ContentSchemaValidatorScript := preload("res://scripts/app/content_schema_validator.gd")
 const ROLL_CONTEXT_VERSION := 1
 
@@ -35,8 +34,8 @@ static func roll_instance(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = effective_seed
 	var loot_quality: float = float(roll_context.get("lootQuality", 0.0))
-	if not roll_context.has("lootQuality") and ProgressionService:
-		loot_quality = float(ProgressionService.get_talent_stat_totals().get("lootQuality", 0.0))
+	if not roll_context.has("lootQuality"):
+		loot_quality = _run_loot_quality()
 	var resolved_mode := str(roll_context.get("runMode", run_mode))
 	var rarity: String = (
 		RarityRegistryScript.normalize(forced_rarity)
@@ -60,11 +59,6 @@ static func roll_instance(
 			"runMode": resolved_mode,
 		},
 	}
-	# Condition is rolled from the same rng as the affixes, after them, so an existing seed keeps
-	# producing the affixes it always did and only gains a quality on top.
-	var quality := ItemQualityScript.roll(item_type, rarity, rng)
-	if quality != "":
-		instance["quality"] = quality
 	if OS.is_debug_build():
 		ContentSchemaValidatorScript.validate_roll_instance(instance, item_id)
 	return instance
@@ -74,14 +68,18 @@ static func roll_instance(
 ## every equipped piece, and that runs on each inventory change, each stat refresh, each buff tick
 ## and each equipment reapply. Scanning both 34-entry arrays per affix turned a per-frame-ish
 ## operation into a few hundred string comparisons, so the packs are indexed once on load.
+## The loot-quality bonus for a roll: the run's own snapshot while a run is on, so two saves with
+## the same seed roll the same rarities, and the live talents otherwise (the hub's forge).
+static func _run_loot_quality() -> float:
+	if RunFlow and RunFlow.is_run_active() and RunFlow.current_generation_inputs.has("lootQuality"):
+		return float(RunFlow.current_generation_inputs["lootQuality"])
+	return InventoryService.total_stat("lootQuality") if InventoryService else 0.0
+
+
 static func get_affix_stat(affix_id: String) -> String:
 	_ensure_loaded()
 	var def: Variant = _affix_index.get(affix_id, null)
 	return str((def as Dictionary).get("stat", "")) if def is Dictionary else ""
-
-
-static func roll_identical(item_id: String, roll_seed: int, roll_context: Dictionary = {}) -> Dictionary:
-	return roll_instance(item_id, roll_seed, "", "", roll_context)
 
 
 static func get_affix_def(affix_id: String) -> Dictionary:
@@ -106,23 +104,6 @@ static func format_affix_line(affix: Dictionary) -> String:
 		"{stat}", Equipment.stat_display_name(stat)
 	)
 	return "%s — %s" % [str(def.get("displayName", affix_id)), body]
-
-
-static func reroll_affixes(existing: Array, rarity: String, roll_seed: int) -> Array:
-	_ensure_loaded()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = roll_seed if roll_seed >= 0 else 0
-	var rerolled: Array = []
-	for entry in existing:
-		if not entry is Dictionary:
-			continue
-		var affix_id := str((entry as Dictionary).get("affixId", ""))
-		var def := get_affix_def(affix_id)
-		if def.is_empty():
-			rerolled.append((entry as Dictionary).duplicate(true))
-			continue
-		rerolled.append({"affixId": affix_id, "value": _roll_tier_value(def, rarity, rng)})
-	return rerolled
 
 
 static func _ensure_loaded() -> void:

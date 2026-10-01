@@ -18,8 +18,9 @@ func _ready() -> void:
 	await _check_consumable_commitment()
 	await _check_pause_clock_behavior()
 	_check_ranked_eligibility()
-	_check_hitstop_budget()
+	_check_hitstop_scaling()
 	_check_footstep_effect_contract()
+	_check_live_player_vfx()
 	await _check_content_behavior_archetypes()
 	await _check_toad_leap_behavior()
 	await _check_slime_space_behavior()
@@ -189,13 +190,13 @@ func _check_ranked_eligibility() -> void:
 	RunFlow.set("_active_alternate_mode", old_alternate)
 
 
-func _check_hitstop_budget() -> void:
+func _check_hitstop_scaling() -> void:
 	var original_intensity := AccessibilitySettings.hitstop_intensity
 	var original_enabled := PixelDioramaSettings.hitstop_enabled
-	var token := StringName("vfx_hitstop:behavior_audit_root_attack")
+	var token := &"vfx_hitstop"
 	AccessibilitySettings.set_hitstop_intensity(0.5)
 	PixelDioramaSettings.hitstop_enabled = true
-	VfxService.request_attack_hitstop("behavior_audit_root_attack", 80, 0.08)
+	VfxService.request_hitstop(80, 0.08)
 	var requests: Dictionary = VfxService.get("_time_scale_requests") as Dictionary
 	var request: Dictionary = requests.get(token, {}) as Dictionary
 	_check(
@@ -204,37 +205,77 @@ func _check_hitstop_budget() -> void:
 		and is_equal_approx(float(request.get("scale", 1.0)), 0.54),
 		"fractional hitstop accessibility scales both duration and slowdown strength"
 	)
-	VfxService.request_attack_hitstop("behavior_audit_root_attack", 80, 0.08)
-	requests = VfxService.get("_time_scale_requests") as Dictionary
-	_check(
-		requests.has(token) and requests.keys().filter(func(id: Variant) -> bool: return id == token).size() == 1,
-		"multiple victims from one root attack share one global hitstop budget"
-	)
-	VfxService.request_attack_hitstop("behavior_audit_rapid_combo", 2000, 0.08)
-	requests = VfxService.get("_time_scale_requests") as Dictionary
-	var combo_request: Dictionary = requests.get(StringName("vfx_hitstop:behavior_audit_rapid_combo"), {}) as Dictionary
-	_check(
-		int(combo_request.get("until_ms", 0)) <= Time.get_ticks_msec() + 180,
-		"rapid follow-up attacks cannot extend aggregate global hitstop beyond its responsiveness budget"
-	)
 	VfxService.release_time_scale(token)
-	VfxService.release_time_scale(&"vfx_hitstop:behavior_audit_rapid_combo")
 	AccessibilitySettings.set_hitstop_intensity(original_intensity)
 	PixelDioramaSettings.hitstop_enabled = original_enabled
 
 
 func _check_footstep_effect_contract() -> void:
 	var effects: Dictionary = VfxService.get("_effects") as Dictionary
-	var stone: Dictionary = ((effects.get("footstep", {}) as Dictionary).get("layers", []) as Array)[0] as Dictionary
-	var wood: Dictionary = ((effects.get("footstep_wood", {}) as Dictionary).get("layers", []) as Array)[0] as Dictionary
-	var water: Dictionary = ((effects.get("footstep_water", {}) as Dictionary).get("layers", []) as Array)[0] as Dictionary
-	var snow: Dictionary = ((effects.get("footstep_snow", {}) as Dictionary).get("layers", []) as Array)[0] as Dictionary
+	for effect_id in ["footstep", "footstep_wood", "footstep_water", "footstep_snow"]:
+		var layers: Array = (effects.get(effect_id, {}) as Dictionary).get("layers", [])
+		_check(
+			layers.size() == 1 and str((layers[0] as Dictionary).get("kind", "")) == "ground_imprint",
+			"%s uses one grounded mark without debris bursts" % effect_id
+		)
+	var player_swing: Array = (effects.get("attack_swing", {}) as Dictionary).get("layers", [])
 	_check(
-		str(stone.get("chunk", "")) != str(wood.get("chunk", ""))
-		and str(water.get("chunk", "")) != str(snow.get("chunk", ""))
-		and int(stone.get("amount", 0)) > int(snow.get("amount", 0)),
-		"footstep surfaces use distinct restrained dust, chips, splash, and snow profiles"
+		player_swing.size() == 1 and str((player_swing[0] as Dictionary).get("kind", "")) == "sfx",
+		"generic swing profile cannot create a detached arc"
 	)
+	for effect_id in ["block", "parry", "heal", "execution", "rune_flare", "hit_spark", "crit_spark"]:
+		var layers: Array = (effects.get(effect_id, {}) as Dictionary).get("layers", [])
+		_check(
+			not layers.is_empty() and str((layers[0] as Dictionary).get("kind", "")) == "impact_flash"
+			and not layers.any(func(layer: Dictionary) -> bool: return str(layer.get("kind", "")) in ["burst", "ribbon"]),
+			"%s uses a controlled glint instead of random shard bursts" % effect_id
+		)
+
+
+func _check_live_player_vfx() -> void:
+	var root := VfxService.get("_root") as Node3D
+	VfxService.play_footstep(Vector3.ZERO, Vector3.FORWARD, &"stone", Vector3.UP)
+	var imprint: MeshInstance3D = null
+	for child in root.get_children():
+		if child is MeshInstance3D and child.name == "GroundImprint":
+			imprint = child as MeshInstance3D
+	_check(
+		imprint != null and (imprint.mesh as ImmediateMesh).get_surface_count() == 2,
+		"a live footstep draws two surface-aligned crescents"
+	)
+	var model := Node3D.new()
+	var pivot := Node3D.new()
+	var blade := MeshInstance3D.new()
+	var blade_mesh := BoxMesh.new()
+	blade_mesh.size = Vector3(0.12, 1.0, 0.06)
+	blade.mesh = blade_mesh
+	blade.position = Vector3(0.0, 1.0, 0.0)
+	pivot.add_child(blade)
+	model.add_child(pivot)
+	add_child(model)
+	VfxService.start_weapon_sweep(blade)
+	VfxService.call("_update_weapon_sweeps", 0.016)
+	pivot.rotation.z = 0.24
+	VfxService.call("_update_weapon_sweeps", 0.016)
+	var sweeps: Array = VfxService.get("_weapon_sweeps") as Array
+	var sweep_visual: MeshInstance3D = null
+	if not sweeps.is_empty():
+		sweep_visual = (sweeps.back() as Dictionary).get("visual") as MeshInstance3D
+	_check(
+		sweep_visual != null and (sweep_visual.mesh as ImmediateMesh).get_surface_count() == 1,
+		"a live swing draws a blade-bound strip between visible weapon samples"
+	)
+	VfxService.call("_build_impact_flash", Vector3.ZERO, Vector3.FORWARD, Color(1.0, 0.8, 0.4), 0.4, 0.16)
+	var glint: MeshInstance3D = null
+	for child in root.get_children():
+		if child is MeshInstance3D and child.name == "ImpactGlint":
+			glint = child as MeshInstance3D
+	_check(
+		glint != null and (glint.mesh as ImmediateMesh).get_surface_count() == 1,
+		"a live combat impact draws one short glint"
+	)
+	VfxService.call("_update_weapon_sweeps", 0.2)
+	model.queue_free()
 
 
 func _check_content_behavior_archetypes() -> void:
@@ -310,35 +351,7 @@ func _check_content_behavior_archetypes() -> void:
 		and not RoomLayoutCatalog.anchors_for("forgotten_castle", "castle_courtyard", "enemy", variant).is_empty(),
 		"authored room variants resolve through the generation layout catalog"
 	)
-	var normal := Vector3(0.0, 0.7071068, 0.7071068)
-	VfxService.play_footstep(Vector3.ZERO, Vector3.FORWARD, &"stone", normal)
-	var pool: Array = VfxService.get("_burst_pool") as Array
-	var active: CPUParticles3D = null
-	for candidate in pool:
-		if candidate is CPUParticles3D and (candidate as CPUParticles3D).emitting:
-			active = candidate as CPUParticles3D
-			break
-	_check(
-		active != null
-		and active.direction.dot(normal) > 0.99
-		and active.material_override is StandardMaterial3D
-		and (active.material_override as StandardMaterial3D).billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED,
-		"footstep flakes follow the sampled ground normal and face the camera"
-	)
-	VfxService.play_footstep(Vector3.ZERO, Vector3.FORWARD, &"water", normal)
-	var decals: Array = VfxService.get("_decal_pool") as Array
-	var ripple: Decal = null
-	for candidate in decals:
-		if candidate is Decal and (candidate as Decal).visible:
-			ripple = candidate as Decal
-			break
-	_check(
-		ripple != null
-		and is_equal_approx(ripple.global_position.dot(normal), 0.02)
-		and ripple.global_basis.y.dot(normal) > 0.99
-		and ripple.modulate.is_equal_approx(Color("6b9ed1")),
-		"water footsteps create a tinted, ground-aligned ripple"
-	)
+	# Animation markers and the timer both route through the player's audio-only step.
 
 
 func _check_toad_leap_behavior() -> void:

@@ -17,10 +17,6 @@ static func variants_for_kind(biome_id: String, kind: String) -> Array:
 	return list if list is Array else []
 
 
-static func variant_count(biome_id: String, kind: String) -> int:
-	return 1 + variants_for_kind(biome_id, kind).size()
-
-
 ## Weighted pick across the template's own baseline (index 0, weight 1) and every authored variant
 ## (index 1..n, `"weight"` defaults to 1). Deterministic per room via the same seed mix every other
 ## per-room roll in this generator uses.
@@ -50,7 +46,7 @@ static func variant_for_room(biome_id: String, run_seed: int, room_id: String, t
 
 
 ## The full variant record (shape/anchors/props/coverPattern), whatever subset of those keys the
-## content author actually wrote -- every key is optional (RM-03). Returns `{}` for variant 0 (the
+## content author actually wrote -- every key is optional. Returns `{}` for variant 0 (the
 ## template's own baseline, not a JSON-authored variant) or an out-of-range/malformed index.
 static func variant_data_for(biome_id: String, template_id: String, variant: int) -> Dictionary:
 	if variant <= 0:

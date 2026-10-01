@@ -2,8 +2,6 @@
   "id": "shadow_essence",
   "name": "Umbral Essence",
   "itemType": "material",
-  "gridWidth": 1,
-  "gridHeight": 1,
   "stackSize": 99,
   "rarity": "common",
   "description": "Umbral drawn out of the cathedral depths and pressed until it held a shape.",

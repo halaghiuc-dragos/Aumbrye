@@ -3,6 +3,6 @@ slug: faq
 title: FAQ
 ---
 
-Q: Is progress saved? A: Yes — progress is saved locally. When signed in, use the in-game cloud sync option to pull or push your save; it does not sync automatically in the background.
+Q: Is progress saved? A: Yes. Characters and runs are saved locally on your machine, and the game works fully offline.
 
-Q: How do leaderboards work? A: Opt-in on escape with boss defeated.
+Q: Is there cloud sync or an online leaderboard? A: Not in the current build. The game does not contact any server.

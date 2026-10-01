@@ -2,15 +2,12 @@
   "id": "venom_dagger",
   "name": "Venom Dagger",
   "itemType": "weapon",
-  "gridWidth": 1,
-  "gridHeight": 2,
   "stackSize": 1,
   "rarity": "rare",
   "description": "A thin coat of mire toxin waits on the edge.",
   "value": 20,
   "stats": {
-    "poisonDamage": 6,
-    "physicalDamage": 14
+    "physicalDamage": 20
   },
   "ruleText": "A backstab has a 40% chance to poison.",
   "rules": [

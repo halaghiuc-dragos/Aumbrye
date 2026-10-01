@@ -21,6 +21,7 @@ const SPAWN_TELEGRAPH_STAGGER := 0.12
 @export var player_path: NodePath = NodePath("Player")
 
 var _player: CharacterBody3D
+var _death_handled := false
 var _walls: Array[StaticBody3D] = []
 var _chest_nodes: Array[Node3D] = []
 var _active_enemies: Array[Node] = []
@@ -73,7 +74,7 @@ const BIRD_UPDATE_INTERVAL := 1.0 / 30.0
 const BIRD_NEAR_PLAYER_RADIUS_SQUARED := 28.0 * 28.0
 var _bird_records: Array[WavesBirdRecord] = []
 
-## MD-01: "a reason to move" -- the cresset's light drains while the player is away from it and
+## "a reason to move" -- the cresset's light drains while the player is away from it and
 ## only refuels near it, so holding one corner of the arena for a whole wave goes dark.
 var _cresset_fuel := 1.0
 const CRESSET_DRAIN_SECONDS := 28.0
@@ -122,7 +123,7 @@ func _attach_weather() -> void:
 
 func _exit_tree() -> void:
 	WeatherService.set_outdoors(false)
-	# MD-01: the "fog" arena state pushes `DayNightService.fog_boost` (a global), which must not
+	# The "fog" arena state pushes `DayNightService.fog_boost` (a global), which must not
 	# leak into whatever scene loads next.
 	if _arena_mutator and is_instance_valid(_arena_mutator):
 		_arena_mutator.call("clear_state")
@@ -207,25 +208,16 @@ func _build_fuel_objective() -> void:
 	glow.emission_energy_multiplier = 2.0
 	glow.albedo_color = Color(0.35, 0.95, 0.78, 0.8)
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var ring := MeshInstance3D.new()
+	var ring := Node3D.new()
 	ring.name = "RecoveryRing"
-	var ring_mesh := TorusMesh.new()
-	ring_mesh.inner_radius = 2.6
-	ring_mesh.outer_radius = 3.1
-	ring_mesh.rings = 20
-	ring_mesh.ring_segments = 8
-	ring.mesh = ring_mesh
-	ring.material_override = glow
 	ring.position.y = 0.08
 	marker.add_child(ring)
-	var beacon := MeshInstance3D.new()
+	PropLibrary.attach_themed(ring, "fx/recovery_ring", PixelDioramaStyle.PaletteTheme.HUB, {"materials": {"mesh": glow}})
+	var beacon := Node3D.new()
 	beacon.name = "Beacon"
-	var beacon_mesh := PrismMesh.new()
-	beacon_mesh.size = Vector3(0.8, 2.0, 0.8)
-	beacon.mesh = beacon_mesh
-	beacon.material_override = glow
 	beacon.position.y = 1.1
 	marker.add_child(beacon)
+	PropLibrary.attach_themed(beacon, "fx/beacon", PixelDioramaStyle.PaletteTheme.HUB, {"materials": {"mesh": glow}})
 	var light := OmniLight3D.new()
 	light.name = "RecoveryLight"
 	light.light_color = Color(0.35, 0.95, 0.78)
@@ -431,14 +423,16 @@ func _start_wave() -> void:
 	_cresset_fuel = 1.0
 	_capture_wave_start_checkpoint()
 	var wave := WavesRunService.current_wave
+	if WavesRunService.is_boss_wave(wave):
+		AudioDirector.play_boss_music()
 	_set_fuel_objective_for_wave(wave)
-	# MD-01: one arena mutation per five-wave block -- wave 45 should not be wave 5 with more
+	# One arena mutation per five-wave block -- wave 45 should not be wave 5 with more
 	# enemies. `chest_set` already counts intermission blocks, so it doubles as the block index.
 	if _arena_mutator:
 		_arena_mutator.call(
 			"apply_block", WavesRunService.chest_set, _torchlight, WavesRunService.get_arena_states()
 		)
-	# MD-01: one modifier from wave 10 on, so wave 45 fights differently than wave 5 fought.
+	# One modifier from wave 10 on, so wave 45 fights differently than wave 5 fought.
 	RunModifierServiceScript.apply_waves_wave_modifier(wave, WavesRunService.get_seed())
 	var chapter := WavesRunService.chapter_for_wave(wave)
 	var chapter_title := str(chapter.get("title", "The Vigil"))
@@ -448,7 +442,6 @@ func _start_wave() -> void:
 	var active_modifier := RunModifierServiceScript.active_modifiers()
 	if not active_modifier.is_empty():
 		subtitle += "  —  %s" % RunModifierServiceScript.describe(active_modifier[0])
-	# HD-01
 	if _hud and _hud.has_method("show_region_title"):
 		_hud.call("show_region_title", "The Vigil", subtitle)
 	var enemy_ids := WavesRunService.get_enemies_for_wave(wave)
@@ -461,7 +454,7 @@ func _start_wave() -> void:
 	_persist_waves_save()
 
 
-## MD-01: which side wave `wave` opens from -- "ring" is the original even spread, "converge"
+## Which side wave `wave` opens from -- "ring" is the original even spread, "converge"
 ## forces the player to turn and hold one direction, "scatter" breaks the even spacing so the ring
 ## itself stops being a readable pattern. Kept to a minority of waves so the ring stays the norm.
 func _spawn_pattern_for_wave(wave: int) -> String:
@@ -671,7 +664,9 @@ func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 		enemy.enemy_died.connect(_on_enemy_died.bind(enemy))
 	elif enemy.has_signal("boss_defeated"):
 		enemy.boss_defeated.connect(_on_enemy_died.bind(enemy))
-	# HD-01: no boss bar showed in the Vigil even on a boss wave (`WavesRunService.is_boss_wave()`)
+	if enemy.has_signal("adds_spawned"):
+		enemy.adds_spawned.connect(_on_adds_spawned)
+	# No boss bar showed in the Vigil even on a boss wave (`WavesRunService.is_boss_wave()`)
 	# before this -- the HUD only ever got wired up for castle mode's boss room.
 	if enemy.has_signal("boss_defeated") and _hud and _hud.has_method("bind_boss"):
 		_hud.call("bind_boss", enemy)
@@ -681,9 +676,23 @@ func _spawn_enemy(enemy_id: String, spawn_point: Vector3) -> void:
 	_refresh_remaining()
 
 
-## MD-01: mirrors `DungeonBuilder._apply_floor_scaling()` -- the Vigil spawns enemies directly
+## Mirrors `DungeonBuilder._apply_floor_scaling()` -- the Vigil spawns enemies directly
 ## rather than through `DungeonBuilder`, so it never picked up the wave's HP/damage curve or the
 ## per-wave modifier's effects (`WavesDifficultyProfile` already existed but nothing called it).
+## A boss wave is not over until its adds are dead too.
+func _on_adds_spawned(nodes: Array) -> void:
+	for node in nodes:
+		if not is_instance_valid(node):
+			continue
+		_apply_wave_scaling(node)
+		if node.has_signal("adds_spawned"):
+			node.adds_spawned.connect(_on_adds_spawned)
+		if node.has_signal("enemy_died"):
+			node.enemy_died.connect(_on_enemy_died.bind(node))
+		_active_enemies.append(node)
+	_refresh_remaining()
+
+
 func _apply_wave_scaling(enemy: Node) -> void:
 	var wave := WavesRunService.current_wave
 	var profile := DifficultyProfileScript.for_run("waves")
@@ -705,7 +714,7 @@ func _resolve_enemy_scene(enemy_id: String) -> PackedScene:
 	return null
 
 
-## HD-01: enemy-count status is HUD territory now -- routed through set_objective_text rather
+## Enemy-count status is HUD territory now -- routed through set_objective_text rather
 ## than waves_run_ui.gd's own panel.
 func _refresh_remaining() -> void:
 	if _hud and _hud.has_method("set_objective_text"):
@@ -726,7 +735,7 @@ func _clear_spawn_markers() -> void:
 	_refresh_radar_spawn_markers()
 
 
-## HD-05: keeps the arena radar's pending-spawn dots in sync with `_spawn_markers`.
+## Keeps the arena radar's pending-spawn dots in sync with `_spawn_markers`.
 func _refresh_radar_spawn_markers(revision: int = -1) -> void:
 	if revision >= 0 and revision != _radar_marker_refresh_revision:
 		return
@@ -769,6 +778,7 @@ func _check_wave_completion() -> void:
 
 
 func _on_wave_cleared() -> void:
+	AudioDirector.end_boss_music()
 	var wave := WavesRunService.current_wave
 	if wave >= WavesRunService.final_wave():
 		WavesRunService.enter_reward_phase()
@@ -845,7 +855,7 @@ func _process(delta: float) -> void:
 	_update_cresset_fuel(delta)
 
 
-## MD-01: only active during combat -- the lobby/intermission cresset is a separate always-lit prop
+## Only active during combat -- the lobby/intermission cresset is a separate always-lit prop
 ## (`WavesTorchHolder`), and the ring lighting (`WavesTorchlight`) is held fully lit there too.
 func _update_cresset_fuel(delta: float) -> void:
 	if _lobby_active or _torchlight == null or not is_instance_valid(_torchlight):
@@ -922,18 +932,17 @@ func _build_combat_hud() -> void:
 	hud.set("lock_on_path", NodePath("../Player/LockOn"))
 	add_child(hud)
 	_hud = hud
-	# HD-01: the HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
+	# The HUD contract every run scene owes a call to -- see combat_hud.gd's header comment.
 	if hud.has_method("configure_for_mode"):
 		hud.call("configure_for_mode", "waves")
-	# HD-05: the arena has no room graph -- radar mode replaces the dungeon minimap instead of
+	# The arena has no room graph -- radar mode replaces the dungeon minimap instead of
 	# leaving it hidden.
 	if hud.has_method("enable_arena_radar"):
 		hud.call("enable_arena_radar", SPAWN_RING_RADIUS * 1.1)
-	# AD-04: same immediate bounty-complete banner castle_run.gd gets -- waves is a valid bounty
-	# mode too, and used to only learn about it at the results screen.
+	# Same immediate bounty-complete banner castle_run.gd gets -- waves is a valid bounty mode too.
 	if QuestService and not QuestService.quest_updated.is_connected(_on_quest_updated):
 		QuestService.quest_updated.connect(_on_quest_updated)
-	# SY-02: a quest's counter moving used to produce no feedback at all mid-run.
+	# A quest's counter moving gives feedback mid-run.
 	if QuestService and not QuestService.quest_progress_advanced.is_connected(_on_quest_progress_advanced):
 		QuestService.quest_progress_advanced.connect(_on_quest_progress_advanced)
 
@@ -1032,12 +1041,15 @@ func _wire_player_death() -> void:
 
 
 func _on_player_died() -> void:
+	if _death_handled:
+		return
+	_death_handled = true
 	await get_tree().create_timer(1.5, false).timeout
 	RunFlow.on_waves_failed()
 
 
 func _animate_birds() -> void:
-	var camera := get_viewport().get_camera_3d()
+	var camera := PixelDioramaViewport.get_gameplay_camera()
 	var player_position: Vector3 = _player.global_position if is_instance_valid(_player) else Vector3.ZERO
 	for record in _bird_records:
 		var bird := record.bird

@@ -74,10 +74,6 @@ func strength() -> float:
 	return clampf(BASE_STRENGTH + _gust * GUST_STRENGTH, 0.0, 1.0)
 
 
-func gust() -> float:
-	return _gust
-
-
 func set_fixed_direction(dir: Vector3) -> void:
 	var flat := Vector3(dir.x, 0.0, dir.z)
 	if flat.length_squared() < 0.0001:

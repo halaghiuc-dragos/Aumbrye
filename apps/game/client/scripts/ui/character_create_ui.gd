@@ -58,6 +58,7 @@ var _begin_button: Button
 var _random_name_button: Button
 var _classes: Array[Dictionary] = []
 var _selected_class_index := -1
+var _draft_dirty := false
 var _edit_mode := false
 var _class_column: VBoxContainer
 var _name_column: VBoxContainer
@@ -129,9 +130,8 @@ func _build_ui() -> void:
 	_build_comparison_table(outer_vbox)
 	_wire_focus_neighbors()
 	_perk_line.resized.connect(_on_perk_line_resized)
-	# HD-03: `build_modal()` only styles the panel shell -- the pixel-filter sweep needs to run
+	# `build_modal()` only styles the panel shell -- the pixel-filter sweep needs to run
 	# after all three columns and the comparison table exist.
-	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _build_comparison_table(parent: VBoxContainer) -> void:
@@ -305,10 +305,9 @@ func _build_preview_column(parent: HBoxContainer) -> VBoxContainer:
 	viewport_container.custom_minimum_size = Vector2(270, 360)
 	viewport_container.stretch = true
 	viewport_container.stretch_shrink = _preview_pixel_shrink()
-	viewport_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	aspect.add_child(viewport_container)
 	_preview_viewport = SubViewport.new()
-	_preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_preview_viewport.own_world_3d = true
 	viewport_container.add_child(_preview_viewport)
 	var stage := Node3D.new()
@@ -433,7 +432,6 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	stats_box.add_child(weapon_row)
 	_weapon_icon = TextureRect.new()
 	_weapon_icon.name = "WeaponIcon"
-	_weapon_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_weapon_icon.custom_minimum_size = Vector2(24, 24)
 	_weapon_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -443,15 +441,15 @@ func _build_detail_column(parent: HBoxContainer) -> VBoxContainer:
 	_weapon_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_body_label(_weapon_line)
 	weapon_row.add_child(_weapon_line)
-	# SY-04: `allowedWeaponFamilies` was authored and invisible at the point of choice -- the
+	# `allowedWeaponFamilies` was authored and invisible at the point of choice -- the
 	# starting-weapon line above names one item, this names the whole archetype restriction
-	# `CB-05` gave real mechanical identity to ("this class fights with greatswords and axes").
+	# Gave real mechanical identity to ("this class fights with greatswords and axes").
 	_family_line = Label.new()
 	_family_line.name = "FamilyLine"
 	_family_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameUISkinScript.style_hint_label(_family_line)
 	stats_box.add_child(_family_line)
-	# UX-08: the perk restated as a verb, and a one-line "plays like" summary -- the two things
+	# The perk restated as a verb, and a one-line "plays like" summary -- the two things
 	# the plan named as missing from an otherwise-strong creation screen.
 	_plays_like_line = Label.new()
 	_plays_like_line.name = "PlaysLikeLine"
@@ -785,14 +783,14 @@ func _refresh_preview() -> void:
 
 func _on_appearance_row_changed(_index: int) -> void:
 	_refresh_preview()
-	_save_draft_profile()
+	_draft_dirty = true
 	if _edit_mode:
 		_perk_line.text = CharacterAppearanceScript.describe(_build_appearance_profile())
 
 
 func _on_name_changed(_text: String) -> void:
 	_update_name_validation()
-	_save_draft_profile()
+	_draft_dirty = true
 
 
 func _update_name_validation() -> void:
@@ -828,12 +826,15 @@ func _on_randomize_pressed() -> void:
 	_name_input.text = NameValidatorScript.random_valid_name(_existing_names_for_validation())
 	_refresh_preview()
 	_update_name_validation()
-	_save_draft_profile()
+	_draft_dirty = true
 
 
+## The draft lives in memory while the screen is open and is written once, when the player leaves
+## or begins, not on every keystroke.
 func _save_draft_profile() -> void:
-	if _edit_mode:
+	if _edit_mode or not _draft_dirty:
 		return
+	_draft_dirty = false
 	var draft := _build_appearance_profile()
 	draft["draftName"] = _name_input.text
 	draft["classId"] = (
@@ -868,17 +869,19 @@ func _on_confirm_pressed() -> void:
 	var character_name := _name_input.text.strip_edges()
 	var class_display_name := ContentTextScript.name(class_def, class_id)
 	AudioDirector.play_ui_sfx()
-	MenuShellScript.show_confirmation(
-		self,
-		tr("CREATE_CONFIRM_TITLE"),
-		tr("CREATE_CONFIRM_MESSAGE") % [class_display_name, character_name],
-		func() -> void:
-			visible = false
-			_unregister_menu_stack()
-			completed.emit(class_id, character_name, _build_appearance_profile()),
-		Callable(),
-		tr("CREATE_BEGIN"),
-		tr("CREATE_BACK")
+	var begin := func() -> void:
+		_save_draft_profile()
+		visible = false
+		_unregister_menu_stack()
+		completed.emit(class_id, character_name, _build_appearance_profile())
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("CREATE_CONFIRM_TITLE"),
+			tr("CREATE_CONFIRM_MESSAGE") % [class_display_name, character_name],
+			tr("CREATE_BEGIN"),
+			tr("CREATE_BACK"),
+			begin
+		)
 	)
 
 

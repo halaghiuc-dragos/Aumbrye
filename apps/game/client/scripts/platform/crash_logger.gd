@@ -9,7 +9,6 @@ const MAX_REPORT_FILES := 20
 const MAX_REPORT_BYTES := 5 * 1024 * 1024
 const UPLOAD_TIMEOUT_SEC := 5.0
 const TELEMETRY_CRASH_PATH := "/api/v1/telemetry/crash"
-const STEAM_CLOUD_SAVE_NAME := "aumbrye_save.json"
 
 var _session_id := ""
 var _session_log: FileAccess

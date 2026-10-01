@@ -2,13 +2,12 @@ extends Node3D
 
 
 const MaterialDissolveScript := preload("res://scripts/art/characters/material_dissolve.gd")
+const INTERACT_RANGE := 2.2
 
 var _secret_room_id: String = ""
 var _builder: DungeonBuilder = null
 var _revealed := false
-var _interact_area: Area3D
 var _barrier: StaticBody3D
-var _near_player := false
 var _tell_floor: StaticBody3D
 
 
@@ -29,14 +28,17 @@ func _skin(biome_id: String) -> void:
 		return
 	var wall := BiomeRegistry.get_wall_material(biome_id)
 	if wall:
-		mesh_instance.material_override = wall
+		# Walls carry no dissolve, so this one wall gets the surface shader that does: it is the
+		# panel that dissolves away when found.
+		var dissolving := wall.duplicate() as Material
+		if dissolving is ShaderMaterial:
+			(dissolving as ShaderMaterial).shader = load(PixelDioramaStyle.SHADER_PATH) as Shader
+		mesh_instance.material_override = dissolving
 
 
 func mark_revealed() -> void:
 	_revealed = true
 	_disable_barrier()
-	if _interact_area:
-		_interact_area.monitoring = false
 	visible = false
 
 
@@ -45,14 +47,14 @@ func _ready() -> void:
 	# builder never gets configured, and it still has to look like the wall around it.
 	_skin(DioramaInteractableSkin.resolve_biome(self))
 	_barrier = get_node_or_null("StaticBody3D") as StaticBody3D
-	_interact_area = get_node_or_null("InteractArea") as Area3D
-	if _interact_area:
-		_interact_area.body_entered.connect(_on_body_entered)
-		_interact_area.body_exited.connect(_on_body_exited)
+	# No prompt: a secret panel must not announce itself.
+	DungeonInteractionService.register_candidate(
+		self, self, INTERACT_RANGE, 1, Callable(self, "_reveal"), Callable(self, "_can_reveal")
+	)
 	_build_tell()
 
 
-## RM-09: the tell must be ignorable -- a very slow, very faint dust-mote drift in front of the
+## The tell must be ignorable -- a very slow, very faint dust-mote drift in front of the
 ## panel, plus a distinct footstep sound within 1.5m of it. A player not looking should just walk
 ## past; a player who is looking should feel clever for noticing. Anything louder turns a secret
 ## into a waypoint.
@@ -76,22 +78,8 @@ func _build_tell() -> void:
 	_tell_floor.add_child(shape)
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = true
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = false
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _revealed or not _near_player:
-		return
-	if PlayerInput.interact_just_pressed(event):
-		_reveal()
-		get_viewport().set_input_as_handled()
+func _can_reveal() -> bool:
+	return not _revealed
 
 
 func _reveal() -> void:

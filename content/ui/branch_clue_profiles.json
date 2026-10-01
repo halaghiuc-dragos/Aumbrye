@@ -24,6 +24,22 @@
     "lore": {
       "hint": "unknown",
       "clueQuality": 1
+    },
+    "combat": {
+      "hint": "danger",
+      "clueQuality": 2
+    },
+    "rest": {
+      "hint": "rest",
+      "clueQuality": 2
+    },
+    "merchant": {
+      "hint": "reward",
+      "clueQuality": 2
+    },
+    "locked_vault": {
+      "hint": "reward",
+      "clueQuality": 2
     }
   }
 }

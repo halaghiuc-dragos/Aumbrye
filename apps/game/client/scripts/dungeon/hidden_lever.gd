@@ -1,10 +1,10 @@
 extends Node3D
 
 
+const INTERACT_RANGE := 2.0
+
 var _secret_room_id: String = ""
 var _builder: DungeonBuilder = null
-var _interact_area: Area3D
-var _near_player := false
 var _used := false
 
 
@@ -18,8 +18,6 @@ func configure(secret_room_id: String, builder: DungeonBuilder) -> void:
 
 func mark_used() -> void:
 	_used = true
-	if _interact_area:
-		_interact_area.monitoring = false
 	visible = false
 
 
@@ -29,28 +27,14 @@ func _flag_id() -> String:
 
 func _ready() -> void:
 	_skin()
-	_interact_area = get_node_or_null("InteractArea") as Area3D
-	if _interact_area:
-		_interact_area.body_entered.connect(_on_body_entered)
-		_interact_area.body_exited.connect(_on_body_exited)
+	# No prompt: a hidden lever is only found by looking.
+	DungeonInteractionService.register_candidate(
+		self, self, INTERACT_RANGE, 1, Callable(self, "_pull"), Callable(self, "_can_pull")
+	)
 
 
-func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = true
-
-
-func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_player = false
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _used or not _near_player:
-		return
-	if PlayerInput.interact_just_pressed(event):
-		_pull()
-		get_viewport().set_input_as_handled()
+func _can_pull() -> bool:
+	return not _used
 
 
 func _pull() -> void:
@@ -58,7 +42,7 @@ func _pull() -> void:
 		return
 	_used = true
 	WorldState.set_flag(_flag_id(), true)
-	# AU-03: finding a secret should sound like finding one, not like every other interact.
+	# Finding a secret should sound like finding one, not like every other interact.
 	AudioDirector.play_stinger("secret_found")
 	if _builder:
 		_builder.reveal_secret(_secret_room_id)

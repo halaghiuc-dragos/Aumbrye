@@ -74,7 +74,7 @@ func _build_ui_if_needed() -> void:
 	_detail.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	GameUISkinScript.style_body_label(_detail)
 	split.add_child(_detail)
-	var close_button := MenuShellScript.make_menu_button("Close", close)
+	var close_button := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close)
 	(shell["content_vbox"] as VBoxContainer).add_child(close_button)
 
 

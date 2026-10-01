@@ -1,7 +1,7 @@
 class_name TalentTreeGraph
 extends Control
 
-## UX-01: draws the talent tree as an actual tree -- one column per branch, `requires` edges as
+## Draws the talent tree as an actual tree -- one column per branch, `requires` edges as
 ## lines between cells, keyboard/pad navigation that walks the graph instead of a flat index.
 ## `talents_ui.gd` owns all game-state reads (ranks, planning, lock reasons); this node only owns
 ## layout, drawing and focus geometry, and reports back through signals + a state-provider
@@ -65,11 +65,6 @@ func focus_node(node_id: String) -> void:
 	node_focus_changed.emit(_focused_id)
 	_scroll_to_focused()
 	queue_redraw()
-
-
-func activate_focused() -> void:
-	if _focused_id != "":
-		node_activated.emit(_focused_id)
 
 
 func move_focus(dir: Vector2i) -> void:

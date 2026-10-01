@@ -39,10 +39,11 @@ func _ready() -> void:
 	}
 	vfx._emit_gpu_burst("Fx02Parity", Vector3.ZERO, Vector3.UP, Color.WHITE, 26, 0.16, parity_cfg)
 	var gpu: GPUParticles3D = null
-	for candidate in vfx._gpu_burst_pool:
-		if candidate is GPUParticles3D and candidate.name == "Fx02Parity":
-			gpu = candidate as GPUParticles3D
-			break
+	for bucket_pool: Array in vfx._gpu_burst_pools.values():
+		for candidate in bucket_pool:
+			if candidate is GPUParticles3D and candidate.name == "Fx02Parity":
+				gpu = candidate as GPUParticles3D
+				break
 	if gpu == null:
 		_fail("GPU parity burst was not acquired from the pool")
 		return

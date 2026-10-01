@@ -5,7 +5,7 @@ extends RefCounted
 const HEIGHT_STEP := 3.0
 
 
-static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictionary) -> Array:
+static func build_rooms(_graph: RoomGraph, assignment: Dictionary, layout: Dictionary) -> Array:
 	var placements: Dictionary = layout["placements"]
 	var realised: Dictionary = layout["realised_edges"]
 	var door_offsets := _door_offsets_by_room(realised)
@@ -18,10 +18,6 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 			continue
 		var placement: RoomGraphLayout.Placement = placements[layout_id]
 		var center := placement.center()
-		var slot := graph.get_slot(layout_id)
-		var height_y := 0.0
-		if slot != null:
-			height_y = float(slot.height_level) * HEIGHT_STEP
 		var size_x := float(placement.size.x) * RoomGraphLayout.CELL
 		var size_z := float(placement.size.y) * RoomGraphLayout.CELL
 		(
@@ -34,16 +30,16 @@ static func build_rooms(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 					"transform":
 					{
 						"x": center.x,
-						"y": height_y,
+						"y": 0.0,
 						"z": center.y,
 						"yaw": rad_to_deg(placement.yaw),
 					},
 					"tags": room.get("tags", []),
-					"heightLevel": slot.height_level if slot != null else 0,
+					"heightLevel": 0,
 					"size": {"x": size_x, "z": size_z},
 					"doorOffsets": door_offsets.get(layout_id, {}),
 					"kind": _minimap_kind_for_semantic(str(room["semantic_id"]), str(room["type"])),
-					"shape": str(RoomTemplateCatalog.get_spec(str(room["template_id"])).get("shape", "rect")),
+					"shape": "rect" if str(RoomTemplateCatalog.get_spec(str(room["template_id"])).get("shape", "rect")) == "split" else str(RoomTemplateCatalog.get_spec(str(room["template_id"])).get("shape", "rect")),
 					"tacticalFamily": RoomTemplateCatalog.tactical_family(str(room["template_id"])),
 				}
 			)
@@ -72,7 +68,8 @@ static func _door_offsets_by_room(realised: Dictionary) -> Dictionary:
 	return out
 
 
-## Emits one edge per doorway the lattice actually built, plus the graph links it could not honour.
+## Emits one edge per doorway the lattice actually built. A graph link the lattice could not seat
+## flush against its neighbour is not an edge: there is no wall to cut and nothing to draw.
 ##
 ## Driven by the solver rather than by graph adjacency, because the two can disagree: the
 ## straight-line fallback lays the critical rooms out in a run that ignores their grid positions
@@ -87,11 +84,9 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 		semantic_by_layout[room["layout_id"]] = room["semantic_id"]
 		type_by_layout[room["layout_id"]] = room["type"]
 	var edges: Array = []
-	var seen := {}
 	var secret_ids := {}
 	for secret_id in _placed_secret_ids(graph, assignment):
 		secret_ids[str(secret_id)] = true
-	var loop_layout_pairs := _loop_layout_pairs(graph)
 	for key in realised:
 		var realised_edge: Dictionary = realised[key]
 		var from_layout := str(realised_edge["from"])
@@ -102,7 +97,6 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 			continue
 		var from_id: String = semantic_by_layout[from_layout]
 		var to_id: String = semantic_by_layout[to_layout]
-		seen[_realised_key(from_layout, to_layout)] = true
 		var kind := "door"
 		if (
 			type_by_layout.get(from_layout, "") == "corridor"
@@ -117,46 +111,13 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 			"dir": RoomGraphLayout.dir_name(realised_edge["dir"]),
 			"door": {"x": door_world.x, "z": door_world.y},
 		}
-		# RM-04: a loop edge is by definition redundant -- the graph already validated as connected
+		# A loop edge is by definition redundant -- the graph already validated as connected
 		# on its walk edges alone before any loop was opened -- so marking one a one-way "down" drop
 		# (no ramp, see `dungeon_builder.gd:_build_height_transitions()`) can never strand anything
 		# the floor requires the way promoting a dead end to a barred gate could. No walk edge is
 		# ever a candidate here.
-		if _realised_key(from_layout, to_layout) in loop_layout_pairs:
-			var from_slot := graph.get_slot(from_layout)
-			var to_slot := graph.get_slot(to_layout)
-			if from_slot != null and to_slot != null and from_slot.height_level != to_slot.height_level:
-				edge_dict["oneWay"] = "down"
+		# Generated room landings are level, including loop connections.
 		edges.append(edge_dict)
-	# Graph links the lattice left unrealised stay in the definition as shortcuts. The builder
-	# already knows to close a shortcut whose rooms do not touch, and the minimap still draws them.
-	for cell in graph.occupied_cells():
-		var slot: RoomGraphSlot = graph.slots[cell]
-		if slot.slot_type == RoomGraphSlot.SlotType.SECRET:
-			continue
-		for dir in _directions():
-			if not (slot.door_mask & dir_to_door(dir)):
-				continue
-			var neighbor: RoomGraphSlot = graph.slots.get(cell + dir) as RoomGraphSlot
-			if neighbor == null or neighbor.slot_type == RoomGraphSlot.SlotType.SECRET:
-				continue
-			if not placements.has(slot.slot_id) or not placements.has(neighbor.slot_id):
-				continue
-			var pair_key := _realised_key(slot.slot_id, neighbor.slot_id)
-			if seen.has(pair_key):
-				continue
-			seen[pair_key] = true
-			if not semantic_by_layout.has(slot.slot_id):
-				continue
-			if not semantic_by_layout.has(neighbor.slot_id):
-				continue
-			edges.append(
-				{
-					"from": semantic_by_layout[slot.slot_id],
-					"to": semantic_by_layout[neighbor.slot_id],
-					"kind": "shortcut",
-				}
-			)
 	for secret_id in _placed_secret_ids(graph, assignment):
 		var secret_slot := graph.get_slot(secret_id)
 		if secret_slot == null or secret_slot.secret_parent_id == "":
@@ -172,8 +133,8 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 			"kind": "secret",
 		}
 		# A secret is seated against its host by the solver, so it gets the same wall-and-offset
-		# treatment as any other doorway. Without it the panel and the hole behind it are placed by
-		# the old centre-delta guess, which for a rehomed secret names a wall at random.
+		# treatment as any other doorway; a centre-delta guess would name a wall at random for a rehomed
+		# secret.
 		var secret_dir: Vector2i = secret_slot.secret_parent_dir
 		if (
 			secret_dir != Vector2i.ZERO
@@ -197,36 +158,16 @@ static func build_edges(graph: RoomGraph, assignment: Dictionary, layout: Dictio
 	return edges
 
 
-## The lattice solver has no failure mode, so this no longer rejects layouts.
+## The lattice solver has no failure mode, so this does not reject layouts.
 ##
-## It used to run the walk in strict mode and refuse any floor whose doors did not line up, which is
-## what turned an unsatisfiable constraint system into a floor the player could not enter. Sliding
-## doors mean alignment is decided by where two rooms actually meet, so the only thing left worth
-## checking is that the entrance the assigner nominated is a room that exists.
+## Sliding doors mean alignment is decided by where two rooms actually meet, so the only thing left
+## worth checking is that the entrance the assigner nominated is a room that exists.
 static func validate_door_topology(graph: RoomGraph, assignment: Dictionary) -> Dictionary:
 	var entrance_id := str(assignment.get("entrance_layout_id", graph.start_id))
 	for room in assignment.get("rooms", []):
 		if str(room.get("layout_id", "")) == entrance_id:
 			return {"ok": true}
 	return {"ok": false, "reason": "Missing entrance room '%s'" % entrance_id}
-
-
-## Loop edges are stored as grid cells; realised edges are keyed by layout id. This bridges the
-## two so `build_edges()` can tell whether a given realised edge came from `graph.loop_edges` (safe
-## to make one-way) or `graph.walk_edges` (load-bearing, never touched here).
-static func _loop_layout_pairs(graph: RoomGraph) -> Dictionary:
-	var pairs := {}
-	for loop_edge in graph.loop_edges:
-		var slot_a: RoomGraphSlot = graph.slots.get(loop_edge["a"])
-		var slot_b: RoomGraphSlot = graph.slots.get(loop_edge["b"])
-		if slot_a == null or slot_b == null:
-			continue
-		pairs[_realised_key(slot_a.slot_id, slot_b.slot_id)] = true
-	return pairs
-
-
-static func _realised_key(a: String, b: String) -> String:
-	return "%s>%s" % [a, b] if a < b else "%s>%s" % [b, a]
 
 
 static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Array:
@@ -240,10 +181,6 @@ static func _placed_secret_ids(graph: RoomGraph, assignment: Dictionary) -> Arra
 		if rooms_by_layout.has(str(secret_id)):
 			out.append(secret_id)
 	return out
-
-
-static func _directions() -> Array[Vector2i]:
-	return [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 
 
 ## The door slot a step in `dir` leaves through. Shared with `room_graph_paths`.

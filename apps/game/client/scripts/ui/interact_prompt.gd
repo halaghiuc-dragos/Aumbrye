@@ -1,10 +1,9 @@
 class_name InteractPrompt
 extends Label3D
 
-## HD-08: one interact-prompt look everywhere. `room_locked_door_content.gd` and
-## `room_locked_vault_content.gd` used to build this Label3D by hand (each with its own font size
-## and outline); `room_lore_content.gd`, `room_merchant_content.gd` and `room_npc_quest_content.gd`
-## had no prompt at all, so interacting with them meant guessing that interact did something.
+## One interact-prompt look everywhere: one font size and outline for every room-content type, so
+## interacting with a lore stone, a merchant or an NPC never means guessing that interact does
+## something.
 
 const InputGlyphServiceScript := preload("res://scripts/ui/input_glyph_service.gd")
 

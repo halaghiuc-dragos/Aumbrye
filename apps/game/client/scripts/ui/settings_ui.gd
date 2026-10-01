@@ -84,8 +84,7 @@ func _on_locale_changed() -> void:
 			focus_row_itself = focus_owner == focus_ancestor
 			break
 		focus_ancestor = focus_ancestor.get_parent()
-	if focused_tab_index < 0:
-		focused_tab_index = _tab_buttons.find(focus_owner)
+	focused_tab_index = _tab_buttons.find(focus_owner)
 	_discard_ui()
 	_active_page_idx = page
 	_build_ui_if_needed()
@@ -132,18 +131,21 @@ func _discard_ui() -> void:
 
 
 func _on_fullscreen_confirm_needed() -> void:
-	MenuShellScript.show_confirmation(
-		self,
-		tr("SETTINGS_FULLSCREEN_TITLE"),
-		tr("SETTINGS_FULLSCREEN_BODY") % int(DisplayService.fullscreen_confirm_sec),
-		func() -> void:
-			DisplayService.confirm_fullscreen()
-			_rebuild_active_page(),
-		func() -> void:
-			DisplayService.revert_fullscreen()
-			_rebuild_active_page(),
-		tr("SETTINGS_FULLSCREEN_KEEP"),
-		tr("SETTINGS_FULLSCREEN_REVERT")
+	var keep := func() -> void:
+		DisplayService.confirm_fullscreen()
+		_rebuild_active_page()
+	var revert := func() -> void:
+		DisplayService.revert_fullscreen()
+		_rebuild_active_page()
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("SETTINGS_FULLSCREEN_TITLE"),
+			tr("SETTINGS_FULLSCREEN_BODY") % int(DisplayService.fullscreen_confirm_sec),
+			tr("SETTINGS_FULLSCREEN_KEEP"),
+			tr("SETTINGS_FULLSCREEN_REVERT"),
+			keep,
+			revert
+		)
 	)
 
 
@@ -249,9 +251,8 @@ func _rebuild_active_page() -> void:
 		_:
 			_build_schema_page(page)
 	_wire_row_focus_neighbors()
-	# HD-03: `build_modal()` only styles the panel shell -- pages rebuild their rows on every tab
+	# `build_modal()` only styles the panel shell -- pages rebuild their rows on every tab
 	# switch, so the pixel-filter sweep needs to run here rather than once in `_ready()`.
-	GameUISkinScript.apply_pixel_theme(self)
 
 
 func _build_schema_page(page: String) -> void:
@@ -294,10 +295,9 @@ func _play_audio_test(setting_id: String) -> void:
 			AudioDirector.preview_bus(&"SFX")
 
 
-## `SY-05`: a player on weak hardware previously had to understand `shade_bands` and
-## `edge_strength` to get a frame rate. One-click presets go first, before the schema-driven
-## rows and the collapsed advanced tuning block, so "pick one of three words" is the first thing
-## on this page rather than something found by scrolling.
+## One-click presets go first, before the schema-driven rows and the collapsed advanced tuning
+## block, so "pick one of three words" is the first thing on this page and a player on weak hardware
+## does not have to understand `shade_bands` and `edge_strength` to get a frame rate.
 func _build_quality_presets() -> void:
 	var title := Label.new()
 	title.text = tr("SETTINGS_QUALITY_PRESETS")
@@ -424,9 +424,10 @@ func _pixel_slider(
 
 
 func _build_controls_page() -> void:
+	_build_schema_page("controls")
 	_page_host.add_child(_binding_page_hint())
 	_page_host.add_child(_binding_header_row())
-	for action in InputRebindService.get_rebindable_actions():
+	for action in InputBindings.get_rebindable_actions():
 		var row := PanelContainer.new()
 		row.focus_mode = Control.FOCUS_ALL
 		row.add_theme_stylebox_override("panel", GameUISkinScript.make_row_style())
@@ -435,7 +436,7 @@ func _build_controls_page() -> void:
 		hbox.add_theme_constant_override("separation", 8)
 		row.add_child(hbox)
 		var name_lbl := Label.new()
-		name_lbl.text = InputRebindService.get_action_label(action)
+		name_lbl.text = InputBindings.get_action_label(action)
 		name_lbl.theme_type_variation = GameUISkinScript.VAR_SECTION_TITLE
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -451,7 +452,7 @@ func _build_controls_page() -> void:
 		reset_btn.custom_minimum_size = Vector2(BINDING_RESET_WIDTH, 0)
 		reset_btn.pressed.connect(
 			func() -> void:
-				InputRebindService.reset_action(action)
+				InputBindings.reset_action(action)
 				_rebuild_active_page()
 		)
 		GameUISkinScript.wire_button_sfx(reset_btn)
@@ -460,7 +461,7 @@ func _build_controls_page() -> void:
 	var reset_all := GameUISkinScript.make_button(tr("SETTINGS_BINDING_RESET_ALL"))
 	reset_all.pressed.connect(
 		func() -> void:
-			InputRebindService.reset_all()
+			InputBindings.reset_all()
 			_rebuild_active_page()
 	)
 	GameUISkinScript.wire_button_sfx(reset_all)
@@ -505,7 +506,7 @@ func _binding_button(text: String) -> Button:
 
 
 func _binding_label(action: StringName, keyboard: bool) -> String:
-	for event in InputRebindService.get_action_events(action):
+	for event in InputBindings.get_action_events(action):
 		var is_kb := event is InputEventKey or event is InputEventMouseButton
 		if keyboard == is_kb:
 			return InputGlyphService.format_event_label(event)
@@ -554,16 +555,18 @@ func _build_advanced_page() -> void:
 
 
 func _confirm_restore_backup(index: int) -> void:
-	MenuShellScript.show_confirmation(
-		self,
-		tr("SETTINGS_RESTORE_TITLE"),
-		tr("SETTINGS_RESTORE_BODY") % index,
-		func() -> void:
-			if LocalSave.restore_backup(index):
-				close_settings(),
-		Callable(),
-		tr("SETTINGS_RESTORE_CONFIRM"),
-		tr("SETTINGS_BACK")
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("SETTINGS_RESTORE_TITLE"),
+			tr("SETTINGS_RESTORE_BODY") % index,
+			tr("SETTINGS_RESTORE_CONFIRM"),
+			tr("SETTINGS_BACK"),
+			func() -> void:
+				if LocalSave.restore_backup(index):
+					close_settings(),
+			Callable(),
+			true
+		)
 	)
 
 
@@ -670,5 +673,4 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause"):
 		if _menu_stack() and _menu_stack().handles_cancel(self):
 			cancel_requested.emit()
-			close_settings()
 			get_viewport().set_input_as_handled()

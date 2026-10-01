@@ -1,7 +1,7 @@
 class_name AlternateModeRow
 extends RefCounted
 
-## MD-05: `content/modes/catalog.json`'s three rule sets were well-written and reachable only
+## `content/modes/catalog.json`'s three rule sets were well-written and reachable only
 ## through the tower board -- a menu inside a menu inside the hub. Surfaces the ones scoped to a
 ## given base mode directly on that mode's own entry menu instead, each mode's own unlock hint
 ## shown when locked rather than the whole row disappearing.

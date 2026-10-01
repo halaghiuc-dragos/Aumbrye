@@ -19,11 +19,15 @@ uniform float pulse_amount : hint_range(0.0, 1.0) = 0.18;
 instance uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
 instance uniform vec3 flash_color : source_color = vec3(1.0);
 instance uniform float flash_emission : hint_range(0.0, 4.0) = 0.0;
+// Unused here; declared so the list matches `pixel_diorama_surface.gdshaderinc` index for index.
+instance uniform float phase_glow_energy : hint_range(0.0, 4.0) = 0.0;
+instance uniform vec3 phase_glow_color : source_color = vec3(1.0);
 instance uniform float dissolve_clip : hint_range(0.0, 1.0) = 1.0;
 instance uniform vec3 dissolve_origin = vec3(0.0);
 instance uniform vec3 dissolve_dir = vec3(0.0, 1.0, 0.0);
 instance uniform float dissolve_sweep : hint_range(0.0, 1.0) = 0.6;
 instance uniform float dissolve_radial : hint_range(0.0, 1.0) = 0.0;
+instance uniform vec3 skin_tint = vec3(1.0);
 
 // Same wind field the surface shader reads; see `[shader_globals]` in project.godot. A glowing
 // thing that grows out of the ground — a flower head, a lantern on a cord — has to lean with the

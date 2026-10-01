@@ -2,10 +2,14 @@ extends Node
 class_name Dodge
 
 
+const MaterialFlashScript := preload("res://scripts/art/characters/material_flash.gd")
+const IFRAME_TINT := Color(0.86, 0.95, 1.0, 1.0)
 const JUMP_VELOCITY := 4.8
 const COYOTE_TIME := 0.12
 const JUMP_BUFFER_TIME := 0.15
 const DODGE_BUFFER_TIME := 0.18
+## How long after the i-frames open a hit still counts as a perfect dodge.
+const PERFECT_WINDOW := 0.12
 const DODGE_BURST_FRACTION := 0.35
 const DODGE_SPEED := 9.0
 const DODGE_BACK_SPEED := 6.0
@@ -80,6 +84,7 @@ var _recovery_timer := 0.0
 var _dodge_direction := Vector3.ZERO
 var _is_backstep := false
 var _external_iframe_sources: Dictionary = {}
+var _perfect_awarded := false
 var _dodge_speed := DODGE_SPEED
 var _talent_stamina_mult := 1.0
 var _profiles: Dictionary = {}
@@ -200,18 +205,12 @@ func process_dodge_physics(delta: float) -> void:
 			_start_dash()
 			if is_dodging:
 				_process_dash(delta)
-		elif _stamina and not is_dodging and _recovery_timer <= 0.0 and not _stamina.has(_scaled_dodge_cost()):
-			# AD-07: the exact moment stamina denies a dodge is the one moment the lesson lands --
+		elif _stamina and not is_dodging and _recovery_timer <= 0.0 and not _stamina.can_start_action():
+			# The exact moment stamina denies a dodge is the one moment the lesson lands --
 			# shown once ever, via `HubTutorialService`.
 			var hint := HubTutorialService.notify_stamina_exhausted()
 			if hint != "" and RunFlow:
 				RunFlow.emit_run_warning(hint)
-
-
-func get_dash_progress() -> float:
-	if not is_dodging:
-		return 0.0
-	return clampf(1.0 - (_dodge_timer / maxf(0.001, _active_duration)), 0.0, 1.0)
 
 
 func get_dash_direction() -> Vector3:
@@ -243,12 +242,22 @@ func _refresh_iframes() -> void:
 		var elapsed := _active_duration - _dodge_timer
 		var window_scale := _active_duration / maxf(0.001, _duration)
 		var window_end := _iframe_end + ClassPerks.shadowstep_iframe_bonus(_body, _is_backstep)
-		window_end = _apply_dodge_window_assist(window_end)
+		window_end = _apply_dodge_window_assist(window_end + _evasion_iframe_bonus())
 		roll_protected = elapsed >= _iframe_start * window_scale and elapsed <= window_end * window_scale
 	var active := not _external_iframe_sources.is_empty() or roll_protected
 	if iframes_active != active:
 		iframes_active = active
 		iframes_changed.emit(active)
+		if active:
+			_flash_iframes()
+
+
+## A brief rim flash on the model says "you cannot be hit right now", so the stamina bar only has
+## to say stamina.
+func _flash_iframes() -> void:
+	var visual := _body.get_node_or_null("Facing/DioramaVisual") as Node3D if _body else null
+	if visual:
+		MaterialFlashScript.flash(visual, {"strength": 0.6, "tint": IFRAME_TINT, "duration": 0.12})
 
 
 func cancel_dodge() -> void:
@@ -319,14 +328,14 @@ func _can_dash() -> bool:
 		return false
 	if _weapon and not _weapon.allows_cancel_into("dodge"):
 		return false
-	if _stamina and not _stamina.has(_scaled_dodge_cost()):
+	if _stamina and not _stamina.can_start_action():
 		return false
 	return true
 
 
 func _start_dash(skip_cost: bool = false) -> void:
 	_sync_weight_class()
-	if not skip_cost and _stamina and not _stamina.consume(_scaled_dodge_cost()):
+	if not skip_cost and _stamina and not _stamina.consume_up_to(_scaled_dodge_cost()):
 		return
 	if _stamina:
 		_stamina.set_regen_state(Stamina.RegenState.SUPPRESSED)
@@ -348,6 +357,7 @@ func _start_dash(skip_cost: bool = false) -> void:
 		_dodge_direction = _get_attack_backstep_direction()
 	_is_backstep = is_equal_approx(_dodge_speed, DODGE_BACK_SPEED)
 	is_dodging = true
+	_perfect_awarded = false
 	_active_duration = _duration * (BACKSTEP_DURATION_MULT if _is_backstep else 1.0)
 	_dodge_timer = _active_duration
 	dash_started.emit()
@@ -361,10 +371,20 @@ func _start_dash(skip_cost: bool = false) -> void:
 		CombatEvents.dispatch(CombatEvents.ON_DODGE, {"actor": _body})
 
 
-func notify_perfect_dodge(source: Node = null) -> void:
+## A hit that lands in the first moments of the i-frames is a perfect dodge, once per dodge. The
+## rest of the i-frame window still avoids the hit, it just earns nothing.
+func try_perfect_dodge(source: Node = null) -> bool:
+	if not is_dodging or _perfect_awarded:
+		return false
+	var elapsed := _active_duration - _dodge_timer
+	var window_scale := _active_duration / maxf(0.001, _duration)
+	if elapsed - _iframe_start * window_scale > PERFECT_WINDOW:
+		return false
+	_perfect_awarded = true
 	if RunBuffs:
 		RunBuffs.note_combat_moment("perfect_dodge")
 	perfect_dodge_landed.emit(source)
+	return true
 
 
 func _get_attack_backstep_direction() -> Vector3:
@@ -407,6 +427,14 @@ func _process_dash(delta: float) -> void:
 	_body.move_and_slide()
 	if _dodge_timer <= 0.0:
 		_end_dash()
+
+
+## How much longer evasion keeps the roll invulnerable.
+const EVASION_IFRAME_SECONDS := 0.3
+
+
+func _evasion_iframe_bonus() -> float:
+	return float(_body.get_meta("combat_evasion", 0.0)) * EVASION_IFRAME_SECONDS if _body else 0.0
 
 
 func _apply_dodge_window_assist(iframe_end: float) -> float:

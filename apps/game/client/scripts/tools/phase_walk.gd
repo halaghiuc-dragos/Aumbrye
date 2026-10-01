@@ -14,7 +14,6 @@ const UI_SCENES := {
 	"endless_menu": "res://scenes/ui/umbral_endless_menu.tscn",
 	"waves_menu": "res://scenes/ui/umbral_waves_menu.tscn",
 	"results": "res://scenes/ui/results_screen.tscn",
-	"loading": "res://scenes/ui/loading_screen.tscn",
 }
 
 var _phase := ""

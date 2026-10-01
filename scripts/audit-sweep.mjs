@@ -2,7 +2,7 @@
 /**
  * AUDIT-01 — a repeatable, whole-tree static sweep.
  *
- * `docs/MVP_DEPTH_PLAN.md` §9 is a per-file audit. A one-off audit rots the day after it is
+ * A per-file audit. A one-off audit rots the day after it is
  * written, so the mechanical half of it lives here and can be re-run. This checks things a
  * reviewer would otherwise have to hold in their head across 1,600 files:
  *

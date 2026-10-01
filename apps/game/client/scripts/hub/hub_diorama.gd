@@ -24,16 +24,11 @@ const SERVICE_TENTS := {
 	{"width": 4.6, "depth": 4.4, "wall_height": 2.3, "entrance": 2.4, "roof_peak": 1.25},
 }
 
-const NORTH_WALL_Z := -17.0
-const PORTAL_WALL_SPACING := 6.0
-const PORTAL_WALL_X_START := 12.0
 const FOUNTAIN_POS := Vector3(0.0, 0.0, -7.0)
 const GATE_ROW_Z := -17.0
 const GATE_SPACING := 9.0
 const GATE_COUNT := 4
 
-const LEAF_DARK := Color(0.24, 0.33, 0.22)
-const LEAF_LIGHT := Color(0.33, 0.44, 0.26)
 const BLOOM_COLORS := [
 	Color(0.76, 0.33, 0.34),
 	Color(0.85, 0.63, 0.27),
@@ -44,10 +39,7 @@ const BUNTING_Y := 6.2
 const LANTERN_LIGHT_COLOR := Color(1.0, 0.72, 0.34)
 const LANTERN_ENERGY := 0.55
 const LANTERN_RANGE := 4.2
-const CAMERA_MAX_Y := 5.28
-const BANNER_POLE_TOP := 6.45
 
-const BANNER_CLOTH_OFFSET := 0.16
 
 const BannerVaneScript := preload("res://scripts/art/world/banner_vane.gd")
 
@@ -61,8 +53,6 @@ static func apply(hub: Node3D) -> void:
 	_dress_portal(hub.get_node_or_null("UmbralEndlessPortal"), mats, "umbral")
 	_dress_portal(hub.get_node_or_null("UmbralWavesPortal"), mats, "umbral")
 	_dress_portal(hub.get_node_or_null("ArenaDoor"), mats, "training")
-	_dress_portal(hub.get_node_or_null("SkiesPortal"), mats, "skies")
-	_dress_portal(hub.get_node_or_null("CathedralPortal"), mats, "cathedral")
 	_dress_blacksmith(hub.get_node_or_null("Blacksmith"), mats)
 	_dress_merchant(hub.get_node_or_null("Merchant"), mats)
 	_dress_storage(hub.get_node_or_null("Storage"), mats)
@@ -70,10 +60,27 @@ static func apply(hub: Node3D) -> void:
 	_spawn_fountain(hub, mats)
 	_dress_plaza(hub, mats)
 	_spawn_growth_props(hub, mats)
+	_merge_static_dressing(hub)
 	HubFauna.apply(hub)
 	_dress_npcs(hub)
 	_position_npcs_from_content(hub)
 	_wire_interact_feedback(hub)
+
+
+## Folds each area's static models into one mesh per material: the hub is hundreds of pieces and
+## would otherwise cost a draw call each. Things that move or flicker carry `no_merge`.
+static func _merge_static_dressing(hub: Node3D) -> void:
+	for area_name in ["PlazaDressing", "PlazaFountain", "GrowthProps", "DioramaFloorProps"]:
+		var area := hub.get_node_or_null(area_name) as Node3D
+		if area != null:
+			PropMerger.merge_static(area)
+	for service_name in SERVICE_TENTS.keys():
+		var tent := hub.get_node_or_null("%s/DioramaVisuals" % service_name) as Node3D
+		if tent != null:
+			PropMerger.merge_static(tent)
+	var parapet := hub.get_node_or_null("LandmarkWalls/TowerParapet") as Node3D
+	if parapet != null:
+		PropMerger.merge_static(parapet)
 
 
 static func _load_materials() -> Dictionary:
@@ -86,6 +93,30 @@ static func _style_environment(hub: Node3D) -> void:
 	VisualLighting.apply_hub(hub)
 
 
+## A Blender hub prop (tools/blender/props_hub_*.py) placed under `parent`. `mats` is the hub's
+## material set; `extra` overrides or adds roles for this one piece (a bloom colour, a sooted canvas).
+static func _place(
+	parent: Node3D,
+	id: String,
+	mats: Dictionary,
+	node_name: String,
+	pos: Vector3 = Vector3.ZERO,
+	yaw: float = 0.0,
+	extra: Dictionary = {},
+	prop_scale: Vector3 = Vector3.ONE
+) -> Node3D:
+	var holder := Node3D.new()
+	holder.name = node_name
+	holder.position = pos
+	holder.rotation.y = yaw
+	holder.scale = prop_scale
+	parent.add_child(holder)
+	var materials := mats.duplicate()
+	materials.merge(extra, true)
+	PropLibrary.attach_themed(holder, "hub/" + id, PixelDioramaStyle.PaletteTheme.HUB, {"materials": materials})
+	return holder
+
+
 static func _dress_floor(hub: Node3D, mats: Dictionary) -> void:
 	var floor_body := hub.get_node_or_null("Floor") as StaticBody3D
 	if floor_body == null:
@@ -95,33 +126,21 @@ static func _dress_floor(hub: Node3D, mats: Dictionary) -> void:
 	if floor_mesh:
 		floor_mesh.visible = false
 
-	var batch := PixelBoxBatch.new()
-	batch.add(
-		Vector3(FLOOR_WIDTH, TILE_BED_THICK, FLOOR_DEPTH),
-		Vector3(0.0, TILE_TOP - TILE_BED_DROP - TILE_BED_THICK * 0.5, 0.0),
-		mats.floor
-	)
-	var cols := int(FLOOR_WIDTH / TILE_SIZE)
-	var rows := int(FLOOR_DEPTH / TILE_SIZE)
-	var origin_x := -FLOOR_WIDTH * 0.5 + TILE_SIZE * 0.5
-	var origin_z := -FLOOR_DEPTH * 0.5 + TILE_SIZE * 0.5
-	for row in rows:
-		for col in cols:
-			var alt := (row + col) % 2 == 1
-			var mat: Material = mats.floor_alt if alt else mats.floor
-			batch.add(
-				Vector3(TILE_SIZE, 0.12, TILE_SIZE),
-				Vector3(origin_x + col * TILE_SIZE, 0.06, origin_z + row * TILE_SIZE),
-				mat
+	# Ten-metre paving modules, alternating their checker so the pattern runs unbroken.
+	var by_parity: Array = [[] as Array[Transform3D], [] as Array[Transform3D]]
+	for column in int(FLOOR_WIDTH / 10.0):
+		for row in int(FLOOR_DEPTH / 10.0):
+			(by_parity[(column + row) % 2] as Array[Transform3D]).append(
+				Transform3D(
+					Basis.IDENTITY,
+					Vector3(-FLOOR_WIDTH * 0.5 + 5.0 + column * 10.0, 0.0, -FLOOR_DEPTH * 0.5 + 5.0 + row * 10.0)
+				)
 			)
-	batch.commit(
-		hub,
-		"DioramaTiles",
-		AABB(
-			Vector3(-FLOOR_WIDTH * 0.5, -0.5, -FLOOR_DEPTH * 0.5),
-			Vector3(FLOOR_WIDTH, 1.5, FLOOR_DEPTH)
+	for parity in 2:
+		PropLibrary.scatter_themed(
+			hub, "hub/floor_module_%d" % parity, PixelDioramaStyle.PaletteTheme.HUB,
+			by_parity[parity] as Array[Transform3D], "DioramaTiles%d" % parity, {"materials": mats}
 		)
-	)
 
 	var tiles := Node3D.new()
 	tiles.name = "DioramaFloorProps"
@@ -137,12 +156,9 @@ static func _spawn_tent_door_pads(tiles: Node3D, mats: Dictionary, hub: Node3D) 
 		var half_d: float = float(cfg.get("depth", 5.0)) * 0.5
 		var door_dir: Vector3 = Vector3(0.0, 0.0, 1.0).rotated(Vector3.UP, yaw)
 		var pad_pos: Vector3 = hub_pos + door_dir * (half_d + 0.55)
-		PixelDioramaStyle.add_box(
-			tiles,
-			Vector3(float(cfg.get("entrance", 2.0)) + 0.4, 0.12, 1.2),
-			Vector3(pad_pos.x, 0.06, pad_pos.z),
-			mats.floor_alt,
-			"%sDoorPad" % service_name
+		_place(
+			tiles, "door_pad", mats, "%sDoorPad" % service_name, Vector3(pad_pos.x, 0.0, pad_pos.z), yaw, {},
+			Vector3(float(cfg.get("entrance", 2.0)) + 0.4, 1.0, 1.0)
 		)
 
 
@@ -189,14 +205,11 @@ static func _dress_plaza(hub: Node3D, mats: Dictionary) -> void:
 
 static func _spawn_grim_dressing(parent: Node3D, mats: Dictionary) -> void:
 	var iron := PixelDioramaStyle.make_metal_material(Color(0.23, 0.23, 0.27), 0.34)
-	var bone := PixelDioramaStyle.make_material(Color(0.74, 0.71, 0.62))
-	var candle := PixelDioramaStyle.make_custom_emissive(Color(1.0, 0.78, 0.42), 1.3)
-
 
 	for i in 4:
 		var sx := -1.0 if i % 2 == 0 else 1.0
 		var z := -13.5 if i < 2 else -5.5
-		_spawn_broken_column(parent, mats, Vector3(sx * 20.8, 0.0, z), 0.7 + float(i) * 0.35, i)
+		_spawn_broken_column(parent, mats, Vector3(sx * 20.8, 0.0, z), i)
 
 	for spot in [
 		Vector3(-3.9, 0.0, -11.2),
@@ -204,100 +217,30 @@ static func _spawn_grim_dressing(parent: Node3D, mats: Dictionary) -> void:
 		Vector3(-20.6, 0.0, 12.8),
 		Vector3(20.6, 0.0, 12.8),
 	]:
-		_spawn_votive_cairn(parent, mats, iron, bone, candle, spot)
+		_spawn_votive_cairn(parent, mats, spot)
 
 	for x in [0.0, -9.0, 9.0, -18.5, 18.5]:
-		_spawn_railing(parent, iron, Vector3(x, 0.0, GATE_ROW_Z - 1.35), 4.0)
+		_spawn_railing(parent, mats, iron, Vector3(x, 0.0, GATE_ROW_Z - 1.35))
 
 
-static func _spawn_broken_column(
-	parent: Node3D, mats: Dictionary, base: Vector3, height: float, index: int
-) -> void:
-	var root := Node3D.new()
-	root.name = "BrokenColumn%d" % index
-	root.position = base
-	root.rotation.y = float(index) * 0.7
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(1.3, 0.26, 1.3), Vector3(0.0, 0.13, 0.0), mats.wall, "Plinth")
-	var drums := maxi(1, int(height / 0.55))
-	for i in drums:
-		var w := 0.86 - float(i) * 0.05
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(w, 0.5, w),
-			Vector3(float(i % 2) * 0.06 - 0.03, 0.26 + 0.5 * (float(i) + 0.5), float((i + 1) % 2) * 0.05),
-			mats.wall,
-			"Drum%d" % i
-		)
-	var cap := PixelDioramaStyle.add_box(
-		root, Vector3(0.8, 0.3, 0.8), Vector3(0.0, 0.26 + 0.5 * float(drums) + 0.1, 0.0), mats.wall, "Shear"
-	)
-	cap.rotation.z = 0.24
-	for i in 3:
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.42 - float(i) * 0.08, 0.26, 0.4 - float(i) * 0.06),
-			Vector3(0.95 + float(i) * 0.4, 0.13, -0.6 + float(i) * 0.55),
-			mats.wall,
-			"Rubble%d" % i
-		)
+static func _spawn_broken_column(parent: Node3D, mats: Dictionary, base: Vector3, index: int) -> void:
+	_place(parent, "broken_column_%d" % index, mats, "BrokenColumn%d" % index, base, float(index) * 0.7)
 
 
-static func _spawn_votive_cairn(
-	parent: Node3D,
-	mats: Dictionary,
-	iron: Material,
-	wax: Material,
-	candle: Material,
-	base: Vector3
-) -> void:
-	var root := Node3D.new()
-	root.name = "VotiveCairn%s" % str(base)
-	root.position = base
-	parent.add_child(root)
-	var sizes := [1.1, 0.86, 0.64, 0.44]
-	var y := 0.0
-	for i in sizes.size():
-		var w: float = sizes[i]
-		var h := 0.24 - float(i) * 0.03
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(w, h, w * 0.9),
-			Vector3(float(i % 2) * 0.05, y + h * 0.5, float((i + 1) % 2) * 0.04),
-			mats.wall,
-			"Stone%d" % i
-		)
-		y += h
-	PixelDioramaStyle.add_box(root, Vector3(0.14, 0.5, 0.14), Vector3(0.0, y + 0.25, 0.0), iron, "Stake")
-	for i in 3:
-		var angle := TAU * float(i) / 3.0
-		var offset := Vector3(cos(angle), 0.0, sin(angle)) * 0.34
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.1, 0.2 + float(i) * 0.06, 0.1),
-			offset + Vector3(0.0, y + 0.1, 0.0),
-			wax,
-			"Candle%d" % i
-		)
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.07, 0.09, 0.07),
-			offset + Vector3(0.0, y + 0.26 + float(i) * 0.06, 0.0),
-			candle,
-			"Flame%d" % i
-		)
+static func _spawn_votive_cairn(parent: Node3D, mats: Dictionary, base: Vector3) -> void:
+	var root := _place(parent, "votive_cairn", mats, "VotiveCairn%s" % str(base), base)
 	var glow := OmniLight3D.new()
 	glow.name = "CairnGlow"
 	glow.light_color = Color(1.0, 0.74, 0.4)
 	glow.light_energy = 0.55
 	glow.omni_range = 3.4
 	glow.shadow_enabled = false
-	glow.position = Vector3(0.0, y + 0.35, 0.0)
+	glow.position = Vector3(0.0, 0.85, 0.0)
 	glow.add_to_group(NightLights.GROUP)
 	root.add_child(glow)
 
 
-## `SY-03`: `HubGrowthService` unlocks entries from run progress -- a banner, a trophy hall, a
+## `HubGrowthService` unlocks entries from run progress -- a banner, a trophy hall, a
 ## working forge -- and until now the hub never visibly changed when they did; the growth was a
 ## list in a menu nobody walked past. Each entry's own `anchor`/`prop` fields (authored in
 ## `content/ui/hub_growth.json` for exactly this) now build a real object near the area they name.
@@ -309,9 +252,6 @@ static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
 	var root := Node3D.new()
 	root.name = "GrowthProps"
 	hub.add_child(root)
-	var iron := PixelDioramaStyle.make_metal_material(Color(0.23, 0.23, 0.27), 0.34)
-	var bone := PixelDioramaStyle.make_material(Color(0.74, 0.71, 0.62))
-	var candle := PixelDioramaStyle.make_custom_emissive(Color(1.0, 0.78, 0.42), 1.3)
 	var slot_by_anchor: Dictionary = {}
 	for entry in HubGrowthService.get_all():
 		var entry_id := str(entry.get("id", ""))
@@ -335,10 +275,11 @@ static func _spawn_growth_props(hub: Node3D, mats: Dictionary) -> void:
 			"board":
 				_spawn_growth_board(root, mats, base, entry_id)
 			"shrine":
-				_spawn_votive_cairn(root, mats, iron, bone, candle, base)
+				_spawn_votive_cairn(root, mats, base)
 		var growth_root := root.get_child(root.get_child_count() - 1) as Node3D
 		if growth_root and str(entry.get("prop", "")) in ["shelf", "marker"]:
 			_add_growth_interaction(growth_root, entry)
+	PropMerger.merge_static(root)
 
 
 static func _add_growth_interaction(growth_root: Node3D, entry: Dictionary) -> void:
@@ -390,71 +331,25 @@ static func _growth_anchor_position(hub: Node3D, anchor: String) -> Vector3:
 static func _spawn_growth_banner(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthBanner_%s" % node_name
-	root.position = base
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(0.5, 0.2, 0.5), Vector3(0.0, 0.1, 0.0), mats.wall, "Base")
-	var pole_h := 3.6
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.16, pole_h, 0.16), Vector3(0.0, 0.2 + pole_h * 0.5, 0.0), mats.wood, "Pole"
-	)
+	var root := _place(parent, "growth_banner_pole", mats, "GrowthBanner_%s" % node_name, base)
 	var vane := Node3D.new()
 	vane.name = "Vane"
 	vane.set_script(BannerVaneScript)
+	vane.set_meta(PropMerger.NO_MERGE_META, true)
 	root.add_child(vane)
-	PixelDioramaStyle.add_box(
-		vane,
-		Vector3(0.7, 0.12, 0.12),
-		Vector3(0.0, pole_h - 0.1, BANNER_CLOTH_OFFSET),
-		mats.wood,
-		"Crossbar"
-	)
-	PixelDioramaStyle.add_box(
-		vane,
-		Vector3(0.62, 1.3, 0.05),
-		Vector3(0.0, pole_h - 0.75, BANNER_CLOTH_OFFSET),
-		mats.cloth,
-		"Cloth"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.2, 0.2, 0.2), Vector3(0.0, pole_h + 0.3, 0.0), mats.accent, "Finial"
-	)
+	_place(vane, "banner_cloth_growth", mats, "Cloth")
 
 
 static func _spawn_growth_trophy(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthTrophy_%s" % node_name
-	root.position = base
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(0.9, 0.9, 0.6), Vector3(0.0, 0.45, 0.0), mats.wall, "Plinth")
-	PixelDioramaStyle.add_box(root, Vector3(0.7, 0.06, 0.5), Vector3(0.0, 0.93, 0.0), mats.wood, "Shelf")
-	PixelDioramaStyle.add_box(root, Vector3(0.5, 0.5, 0.4), Vector3(0.0, 1.24, 0.0), mats.accent, "Mount")
-	for side in [-1.0, 1.0]:
-		var horn := PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.1, 0.5, 0.1),
-			Vector3(side * 0.24, 1.66, 0.0),
-			mats.training,
-			"Horn%s" % ("R" if side > 0.0 else "L")
-		)
-		horn.rotation.z = side * -0.4
+	_place(parent, "growth_trophy", mats, "GrowthTrophy_%s" % node_name, base)
 
 
 static func _spawn_growth_marker(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthMarker_%s" % node_name
-	root.position = base
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(1.0, 0.2, 1.0), Vector3(0.0, 0.1, 0.0), mats.wall, "Base")
-	PixelDioramaStyle.add_box(root, Vector3(0.5, 1.5, 0.3), Vector3(0.0, 0.95, 0.0), mats.wall, "Slab")
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.42, 0.7, 0.04), Vector3(0.0, 1.1, 0.17), mats.accent, "Inscription"
-	)
+	var root := _place(parent, "growth_marker", mats, "GrowthMarker_%s" % node_name, base)
 	root.set_meta("growth_entry", node_name)
 	root.set_meta("growth_kind", "record")
 
@@ -462,72 +357,19 @@ static func _spawn_growth_marker(
 static func _spawn_growth_shelf(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthShelf_%s" % node_name
-	root.position = base
+	var root := _place(parent, "growth_shelf", mats, "GrowthShelf_%s" % node_name, base)
 	root.set_meta("growth_entry", node_name)
 	root.set_meta("growth_kind", "archive")
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(1.6, 2.2, 0.5), Vector3(0.0, 1.1, 0.0), mats.wood, "Frame")
-	for i in 4:
-		var y := 0.35 + float(i) * 0.5
-		PixelDioramaStyle.add_box(
-			root, Vector3(1.5, 0.06, 0.46), Vector3(0.0, y, 0.02), mats.roof, "Shelf%d" % i
-		)
-		for b in 5:
-			PixelDioramaStyle.add_box(
-				root,
-				Vector3(0.12, 0.4, 0.3),
-				Vector3(-0.6 + float(b) * 0.28, y + 0.24, 0.0),
-				mats.paper if b % 2 == 0 else mats.accent,
-				"Book%d_%d" % [i, b]
-			)
 
 
 static func _spawn_growth_board(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthBoard_%s" % node_name
-	root.position = base
-	parent.add_child(root)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.14, 2.0, 0.14),
-			Vector3(side * 0.9, 1.0, 0.0),
-			mats.wood,
-			"Post%s" % ("R" if side > 0.0 else "L")
-		)
-	PixelDioramaStyle.add_box(root, Vector3(2.0, 1.3, 0.1), Vector3(0.0, 1.7, 0.0), mats.accent, "Board")
-	for i in 3:
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.4, 0.55, 0.03),
-			Vector3(-0.6 + float(i) * 0.6, 1.7, 0.08),
-			mats.paper,
-			"Notice%d" % i
-		)
+	_place(parent, "growth_board", mats, "GrowthBoard_%s" % node_name, base)
 
 
-static func _spawn_railing(parent: Node3D, iron: Material, centre: Vector3, span: float) -> void:
-	var root := Node3D.new()
-	root.name = "Railing%s" % str(centre)
-	root.position = centre
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(root, Vector3(span, 0.09, 0.09), Vector3(0.0, 1.02, 0.0), iron, "TopRail")
-	PixelDioramaStyle.add_box(root, Vector3(span, 0.07, 0.07), Vector3(0.0, 0.42, 0.0), iron, "LowRail")
-	var bars := maxi(3, int(span / 0.38))
-	for i in bars:
-		var t := (float(i) + 0.5) / float(bars)
-		var x := -span * 0.5 + span * t
-		PixelDioramaStyle.add_box(root, Vector3(0.07, 1.25, 0.07), Vector3(x, 0.62, 0.0), iron, "Bar%d" % i)
-		PixelDioramaStyle.add_box(root, Vector3(0.09, 0.16, 0.09), Vector3(x, 1.3, 0.0), iron, "Spike%d" % i)
-	for sx in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.16, 1.5, 0.16), Vector3(sx * span * 0.5, 0.75, 0.0), iron,
-			"End%s" % ("R" if sx > 0.0 else "L")
-		)
+static func _spawn_railing(parent: Node3D, mats: Dictionary, iron: Material, centre: Vector3) -> void:
+	_place(parent, "railing", mats, "Railing%s" % str(centre), centre, 0.0, {"hub_iron": iron})
 
 
 static func _spawn_gate_braziers(parent: Node3D, mats: Dictionary) -> void:
@@ -545,22 +387,10 @@ static func _spawn_gate_braziers(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_brazier(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.62, 0.16, 0.62), Vector3(0.0, 0.08, 0.0), mats.wall, "Foot"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.22, 1.0, 0.22), Vector3(0.0, 0.66, 0.0), mats.wood, "Stem"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.7, 0.34, 0.7), Vector3(0.0, 1.32, 0.0), mats.accent, "Bowl"
-	)
-	var coals := PixelDioramaStyle.add_box(
-		root, Vector3(0.5, 0.2, 0.5), Vector3(0.0, 1.52, 0.0), mats.training, "Coals"
-	)
+	var root := _place(parent, "brazier", mats, node_name, base)
+	var coals := root.get_node_or_null("Coals") as MeshInstance3D
+	if coals != null:
+		coals.set_meta(PropMerger.NO_MERGE_META, true)
 	var light := OmniLight3D.new()
 	light.name = "BrazierLight"
 	light.light_color = Color(1.0, 0.62, 0.26)
@@ -580,23 +410,7 @@ static func _spawn_brazier(
 static func _spawn_growth_workshop(
 	parent: Node3D, mats: Dictionary, base: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = "GrowthWorkshop_%s" % node_name
-	root.position = base
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.2, 0.16, 0.8), Vector3(0.0, 0.95, 0.0), mats.wood, "Workbench"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.18, 0.95, 0.68), Vector3(side * 0.88, 0.48, 0.0), mats.wall, "Leg"
-		)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.48, 0.12, 0.28), Vector3(-0.42, 1.1, 0.0), mats.wall, "Anvil"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.22, 0.54, 0.22), Vector3(0.56, 1.24, 0.0), mats.accent, "ToolRack"
-	)
+	var root := _place(parent, "growth_workshop", mats, "GrowthWorkshop_%s" % node_name, base)
 	_spawn_brazier(root, mats, Vector3(1.45, 0.0, 0.1), "Forge")
 	if node_name == "workshop_annex":
 		var worker := Node3D.new()
@@ -625,23 +439,14 @@ static func _spawn_tent_lanterns(
 	for raw_side in [-1.0, 1.0]:
 		var side: float = raw_side
 		var side_tag: String = "R" if side > 0.0 else "L"
-		# The entrance pair, on their own posts just clear of the guy ropes.
+		# The entrance pair, on their own posts just clear of the guy ropes. The post model's arm
+		# reaches toward +x, so the right-hand post is turned half way round to reach back in.
 		var post_x := side * (half_w + 0.5)
 		var post_z := half_d + 0.45
 		var post_top := wall_height + 0.5
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.14, post_top, 0.14),
-			Vector3(post_x, post_top * 0.5, post_z),
-			mats.wood,
-			"PorchPost%s" % side_tag
-		)
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.44, 0.1, 0.14),
-			Vector3(post_x - side * 0.16, post_top - 0.05, post_z),
-			mats.wood,
-			"PorchArm%s" % side_tag
+		_place(
+			root, "porch_post", mats, "PorchPost%s" % side_tag, Vector3(post_x, 0.0, post_z),
+			PI if side > 0.0 else 0.0, {}, Vector3(1.0, post_top / 3.0, 1.0)
 		)
 		_spawn_tent_lantern(
 			root,
@@ -663,17 +468,7 @@ static func _spawn_tent_lanterns(
 static func _spawn_tent_lantern(
 	parent: Node3D, mats: Dictionary, at: Vector3, node_name: String, strength: float
 ) -> void:
-	var glass := PixelDioramaStyle.make_custom_emissive(LANTERN_LIGHT_COLOR, 1.25)
-	PixelDioramaStyle.add_box(
-		parent,
-		Vector3(0.28, 0.08, 0.28),
-		at + Vector3(0.0, 0.19, 0.0),
-		mats.accent,
-		node_name + "Cap"
-	)
-	PixelDioramaStyle.add_box(
-		parent, Vector3(0.24, 0.3, 0.24), at, glass, node_name + "Glass"
-	)
+	_place(parent, "lantern", mats, node_name + "Fixture", at)
 	var lamp := OmniLight3D.new()
 	lamp.name = node_name
 	lamp.light_color = LANTERN_LIGHT_COLOR
@@ -691,60 +486,16 @@ static func _spawn_banner_avenue(parent: Node3D, mats: Dictionary) -> void:
 	for i in 4:
 		var z := -2.0 + i * 4.5
 		for side in [-1.0, 1.0]:
-			var root := Node3D.new()
-			root.name = "Banner%d%s" % [i, "R" if side > 0.0 else "L"]
-			root.position = Vector3(side * 5.5, 0.0, z)
-			parent.add_child(root)
-			PixelDioramaStyle.add_box(
-				root, Vector3(0.62, 0.24, 0.62), Vector3(0.0, 0.12, 0.0), mats.wall, "Base"
-			)
-			PixelDioramaStyle.add_box(
-				root, Vector3(0.42, 0.2, 0.42), Vector3(0.0, 0.32, 0.0), mats.wall, "Collar"
-			)
-			var pole_h := BANNER_POLE_TOP - 0.24
-			PixelDioramaStyle.add_box(
-				root,
-				Vector3(0.2, pole_h, 0.2),
-				Vector3(0.0, 0.24 + pole_h * 0.5, 0.0),
-				mats.wood,
-				"Pole"
+			var root := _place(
+				parent, "banner_avenue_pole", mats, "Banner%d%s" % [i, "R" if side > 0.0 else "L"],
+				Vector3(side * 5.5, 0.0, z)
 			)
 			var vane := Node3D.new()
 			vane.name = "Vane"
 			vane.set_script(BannerVaneScript)
+			vane.set_meta(PropMerger.NO_MERGE_META, true)
 			root.add_child(vane)
-			PixelDioramaStyle.add_box(
-				vane,
-				Vector3(0.9, 0.16, 0.16),
-				Vector3(0.0, 3.5, BANNER_CLOTH_OFFSET),
-				mats.wood,
-				"Crossbar"
-			)
-			PixelDioramaStyle.add_box(
-				vane,
-				Vector3(0.8, 1.7, 0.06),
-				Vector3(0.0, 2.6, BANNER_CLOTH_OFFSET),
-				mats.cloth,
-				"Cloth"
-			)
-			for band in 2:
-				PixelDioramaStyle.add_box(
-					root,
-					Vector3(0.26, 0.1, 0.26),
-					Vector3(0.0, 4.3 + band * 1.0, 0.0),
-					mats.wall,
-					"Band%d" % band
-				)
-			PixelDioramaStyle.add_box(
-				root, Vector3(0.5, 0.14, 0.14), Vector3(0.0, BUNTING_Y, 0.0), mats.wood, "Cleat"
-			)
-			PixelDioramaStyle.add_box(
-				root,
-				Vector3(0.24, 0.24, 0.24),
-				Vector3(0.0, BANNER_POLE_TOP + 0.12, 0.0),
-				mats.training,
-				"Finial"
-			)
+			_place(vane, "banner_cloth_avenue", mats, "Cloth")
 
 
 static func _spawn_market_clutter(parent: Node3D, mats: Dictionary) -> void:
@@ -757,24 +508,8 @@ static func _spawn_market_clutter(parent: Node3D, mats: Dictionary) -> void:
 		{"pos": Vector3(20.5, 0.0, 3.0), "seed": 5},
 	]
 	for spot in spots:
-		var origin: Vector3 = spot["pos"]
 		var index: int = spot["seed"]
-		var root := Node3D.new()
-		root.name = "Clutter%d" % index
-		root.position = origin
-		parent.add_child(root)
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.8, 0.8, 0.8), Vector3(0.0, 0.4, 0.0), mats.wood, "Crate"
-		)
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.66, 0.66, 0.66), Vector3(0.62, 1.13, 0.18), mats.wood, "CrateTop"
-		)
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.56, 0.9, 0.56), Vector3(-0.85, 0.45, 0.3), mats.accent, "Barrel"
-		)
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.72, 0.42, 0.6), Vector3(0.3, 0.21, -0.85), mats.floor_alt, "Sack"
-		)
+		_place(parent, "market_clutter", mats, "Clutter%d" % index, spot["pos"], float(index) * 1.1)
 
 
 static func _spawn_planting(parent: Node3D, mats: Dictionary) -> void:
@@ -804,66 +539,13 @@ static func _spawn_planting(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_planter_tree(
 	parent: Node3D, mats: Dictionary, base: Vector3, height_scale: float, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	parent.add_child(root)
-	var leaf_dark := PixelDioramaStyle.make_material(LEAF_DARK)
-	var leaf_light := PixelDioramaStyle.make_material(LEAF_LIGHT)
-	PixelDioramaStyle.add_box(
-		root, Vector3(1.9, 0.44, 1.9), Vector3(0.0, 0.22, 0.0), mats.wall, "Trough"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(1.55, 0.14, 1.55), Vector3(0.0, 0.48, 0.0), mats.floor_alt, "Soil"
-	)
-	var trunk_h := 1.5 * height_scale
-	PixelDioramaStyle.add_box(
-		root,
-		Vector3(0.34, trunk_h, 0.34),
-		Vector3(0.0, 0.5 + trunk_h * 0.5, 0.0),
-		mats.wood,
-		"Trunk"
-	)
-	var canopy := 0.5 + trunk_h
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.5, 0.72, 2.5), Vector3(0.0, canopy + 0.36, 0.0), leaf_dark, "CanopyLow"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(1.95, 0.64, 1.95), Vector3(0.2, canopy + 0.94, -0.14), leaf_light, "CanopyMid"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(1.25, 0.52, 1.25), Vector3(-0.16, canopy + 1.44, 0.18), leaf_dark, "CanopyTop"
-	)
+	_place(parent, "planter_tree", mats, node_name, base, 0.0, {}, Vector3.ONE * height_scale)
 
 
 static func _spawn_flower_trough(
 	parent: Node3D, mats: Dictionary, base: Vector3, bloom: Color, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	parent.add_child(root)
-	var leaf := PixelDioramaStyle.make_material(LEAF_LIGHT)
-	var bloom_mat := PixelDioramaStyle.make_material(bloom)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.3, 0.46, 0.78), Vector3(0.0, 0.23, 0.0), mats.wood, "Trough"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.05, 0.12, 0.6), Vector3(0.0, 0.5, 0.0), mats.floor_alt, "Soil"
-	)
-	for i in 5:
-		var x := -0.82 + i * 0.41
-		var h := 0.34 + float((i * 7) % 3) * 0.12
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.3, h, 0.3), Vector3(x, 0.56 + h * 0.5, 0.0), leaf, "Leaf%d" % i
-		)
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.17, 0.17, 0.17),
-			Vector3(x, 0.62 + h, 0.02),
-			bloom_mat,
-			"Bloom%d" % i
-		)
+	_place(parent, "flower_trough", mats, node_name, base, 0.0, {"bloom": PixelDioramaStyle.make_material(bloom)})
 
 
 static func _spawn_fountain_benches(parent: Node3D, mats: Dictionary) -> void:
@@ -883,25 +565,7 @@ static func _spawn_fountain_benches(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_bench(
 	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	root.rotation.y = yaw
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.0, 0.16, 0.6), Vector3(0.0, 0.46, 0.0), mats.wood, "Seat"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.18, 0.46, 0.54),
-			Vector3(side * 0.78, 0.23, 0.0),
-			mats.wall,
-			"Leg%s" % ("R" if side > 0.0 else "L")
-		)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.0, 0.46, 0.12), Vector3(0.0, 0.79, -0.24), mats.wood, "Back"
-	)
+	_place(parent, "bench", mats, node_name, base, yaw)
 
 
 static func _spawn_bunting(parent: Node3D, mats: Dictionary) -> void:
@@ -913,39 +577,16 @@ static func _spawn_bunting(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_lantern_cord(
 	parent: Node3D, mats: Dictionary, from: Vector3, to: Vector3, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = (from + to) * 0.5
-	root.rotation.y = atan2(to.x - from.x, to.z - from.z)
-	parent.add_child(root)
-	var span := from.distance_to(to)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.07, 0.07, span), Vector3(0.0, BUNTING_Y, 0.0), mats.wood, "Cord"
+	var root := _place(
+		parent, "lantern_cord", mats, node_name, (from + to) * 0.5, atan2(to.x - from.x, to.z - from.z)
 	)
-	var glass := PixelDioramaStyle.make_custom_emissive(Color(1.0, 0.72, 0.34), 1.25)
+	var span := from.distance_to(to)
 	var count := 5
 	for i in count:
 		var t := float(i + 1) / float(count + 1)
 		var z := -span * 0.5 + span * t
 		var drop := 0.2 + float(i % 2) * 0.1
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.05, drop, 0.05),
-			Vector3(0.0, BUNTING_Y - drop * 0.5, z),
-			mats.wood,
-			"Hanger%d" % i
-		)
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(0.3, 0.09, 0.3),
-			Vector3(0.0, BUNTING_Y - drop - 0.04, z),
-			mats.accent,
-			"Cap%d" % i
-		)
 		var glass_pos := Vector3(0.0, BUNTING_Y - drop - 0.24, z)
-		PixelDioramaStyle.add_box(
-			root, Vector3(0.26, 0.3, 0.26), glass_pos, glass, "Glass%d" % i
-		)
 		var lamp := OmniLight3D.new()
 		lamp.name = "LanternLight%d" % i
 		lamp.light_color = LANTERN_LIGHT_COLOR
@@ -966,54 +607,7 @@ static func _spawn_market_carts(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_cart(
 	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	root.rotation.y = yaw
-	parent.add_child(root)
-	PixelDioramaStyle.add_box(
-		root, Vector3(2.3, 0.24, 1.25), Vector3(0.0, 0.78, 0.0), mats.wood, "Bed"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			root,
-			Vector3(2.3, 0.42, 0.12),
-			Vector3(0.0, 1.05, side * 0.57),
-			mats.wood,
-			"Rail%s" % ("R" if side > 0.0 else "L")
-		)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.12, 0.42, 1.25), Vector3(-1.09, 1.05, 0.0), mats.wood, "Headboard"
-	)
-	for side in [-1.0, 1.0]:
-		var wheel := PixelDioramaStyle.add_cylinder(
-			root,
-			0.44,
-			0.44,
-			0.16,
-			Vector3(0.35, 0.44, side * 0.68),
-			mats.accent,
-			"Wheel%s" % ("R" if side > 0.0 else "L")
-		)
-		wheel.rotation.x = PI * 0.5
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.14, 0.14, 1.15), Vector3(0.35, 0.66, 0.0), mats.wall, "Axle"
-	)
-	for side in [-1.0, 1.0]:
-		var handle := PixelDioramaStyle.add_box(
-			root,
-			Vector3(1.5, 0.12, 0.12),
-			Vector3(-1.72, 0.42, side * 0.48),
-			mats.wood,
-			"Handle%s" % ("R" if side > 0.0 else "L")
-		)
-		handle.rotation.z = 0.48
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.62, 0.62, 0.62), Vector3(-0.35, 1.21, 0.0), mats.floor_alt, "Sack"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.5, 0.5, 0.5), Vector3(0.45, 1.15, 0.22), mats.accent, "Crate"
-	)
+	_place(parent, "cart", mats, node_name, base, yaw)
 
 
 static func _spawn_woodpiles(parent: Node3D, mats: Dictionary) -> void:
@@ -1024,26 +618,7 @@ static func _spawn_woodpiles(parent: Node3D, mats: Dictionary) -> void:
 static func _spawn_woodpile(
 	parent: Node3D, mats: Dictionary, base: Vector3, yaw: float, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	root.rotation.y = yaw
-	parent.add_child(root)
-	var bark := PixelDioramaStyle.make_material(Color(0.36, 0.26, 0.18))
-	var rows := 3
-	for row in rows:
-		var count := 4 - row
-		for i in count:
-			var log_mesh := PixelDioramaStyle.add_cylinder(
-				root,
-				0.13,
-				0.13,
-				1.5,
-				Vector3(0.0, 0.15 + row * 0.27, -0.36 + i * 0.27 + row * 0.13),
-				bark if (i + row) % 2 == 0 else mats.wood,
-				"Log%d_%d" % [row, i]
-			)
-			log_mesh.rotation.z = PI * 0.5
+	_place(parent, "woodpile", mats, node_name, base, yaw)
 
 
 static func _spawn_stall_planters(hub: Node3D, parent: Node3D, mats: Dictionary) -> void:
@@ -1068,27 +643,7 @@ static func _spawn_stall_planters(hub: Node3D, parent: Node3D, mats: Dictionary)
 static func _spawn_pot(
 	parent: Node3D, mats: Dictionary, base: Vector3, bloom: Color, node_name: String
 ) -> void:
-	var root := Node3D.new()
-	root.name = node_name
-	root.position = base
-	parent.add_child(root)
-	var leaf := PixelDioramaStyle.make_material(LEAF_DARK)
-	var bloom_mat := PixelDioramaStyle.make_material(bloom)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.62, 0.5, 0.62), Vector3(0.0, 0.25, 0.0), mats.accent, "Pot"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.5, 0.1, 0.5), Vector3(0.0, 0.53, 0.0), mats.floor_alt, "Soil"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.54, 0.46, 0.54), Vector3(0.0, 0.79, 0.0), leaf, "Shrub"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.34, 0.3, 0.34), Vector3(0.04, 1.12, -0.03), leaf, "ShrubTop"
-	)
-	PixelDioramaStyle.add_box(
-		root, Vector3(0.16, 0.16, 0.16), Vector3(-0.1, 1.2, 0.12), bloom_mat, "Bloom"
-	)
+	_place(parent, "pot", mats, node_name, base, 0.0, {"bloom": PixelDioramaStyle.make_material(bloom)})
 
 
 static func _dress_walls(hub: Node3D, mats: Dictionary) -> void:
@@ -1239,23 +794,13 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	dressing.name = "Dressing"
 	visuals.add_child(dressing)
 
-	var forge_mat := (mats.forge as Material).duplicate()
 	var back := -depth * 0.5 + 0.9
-	var forge := PixelDioramaStyle.add_box(
-		dressing, Vector3(1.1, 0.9, 1.0), Vector3(1.3, 0.45, back), forge_mat, "Forge"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.45, 1.5, 0.45), Vector3(1.3, 1.2, back), mats.wall, "Chimney"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.7, 0.35, 0.5), Vector3(-0.4, 0.55, back + 0.35), mats.accent, "Anvil"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(1.8, 0.85, 0.6), Vector3(-1.1, 0.42, back - 0.5), mats.wood, "Workbench"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.25, 0.9, 0.25), Vector3(-1.9, 0.45, back - 0.4), mats.accent, "ToolRack"
-	)
+	_place(dressing, "dressing_blacksmith", tent_mats, "Interior")
+	var forge := dressing.get_node("Interior/Forge") as MeshInstance3D
+	forge.set_meta(PropMerger.NO_MERGE_META, true)
+	var forge_mat := (mats.forge as Material).duplicate()
+	for surface in forge.mesh.get_surface_count():
+		forge.set_surface_override_material(surface, forge_mat)
 
 	var forge_light := OmniLight3D.new()
 	forge_light.name = "ForgeLight"
@@ -1273,7 +818,7 @@ static func _dress_blacksmith(building: Node3D, mats: Dictionary) -> void:
 	flicker.setup(forge_light, forge)
 
 	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
-	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
+	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
 
@@ -1298,31 +843,7 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	visuals.add_child(dressing)
 
 	var back := -half_d + 0.6
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(3.0, 0.95, 0.6), Vector3(0.0, 0.48, back), mats.wood, "Counter"
-	)
-	for i in 4:
-		PixelDioramaStyle.add_box(
-			dressing,
-			Vector3(0.5, 0.1, 0.5),
-			Vector3(-1.05 + i * 0.7, 0.99, back),
-			mats.accent if i % 2 == 0 else mats.floor,
-			"CounterWare%d" % i
-		)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.6, 0.6, 0.6), Vector3(-1.7, 0.3, back + 0.9), mats.accent, "CrateA"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.6, 0.6, 0.6), Vector3(1.7, 0.3, back + 1.0), mats.accent, "CrateB"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			dressing,
-			Vector3(0.28, 1.3, 1.8),
-			Vector3(side * (width * 0.5 - 0.3), 1.0, back + 0.6),
-			mats.wood,
-			"Shelf%s" % ("R" if side > 0.0 else "L")
-		)
+	_place(dressing, "dressing_merchant", mats, "Interior")
 
 	var lantern := OmniLight3D.new()
 	lantern.name = "LanternLight"
@@ -1335,7 +856,7 @@ static func _dress_merchant(building: Node3D, mats: Dictionary) -> void:
 	LightEmbers.attach(dressing, lantern.position, lantern.light_color, 0.5, 0.6)
 
 	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
-	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
+	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
 
@@ -1359,23 +880,7 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	visuals.add_child(dressing)
 
 	var back := -depth * 0.5 + 0.4
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(3.4, 1.8, 0.3), Vector3(0.0, 0.9, back), mats.wood, "ShelfBack"
-	)
-	for i in 3:
-		PixelDioramaStyle.add_box(
-			dressing,
-			Vector3(0.8, 0.5, 0.45),
-			Vector3(-1.05 + i * 1.05, 1.2, back + 0.25),
-			mats.accent,
-			"Crate%d" % i
-		)
-	PixelDioramaStyle.add_cylinder(
-		dressing, 0.36, 0.36, 0.9, Vector3(-1.9, 0.45, back + 1.1), mats.wood, "BarrelA"
-	)
-	PixelDioramaStyle.add_cylinder(
-		dressing, 0.36, 0.36, 0.9, Vector3(1.9, 0.45, back + 1.1), mats.wood, "BarrelB"
-	)
+	_place(dressing, "dressing_storage", mats, "Interior")
 
 	var lamp := OmniLight3D.new()
 	lamp.name = "StorageLight"
@@ -1388,7 +893,7 @@ static func _dress_storage(building: Node3D, mats: Dictionary) -> void:
 	LightEmbers.attach(dressing, lamp.position, lamp.light_color, 0.5, 0.6)
 
 	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
-	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
+	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats)
 	_position_door_interact(building, width, depth, wall_height, wall_height + roof_peak, yaw)
 
 
@@ -1413,23 +918,7 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	visuals.add_child(dressing)
 
 	var back := -half_d + 0.2
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(2.8, 1.7, 0.14), Vector3(0.0, 1.25, back), mats.wood, "BoardFrame"
-	)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(2.5, 1.45, 0.06), Vector3(0.0, 1.25, back + 0.1), mats.accent, "Board"
-	)
-	for i in 5:
-		PixelDioramaStyle.add_box(
-			dressing,
-			Vector3(0.42, 0.6, 0.03),
-			Vector3(-0.96 + i * 0.48, 1.16 + float((i * 5) % 3) * 0.2, back + 0.15),
-			mats.paper,
-			"Notice%d" % i
-		)
-	PixelDioramaStyle.add_box(
-		dressing, Vector3(0.45, 0.45, 0.45), Vector3(1.5, 0.22, 0.5), mats.wood, "BenchCrate"
-	)
+	_place(dressing, "dressing_questboard", mats, "Interior")
 
 	var paper_light := OmniLight3D.new()
 	paper_light.name = "QuestLight"
@@ -1442,30 +931,14 @@ static func _dress_quest_board(board: Node3D, mats: Dictionary) -> void:
 	LightEmbers.attach(dressing, paper_light.position, paper_light.light_color, 0.5, 0.6)
 
 	_spawn_tent_lanterns(visuals, mats, width, depth, wall_height)
-	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats.accent, mats.wood)
+	_add_ridge_sign(visuals, depth * 0.5, wall_height + roof_peak, mats)
 	_position_door_interact(board, width, depth, wall_height, wall_height + roof_peak, yaw)
 
 
 static func _add_ridge_sign(
-	visuals: Node3D, half_depth: float, ridge_y: float, mat: Material, wood: Material
+	visuals: Node3D, half_depth: float, ridge_y: float, mats: Dictionary
 ) -> void:
-	var sign_root := Node3D.new()
-	sign_root.name = "RidgeSign"
-	sign_root.position = Vector3(0.0, ridge_y - 0.1, half_depth + 0.3)
-	visuals.add_child(sign_root)
-	PixelDioramaStyle.add_box(
-		sign_root, Vector3(0.12, 0.5, 0.12), Vector3(0.0, -0.25, 0.0), wood, "SignBracket"
-	)
-	PixelDioramaStyle.add_box(
-		sign_root, Vector3(1.25, 0.1, 0.14), Vector3(0.0, -0.5, 0.0), wood, "SignBar"
-	)
-	PixelDioramaStyle.add_box(
-		sign_root, Vector3(1.05, 0.62, 0.1), Vector3(0.0, -0.86, 0.0), mat, "SignBacking"
-	)
-	for side in [-1.0, 1.0]:
-		PixelDioramaStyle.add_box(
-			sign_root, Vector3(0.07, 0.22, 0.07), Vector3(side * 0.42, -0.58, 0.0), wood, "SignChain%s" % ("R" if side > 0.0 else "L")
-		)
+	_place(visuals, "ridge_sign", mats, "RidgeSign", Vector3(0.0, ridge_y - 0.1, half_depth + 0.3))
 
 
 static func _position_door_interact(
@@ -1525,8 +998,6 @@ static func _wire_interact_feedback(hub: Node3D) -> void:
 		"UmbralEndlessPortal",
 		"UmbralWavesPortal",
 		"ArenaDoor",
-		"SkiesPortal",
-		"CathedralPortal",
 	]
 	for portal_name in portal_names:
 		var portal := hub.get_node_or_null(portal_name) as Node3D

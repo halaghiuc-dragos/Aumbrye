@@ -12,8 +12,6 @@ const INTERACT_HANDLERS := {
 	"castle_portal": "_open_castle_menu",
 	"endless_portal": "_open_endless_menu",
 	"waves_portal": "_open_waves_menu",
-	"skies_portal": "_show_coming_soon_skies",
-	"cathedral_portal": "_show_coming_soon_cathedral",
 	"arena_door": "_enter_arena",
 	"blacksmith": "open_blacksmith",
 	"merchant": "open_merchant",
@@ -39,8 +37,7 @@ var _appearance_mirror_ui: Control
 
 var _nearby: Array[String] = []
 var _interactable_by_id: Dictionary = {}
-var _current_prompt := ""
-var _prompt_writes := 0
+var _selected_interact_id := ""
 var _message_dismiss_armed := false
 var _npc_availability_pending := false
 var _growth_reconciling := false
@@ -51,10 +48,6 @@ func _ready() -> void:
 	PixelDioramaBootstrap.prime()
 	_spawn_catalog_npcs()
 	HubDioramaScript.apply(self)
-	_appearance_mirror_ui = CharacterCreateUIScript.new()
-	_appearance_mirror_ui.name = "AppearanceMirrorUI"
-	add_child(_appearance_mirror_ui)
-	_appearance_mirror_ui.appearance_saved.connect(_on_appearance_mirror_saved)
 	call_deferred("_apply_pixel_diorama_to_scene")
 	_register_interactables()
 	_apply_npc_availability()
@@ -136,7 +129,7 @@ func _boot_save_and_services() -> void:
 	var result: Dictionary = await LocalSave.sync_from_cloud()
 	var synced: bool = bool(result.get("ok", false))
 	var reloaded := false
-	if not synced and LocalSave.has_save():
+	if not synced and LocalSave.has_save() and not LocalSave.is_character_loaded():
 		reloaded = LocalSave.reload_active_into_services()
 	if CharacterService.class_id == "":
 		push_error(
@@ -153,7 +146,10 @@ func _boot_save_and_services() -> void:
 	_auto_equip_starting_weapon()
 	_restore_hub_resources()
 	LocalSave.autosave()
-	show_hub_message("Welcome back, %s." % LocalSave.get_character_name())
+	show_hub_message(tr("HUB_WELCOME_BACK") % LocalSave.get_character_name())
+	if LocalSave.restore_notice != "":
+		show_hub_message(LocalSave.restore_notice)
+		LocalSave.restore_notice = ""
 	# Settle the active save/cloud snapshot before consuming persistent announcement queues. The
 	# welcome-back line is written first so follow-up notices append to it instead of being lost.
 	_hub_services_ready = true
@@ -182,9 +178,6 @@ func _restore_hub_resources() -> void:
 	var heal := player.get_node_or_null("PlayerHeal") as PlayerHeal
 	if heal:
 		heal.refill_charges()
-	var arrows := player.get_node_or_null("PlayerArrows") as PlayerArrows
-	if arrows:
-		arrows.refill_arrows()
 
 
 func _spawn_catalog_npcs() -> void:
@@ -243,7 +236,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if HubTutorialService.should_show_tips() and _handle_tip_input(event):
 		get_viewport().set_input_as_handled()
 		return
-	# UX-09: every other sub-panel handles its own `ui_cancel` internally, but
+	# Every other sub-panel handles its own `ui_cancel` internally, but
 	# `character_create_ui.gd` (reused here for the appearance mirror) does not -- it only exposes
 	# `request_cancel()` for whoever opened it to call, which `main_menu.gd` does for the creation
 	# flow but nothing here did for the hub's edit-mode instance. Escape/B silently did nothing.
@@ -303,7 +296,18 @@ func open_quest_board() -> void:
 	_update_prompt()
 
 
+## The mirror's preview world is only built the first time someone uses it.
+func _ensure_appearance_mirror_ui() -> void:
+	if _appearance_mirror_ui != null:
+		return
+	_appearance_mirror_ui = CharacterCreateUIScript.new()
+	_appearance_mirror_ui.name = "AppearanceMirrorUI"
+	add_child(_appearance_mirror_ui)
+	_appearance_mirror_ui.appearance_saved.connect(_on_appearance_mirror_saved)
+
+
 func open_appearance_mirror() -> void:
+	_ensure_appearance_mirror_ui()
 	if _appearance_mirror_ui and _appearance_mirror_ui.has_method("open_edit_mode"):
 		_appearance_mirror_ui.call("open_edit_mode")
 	_update_prompt()
@@ -322,7 +326,7 @@ func _apply_player_viewmodel_theme() -> void:
 
 
 func _on_appearance_mirror_saved(_profile: Dictionary) -> void:
-	show_hub_message("Appearance updated.")
+	show_hub_message(tr("HUB_APPEARANCE_UPDATED"))
 	_apply_player_viewmodel_theme()
 	_update_prompt()
 
@@ -375,22 +379,7 @@ func has_open_ui() -> bool:
 
 
 func _any_ui_open() -> bool:
-	return (
-		_ui_is_open(_castle_menu)
-		or _ui_is_open(_endless_menu)
-		or _ui_is_open(_waves_menu)
-		or _ui_is_open(_dialogue_ui)
-		or _ui_is_open(_blacksmith_ui)
-		or _ui_is_open(_merchant_ui)
-		or _ui_is_open(_storage_ui)
-		or _ui_is_open(_quest_board_ui)
-		or (
-			_appearance_mirror_ui != null
-			and _appearance_mirror_ui.has_method("is_open")
-			and _appearance_mirror_ui.call("is_open")
-		)
-		or PlayerControls.is_player_meta_ui_open()
-	)
+	return MenuStack.depth() > 0 or _ui_is_open(_dialogue_ui)
 
 
 func _register_interactables() -> void:
@@ -450,17 +439,16 @@ func _nearest_interact_id() -> String:
 
 
 func _update_prompt() -> void:
-	var next_text := ""
-	if not _any_ui_open():
-		var interact_id := _nearest_interact_id()
-		if interact_id != "":
-			var area: HubInteractable = _interactable_by_id.get(interact_id)
-			if area != null:
-				next_text = area.get_prompt()
-	if next_text == _current_prompt:
+	var selected_id := "" if _any_ui_open() else _nearest_interact_id()
+	if selected_id == _selected_interact_id:
 		return
-	_current_prompt = next_text
-	_prompt_writes += 1
+	var previous: HubInteractable = _interactable_by_id.get(_selected_interact_id)
+	if previous != null:
+		previous.set_selected(false)
+	_selected_interact_id = selected_id
+	var next: HubInteractable = _interactable_by_id.get(selected_id)
+	if next != null:
+		next.set_selected(true)
 
 
 func _dispatch_interact(interact_id: String) -> void:
@@ -495,7 +483,7 @@ func _show_growth_record() -> void:
 	for entry in runs:
 		deepest = maxi(deepest, int(entry.get("floorReached", 0)))
 		most_kills = maxi(most_kills, int(entry.get("kills", 0)))
-	show_hub_message("Record stone: %d expeditions · deepest floor %d · most kills %d" % [runs.size(), deepest, most_kills])
+	show_hub_message(tr("HUB_RECORD_STONE") % [runs.size(), deepest, most_kills])
 	AudioDirector.play_sfx("ui", global_position)
 
 
@@ -545,6 +533,11 @@ func _refresh_mode_portals() -> void:
 		var area := portal.get_node_or_null("InteractArea") as HubInteractable
 		if area == null:
 			continue
+		if ModeUnlockService.is_parked(mode_id):
+			portal.visible = false
+			area.monitoring = false
+			area.monitorable = false
+			continue
 		var unlocked := ModeUnlockService.is_unlocked(mode_id)
 		if mode_id == ModeUnlockService.MODE_CASTLE:
 			area.set_display_name(DungeonTierService.get_hub_portal_label())
@@ -571,7 +564,7 @@ func _set_portal_lit(portal: Node3D, lit: bool) -> void:
 
 
 ## Celebrates a newly-opened portal exactly once, the first time the player is back in the hub.
-## MD-07: unlocking a mode is one of maybe five genuinely new things that will ever happen to this
+## Unlocking a mode is one of maybe five genuinely new things that will ever happen to this
 ## player -- a hub message line undersold it. Now: the portal is already lit (see `_ready()`), a
 ## stinger plays, and the announce line gets a region-banner-sized card instead of the small
 ## world-space message label.
@@ -636,8 +629,8 @@ func _announce_mode_unlocks(fresh: Array = []) -> void:
 		var subtitle := "\n".join(details)
 		_show_mode_unlock_card(title, subtitle if subtitle != "" else "%s is now available for future runs." % title)
 	AudioDirector.play_stinger("floor_clear")
-	# MD-07/VS-09: the one hub moment that deserves the camera turning to look at something --
-	# pans to the first newly-lit portal, reusing the reveal framing built for RM-09 secrets.
+	# The one hub moment that deserves the camera turning to look at something --
+	# pans to the first newly-lit portal, reusing the reveal framing built for secrets.
 	var first_mode_id := str((fresh[0] as Dictionary).get("id", "")) if fresh[0] is Dictionary else ""
 	var portal_node_name := ModeUnlockService.portal_node_name(first_mode_id)
 	if portal_node_name != "":
@@ -649,7 +642,7 @@ func _announce_mode_unlocks(fresh: Array = []) -> void:
 				camera.call("play_reveal_framing", portal.global_position)
 
 
-## `SY-03`: names what physically changed in the plaza this run earned -- `HubDioramaScript`
+## Names what physically changed in the plaza this run earned -- `HubDioramaScript`
 ## already built the matching prop into the scene during `_ready()`'s `HubDioramaScript.apply()`
 ## call, above; this is only the announcement half. Appended to whatever `_show_return_message()`
 ## already put in the hub message label rather than overwriting it -- a mode unlock is rare enough
@@ -674,18 +667,6 @@ func _announce_hub_growth() -> void:
 		show_hub_message(line)
 	AudioDirector.play_stinger("floor_clear")
 	_growth_reconciling = false
-
-
-func _announce_combat_teaching() -> void:
-	var messages := HubTutorialService.consume_pending_combat_teaching()
-	var lines := _progression_secondary_lines([], messages)
-	if lines.is_empty():
-		return
-	var line := "\n".join(lines)
-	if _message_label and _message_label.visible and _message_label.text != "":
-		show_hub_message("%s\n%s" % [_message_label.text, line])
-	else:
-		show_hub_message(line)
 
 
 func _progression_secondary_lines(growth: Array, teaching: Array) -> Array[String]:
@@ -783,19 +764,8 @@ func _show_mode_unlock_card(title: String, subtitle: String) -> void:
 	tween.tween_callback(card.queue_free)
 
 
-func _show_coming_soon_skies() -> void:
-	show_hub_message("Aumbrye Skies is coming soon.")
-
-
-func _show_coming_soon_cathedral() -> void:
-	show_hub_message("Aumbrye Cathedral is coming soon.")
-
-
 func _enter_arena() -> void:
-	if Input.is_key_pressed(KEY_SHIFT):
-		open_loadout()
-	else:
-		RunFlow.go_to_arena()
+	RunFlow.go_to_arena()
 
 
 func _assert_interact_handlers() -> void:
@@ -820,34 +790,22 @@ func _refresh_castle_portal_label() -> void:
 func _refresh_hub_service_route() -> void:
 	if _service_route_label == null or not _hub_services_ready:
 		return
-	var pending: Array[String] = []
 	var blacksmith_actions := _pending_blacksmith_action_count()
 	var blacksmith_status := ""
 	if blacksmith_actions > 0:
 		blacksmith_status = tr("HUB_SERVICE_BLACKSMITH_READY").format(
 			{"count": blacksmith_actions}
 		)
-		pending.append(blacksmith_status)
 	_set_service_interaction_label("blacksmith", tr("HUB_SERVICE_BLACKSMITH"), blacksmith_status)
 
 	var storage_full := _inventory_needs_storage()
 	var storage_status := tr("HUB_SERVICE_STORAGE_FULL") if storage_full else ""
-	if storage_full:
-		pending.append(storage_status)
 	_set_service_interaction_label("storage", tr("HUB_SERVICE_STORAGE"), storage_status)
 
-	var route_status := tr("HUB_SERVICE_ROUTE_CLEAR")
-	if not pending.is_empty():
-		route_status = "%s\n%s" % [
-			"\n".join(pending),
-			tr("HUB_SERVICE_ROUTE_READY"),
-		]
-	_service_route_label.text = "%s\n%s\n%s" % [
-		tr("HUB_SERVICE_ROUTE_TITLE"),
-		tr("HUB_SERVICE_ROUTE_RECOVERED"),
-		route_status,
-	]
-	_service_route_label.visible = true
+	# Service status belongs on the interaction prompts, not as a floating developer-style
+	# route summary in the village.
+	_service_route_label.text = ""
+	_service_route_label.visible = false
 
 
 func _set_service_interaction_label(interact_id: String, base_label: String, status: String) -> void:
@@ -872,13 +830,10 @@ func _pending_blacksmith_action_count() -> int:
 	var count := 0
 	var inventory := InventoryService.inventory
 	for slot_name in inventory.equipped.keys():
-		if (
-			BlacksmithServiceScript.can_upgrade(str(slot_name))
-			or BlacksmithServiceScript.can_repair(str(slot_name))
-		):
+		if BlacksmithServiceScript.can_upgrade(str(slot_name)):
 			count += 1
 	for index in inventory.slots.size():
-		if BlacksmithServiceScript.can_upgrade(index) or BlacksmithServiceScript.can_repair(index):
+		if BlacksmithServiceScript.can_upgrade(index):
 			count += 1
 	for unlock in BlacksmithServiceScript.get_available_unlocks():
 		if BlacksmithServiceScript.can_unlock(str(unlock.get("itemId", ""))):
@@ -899,15 +854,15 @@ func _show_return_message() -> void:
 		show_hub_message(_default_welcome_message())
 
 
-## MD-06: the weekly challenge was announced nowhere outside the tower board it lives on -- this
+## The weekly challenge was announced nowhere outside the tower board it lives on -- this
 ## is the passive nudge for a player who never opens the board.
 func _default_welcome_message() -> String:
-	var base := "Welcome to Aumbrye Tower — explore the landmarks"
+	var base := tr("HUB_WELCOME_LANDMARKS")
 	var challenge := ChallengeService.get_active_challenge()
 	if challenge.is_empty():
 		return base
 	var remaining := ChallengeService.format_remaining(int(challenge.get("endsInSeconds", 0)))
-	return "%s. This week: %s (%s)." % [base, str(challenge.get("name", "")), remaining]
+	return tr("HUB_WELCOME_WEEKLY") % [base, str(challenge.get("name", "")), remaining]
 
 
 func _connect_tip_refresh_sources() -> void:
@@ -1019,7 +974,7 @@ func _on_run_warning(message: String) -> void:
 
 func _on_inventory_rejected(reason: String) -> void:
 	if reason == "full":
-		show_hub_message("Inventory full.")
+		show_hub_message(tr("HUB_INVENTORY_FULL"))
 
 
 func _on_npc_dialogue(npc_id: String, dialogue_id: String) -> void:

@@ -1,7 +1,7 @@
 class_name RunContractLabel
 extends RefCounted
 
-## AD-01: the one formatter every entry menu's contract label calls, so the card reads the same
+## The one formatter every entry menu's contract label calls, so the card reads the same
 ## way in the castle, endless and waves menus -- one source, three consumers, per the plan.
 
 

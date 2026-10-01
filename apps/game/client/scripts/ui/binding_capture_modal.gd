@@ -49,11 +49,11 @@ func _build_prompt() -> void:
 	GameUISkinScript.style_body_label(msg)
 	if _awaiting_swap:
 		msg.text = tr("SETTINGS_BINDING_CONFLICT") % [
-			InputRebindService.get_action_label(_action),
-			InputRebindService.get_action_label(_conflict_action),
+			InputBindings.get_action_label(_action),
+			InputBindings.get_action_label(_conflict_action),
 		]
 	else:
-		msg.text = tr("SETTINGS_BINDING_WAIT") % InputRebindService.get_action_label(_action)
+		msg.text = tr("SETTINGS_BINDING_WAIT") % InputBindings.get_action_label(_action)
 	vbox.add_child(msg)
 	if _awaiting_swap:
 		var cancel := MenuShellScript.make_menu_button(tr("SETTINGS_BINDING_CANCEL"), _on_cancel)
@@ -72,7 +72,7 @@ func _on_cancel() -> void:
 
 
 func _on_swap() -> void:
-	var result := InputRebindService.swap_binding(_action, _conflict_action, _pending_event)
+	var result := InputBindings.swap_binding(_action, _conflict_action, _pending_event)
 	if bool(result.get("ok", false)):
 		captured.emit(_action, _pending_event)
 	close()
@@ -99,7 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventJoypadMotion:
 		if absf(event.axis_value) < MOTION_DEADZONE:
 			return
-	var conflict := InputRebindService.find_conflict(_action, event)
+	var conflict := InputBindings.find_conflict(_action, event)
 	if conflict != &"":
 		_pending_event = event
 		_conflict_action = conflict
@@ -107,7 +107,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_build_prompt()
 		get_viewport().set_input_as_handled()
 		return
-	var result := InputRebindService.rebind(_action, event)
+	var result := InputBindings.rebind(_action, event)
 	if bool(result.get("ok", false)):
 		captured.emit(_action, event)
 		close()

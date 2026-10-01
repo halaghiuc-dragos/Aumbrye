@@ -57,9 +57,8 @@ static func _solar_declination(day: float) -> float:
 
 
 static func _lunar_declination(day: float) -> float:
-	# The moon tracks the sun's declination at new and mirrors it at full, which is what keeps a
-	# full moon high in winter and low in summer. The sign used to be the other way round, which
-	# put every full moon on the sun's own arc.
+	# The moon tracks the sun's declination at new and mirrors it at full, which keeps a full moon
+	# high in winter and low in summer.
 	var mirrored := _solar_declination(day) * cos(elongation(day))
 	return mirrored + deg_to_rad(LUNAR_INCLINATION_DEG) * sin(
 		(day + LUNAR_EPOCH_DAYS) / DAYS_PER_LUNAR_MONTH * TAU * 1.1

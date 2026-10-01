@@ -4,8 +4,8 @@
   "templatePrefix": "frozen",
   "assetFolder": "frozen",
   "roomCount": {
-    "min": 20,
-    "max": 24
+    "min": 8,
+    "max": 10
   },
   "roomTemplateIds": [
     "frozen_entrance",
@@ -56,28 +56,28 @@
     "rubble": [
       "res://scenes/props/frozen/rubble_a.tscn",
       "res://scenes/props/frozen/rubble_b.tscn"
-    ],
-    "banner": "res://scenes/props/frozen/banner.tscn",
-    "statue": "res://scenes/props/frozen/statue.tscn",
-    "altar": "res://scenes/props/frozen/altar.tscn",
-    "debrisPile": "res://scenes/props/frozen/debris_pile.tscn"
+    ]
   },
   "enemyPool": [
     {
       "enemyId": "frost_raider",
-      "weight": 3
+      "weight": 3,
+      "minFloor": 1
     },
     {
       "enemyId": "frost_archer",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 1
     },
     {
       "enemyId": "frost_knight",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 2
     },
     {
       "enemyId": "frost_hound",
-      "weight": 2
+      "weight": 2,
+      "minFloor": 3
     }
   ],
   "roleComposition": {
@@ -144,14 +144,6 @@
       }
     ],
     "side": [
-      {
-        "itemId": "frost_raider_boots",
-        "quantity": [
-          1,
-          1
-        ],
-        "weight": 2
-      },
       {
         "itemId": "frost_relic_shard",
         "quantity": [
@@ -238,8 +230,8 @@
   "maxHeightLevel": 1,
   "maxSecrets": 3,
   "generator": {
-    "bossMinDistance": 4,
-    "minDeadEnds": 4,
+    "bossMinDistance": 3,
+    "minDeadEnds": 3,
     "branchMaxDepth": 4,
     "maxNeighborCount": 4,
     "loopBudget": 2,
@@ -250,5 +242,6 @@
     "corridorRatio": 0.3,
     "floorSilhouette": "spine"
   },
-  "lootTablePath": "content/loot/tables/frozen_fortress.json"
+  "lootTablePath": "content/loot/tables/frozen_fortress.json",
+  "floorSurface": "snow"
 }

@@ -37,20 +37,20 @@ var ignore_guard: bool = false
 var periodic: bool = false
 var execution: String = ""
 var attack_class: String = "blockable"
-## `PH-01`: how hard this hit shoves the victim, in the same units `Knockback.apply()` takes. Set
+## How hard this hit shoves the victim, in the same units `Knockback.apply()` takes. Set
 ## directly by the caller (`Hitbox`/`Projectile`) after `create()`, the same way `crit` is --
 ## it is a per-attack tuning value, not part of the damage-type/status shape `create()` already
 ## has too many positional parameters for.
 var knockback: float = 0.0
-## CB-05: the dagger's identity trait -- 0.0 means "use the global `BACKSTAB_DAMAGE_MULT`".
+## The dagger's identity trait -- 0.0 means "use the global `BACKSTAB_DAMAGE_MULT`".
 var backstab_multiplier_override: float = 0.0
-## `RG-03`: set by `Hitbox` when the hit came from a `Projectile`'s hitbox rather than a melee
+## Set by `Hitbox` when the hit came from a `Projectile`'s hitbox rather than a melee
 ## swing -- lets `Guard` react differently (spark VFX, a parry stamina refund) without a parallel
 ## interception path.
 var is_projectile: bool = false
 var weapon_item_id: String = ""
-## Stable for every contact from one committed swing/shot. Presentation uses this to budget a
-## global hitstop pulse once per attack rather than once per victim.
+## Stable for every contact from one committed swing/shot. Presentation uses this to freeze the
+## attacker once per attack rather than once per victim.
 var root_attack_id: String = ""
 ## Damage dealt at short intervals while an accepted grab remains attached; zero preserves the
 ## ordinary single-release grab contract.

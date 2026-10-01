@@ -33,9 +33,8 @@ func configure(lock: Dictionary, _from_room: RoomTemplate, _to_room: RoomTemplat
 
 
 func _build_at_socket() -> void:
-	# The socket sits on the wall's centre plane, which is exactly where the opening was cut. The
-	# slab used to be pushed 0.4 further into the room, so it read as a plank standing in front of
-	# the doorway instead of filling it -- and you could see daylight past its edge.
+	# The socket sits on the wall's centre plane, which is exactly where the opening was cut, so the
+	# slab fills the doorway instead of standing in front of it like a plank with daylight past its edge.
 	var socket := RoomContentSpawner.door_socket(self)
 	if socket:
 		position = socket.position
@@ -59,7 +58,7 @@ func _build_at_socket() -> void:
 	_barrier.add_child(shape_node)
 	add_child(_barrier)
 
-	# RM-05: a door shape (jambs, lintel, keyhole inset tinted to the key's colour) instead of a
+	# A door shape (jambs, lintel, keyhole inset tinted to the key's colour) instead of a
 	# plain telegraph slab -- the same shape a puzzle gate or shortcut gate uses, which is exactly
 	# what made every locked door illegible before.
 	var key_tint := FloorKeyringScript.tint_for(_key_id)
@@ -115,7 +114,7 @@ func _activate_interaction() -> void:
 		return
 	_unlock(true)
 	WorldState.set_flag(_lock_flag_id, true)
-	# AU-03: only the live open fires the stinger -- `_unlock()` is also reached from
+	# Only the live open fires the stinger -- `_unlock()` is also reached from
 	# `_refresh_state()` on a floor reload, where the lock is already open and nothing happened.
 	AudioDirector.play_stinger("lock_opened")
 

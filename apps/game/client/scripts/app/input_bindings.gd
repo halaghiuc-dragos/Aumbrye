@@ -38,20 +38,6 @@ const REBINDABLE: Array[StringName] = [
 	&"inventory_split",
 ]
 
-## `AX-02`: `toggle_camera` moved off this list -- it now has a real pad binding (right shoulder,
-## `project.godot`'s only free `JoyButton` slot; every other index was already spoken for). The
-## rest stay keyboard-only for real: `zoom_in`/`zoom_out` and the direct `quick_slot_1..4` presses
-## have no free button left to bind to, and `quick_slot_cycle` (already pad-bound) is the actual
-## pad-reachable path to a quick slot.
-const KEYBOARD_ONLY: Array[StringName] = [
-	&"zoom_in",
-	&"zoom_out",
-	&"quick_slot_1",
-	&"quick_slot_2",
-	&"quick_slot_3",
-	&"quick_slot_4",
-	&"inventory_split",
-]
 
 static var _defaults: Dictionary = {}
 static var _saved_bindings: Dictionary = {}
@@ -136,13 +122,6 @@ static func get_action_label(action: StringName) -> String:
 	return InputGlyphService.get_action_display_name(str(action))
 
 
-static func get_action_binding_text(action: StringName) -> String:
-	var parts: PackedStringArray = []
-	for event in get_action_events(action):
-		parts.append(event.as_text())
-	return ", ".join(parts) if not parts.is_empty() else "(unbound)"
-
-
 static func swap_binding(action: StringName, conflict: StringName, event: InputEvent) -> Dictionary:
 	if action not in REBINDABLE or conflict not in REBINDABLE:
 		return {"ok": false, "conflict": StringName()}
@@ -162,6 +141,7 @@ static func swap_binding(action: StringName, conflict: StringName, event: InputE
 	_persist_action_override(action)
 	_persist_action_override(conflict)
 	save()
+	_invalidate_glyphs()
 	return {"ok": true, "conflict": conflict}
 
 
@@ -174,6 +154,7 @@ static func rebind(action: StringName, event: InputEvent) -> Dictionary:
 	_replace_matching_device_events(action, event)
 	_persist_action_override(action)
 	save()
+	_invalidate_glyphs()
 	return {"ok": true, "conflict": StringName()}
 
 
@@ -185,6 +166,7 @@ static func reset_action(action: StringName) -> void:
 		InputMap.action_add_event(action, default_event.duplicate())
 	_saved_bindings.erase(str(action))
 	save()
+	_invalidate_glyphs()
 
 
 static func reset_all() -> void:
@@ -194,6 +176,12 @@ static func reset_all() -> void:
 			InputMap.action_add_event(action, default_event.duplicate())
 	_saved_bindings.clear()
 	save()
+	_invalidate_glyphs()
+
+
+## A rebind changes what every on-screen glyph should show.
+static func _invalidate_glyphs() -> void:
+	UISymbolBus.invalidate(&"rebind")
 
 
 static func get_action_events(action: StringName) -> Array:

@@ -8,7 +8,7 @@
   "repeatable": true,
   "description": "Standing bounty. Five lengths of scrap, delivered without commentary.",
   "rewards": {
-    "gold": 70,
+    "gold": 30,
     "bountyTokens": 2
   },
   "bounty": "daily"

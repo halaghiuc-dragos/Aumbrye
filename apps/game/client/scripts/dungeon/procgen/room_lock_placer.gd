@@ -38,6 +38,12 @@ static func place_locked_doors(
 			or to_sem == layout_semantic.get(graph.stairs_id, "")
 		):
 			continue
+		# A lock only gates anything on a bridge: if the boss is still reachable with this doorway
+		# shut, the lock is walked around.
+		if RoomGraphPaths.reachable_without_edge(
+			graph, critical_layout[i], critical_layout[i + 1]
+		).has(graph.boss_id):
+			continue
 		(
 			candidates
 			. append(
@@ -136,7 +142,7 @@ static func place_locked_doors(
 			used_key_rooms[extra_layout] = true
 			key_layouts.append(extra_layout)
 		var lock_id := "lock_%s_%s" % [pick["from"], pick["to"]]
-		# RM-05: the colour suffix is what makes `FloorKeyring.color_of()` resolve this key id at
+		# The colour suffix is what makes `FloorKeyring.color_of()` resolve this key id at
 		# all -- without it the door and the chest have no way to know which of Doom's three
 		# keycards they are, and both silently fall back to plain white/no tint.
 		var key_color := FloorKeyring.color_for_index(locks.size())
@@ -146,25 +152,37 @@ static func place_locked_doors(
 			key_fragment_ids.append(
 				"%s_fragment_%d_%s" % [key_id.trim_suffix("_" + key_color), fragment_index + 1, key_color]
 			)
-		(
-			locks
-			. append(
-				{
-					"lockId": lock_id,
-					"from": pick["from"],
-					"to": pick["to"],
-					"keyId": key_id,
-					"keyColor": key_color,
-					"keyRoomId": layout_semantic.get(key_room_layout, ""),
-					"keyLayoutId": key_room_layout,
-					"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
-					"keyLayoutIds": key_layouts,
-					"keyFragmentIds": key_fragment_ids,
-					"keyLabel": FloorKeyring.label_for(key_id),
-					"keysRequired": key_layouts.size(),
-				}
-			)
-		)
+		var proposed_lock := {
+			"lockId": lock_id,
+			"from": pick["from"],
+			"to": pick["to"],
+			"keyId": key_id,
+			"keyColor": key_color,
+			"keyRoomId": layout_semantic.get(key_room_layout, ""),
+			"keyLayoutId": key_room_layout,
+			"keyRoomIds": _semantics_for_layouts(layout_semantic, key_layouts),
+			"keyLayoutIds": key_layouts,
+			"keyFragmentIds": key_fragment_ids,
+			"keyLabel": FloorKeyring.label_for(key_id),
+			"keysRequired": key_layouts.size(),
+		}
+		locks.append(proposed_lock)
+		var required_rooms: Array = [
+			str(layout_semantic.get(graph.boss_id, "")),
+			str(layout_semantic.get(graph.stairs_id, "")),
+		]
+		for placed_lock in locks:
+			required_rooms.append_array(placed_lock.get("keyRoomIds", []))
+		# The key for this door may sit beyond a different selected door. Reject that
+		# combination while choosing locks, so an otherwise playable floor keeps its
+		# earlier gates instead of losing them during final content validation.
+		if not RoomContentValidator._required_rooms_reachable(
+			graph, layout_semantic, {"locks": locks},
+			str(layout_semantic.get(graph.start_id, "")), required_rooms
+		):
+			locks.pop_back()
+			for key_layout in key_layouts:
+				used_key_rooms.erase(key_layout)
 	return locks
 
 
@@ -211,15 +229,10 @@ static func _find_key_room_layout(
 			continue
 		if not allow_on_path and layout_id in critical_layout:
 			continue
-		# `reachable` was already built with the locked edge cut, so every room left in it is one
-		# the player can walk to with the door shut. That is the whole soundness requirement, and
-		# it is why there is no ancestry test here any more.
-		#
-		# There used to be one: the room had to be an ancestor of `to_layout`, the room *behind*
-		# the door. On a breadth-first tree every ancestor of a critical-path room is itself on the
-		# critical path, and the line above rejects those -- so the two conditions could never both
-		# hold and this function returned "" for every candidate on every floor. No floor in the
-		# game has ever had a locked door on it.
+		# `reachable` is built with the locked edge cut, so every room left in it is one
+		# the player can walk to with the door shut. That is the whole soundness requirement; there is
+		# no ancestry test, because on a breadth-first tree every ancestor of a critical-path room is itself on
+		# the critical path, which the line above rejects.
 		var off_depth := RoomGraphPaths.branch_depth_for_slot(graph, layout_id)
 		if off_depth < 1 and not allow_on_path:
 			continue
@@ -237,10 +250,8 @@ static func _find_key_room_layout(
 		return ""
 	# Deepest down a side branch first, then furthest from the entrance -- a key is worth hiding.
 	#
-	# These two maxima used to be taken independently and then required together, which asks for a
-	# candidate that is both the deepest *and* the furthest. Usually no one room is both, so the
-	# tied list came out empty and the function indexed off the end of it and yielded "" -- it
-	# discarded a perfectly good key room roughly nineteen times in twenty.
+	# The two maxima are taken in turn, not independently and then required together: usually no one
+	# room is both the deepest *and* the furthest.
 	var best_off := -1
 	var best_dist := -1
 	for candidate in candidates:

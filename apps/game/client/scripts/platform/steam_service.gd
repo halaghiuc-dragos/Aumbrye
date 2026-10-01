@@ -9,8 +9,6 @@ enum Result { OK, UNAVAILABLE, FAILED }
 const DEV_APP_ID := 480
 const PLATFORM_CONFIG_PATH := "res://config/platform.json"
 const STEAM_APPID_FILE := "res://steam_appid.txt"
-const WEB_API_IDENTITY := "aumbrye"
-const TICKET_TIMEOUT_SEC := 5.0
 
 var enabled := false
 var is_stub_mode := true
@@ -55,7 +53,7 @@ func _resolve_app_id() -> void:
 		if file:
 			var parsed: Variant = JSON.parse_string(file.get_as_text())
 			if parsed is Dictionary:
-				# SY-11: `JSON.parse_string()` always returns a JSON number as a GDScript float,
+				# `JSON.parse_string()` always returns a JSON number as a GDScript float,
 				# so `480` in the file becomes `480.0` here -- `str()`-ing it first gave
 				# `"480.0"`, which `is_valid_int()` rejects, so this branch never fired and every
 				# build silently fell back to the dev app id.
@@ -138,25 +136,6 @@ func is_available() -> bool:
 	return _initialized and enabled
 
 
-func get_capabilities() -> Dictionary:
-	return {
-		"initialized": _initialized,
-		"stub": is_stub_mode,
-		"authenticated": _is_authenticated(),
-		"overlay": overlay_available,
-		"cloud": cloud_enabled,
-		"achievements": stats_ready,
-		"statsReady": stats_ready,
-	}
-
-
-func _is_authenticated() -> bool:
-	if not _initialized or is_stub_mode or not Engine.has_singleton("Steam"):
-		return false
-	var steam = Engine.get_singleton("Steam")
-	return steam != null and steam.has_method("getSteamID") and int(steam.getSteamID()) > 0
-
-
 func unlock_achievement(achievement_id: String) -> Result:
 	if not is_available() or not stats_ready:
 		return Result.UNAVAILABLE
@@ -191,30 +170,6 @@ func sync_achievements(unlocked_ids: Array[String]) -> Dictionary:
 	return {"synced": synced, "unavailable": unavailable, "failed": failed}
 
 
-func read_cloud_file(file_name: String) -> String:
-	if not is_available() or is_stub_mode:
-		return ""
-	if Engine.has_singleton("Steam"):
-		var steam = Engine.get_singleton("Steam")
-		if steam and steam.has_method("fileRead"):
-			return str(steam.fileRead(file_name))
-	return ""
-
-
-func write_cloud_file(file_name: String, data: String) -> bool:
-	return write_cloud_file_result(file_name, data) == Result.OK
-
-
-func write_cloud_file_result(file_name: String, data: String) -> Result:
-	if not is_available() or is_stub_mode:
-		return Result.UNAVAILABLE
-	if Engine.has_singleton("Steam"):
-		var steam = Engine.get_singleton("Steam")
-		if steam and steam.has_method("fileWrite"):
-			return Result.OK if bool(steam.fileWrite(file_name, data)) else Result.FAILED
-	return Result.UNAVAILABLE
-
-
 func shutdown() -> void:
 	if _shutdown_emitted:
 		return
@@ -229,25 +184,6 @@ func shutdown() -> void:
 	if not _shutdown_emitted:
 		_shutdown_emitted = true
 		steam_shutdown.emit()
-
-
-func _await_web_api_ticket(ticket_id: int) -> String:
-	if ticket_id == 0:
-		return ""
-	_pending_tickets[ticket_id] = {"done": false, "hex": ""}
-	var elapsed := 0.0
-	while (
-		_pending_tickets.has(ticket_id)
-		and not bool(_pending_tickets[ticket_id].get("done", false))
-		and elapsed < TICKET_TIMEOUT_SEC
-	):
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
-	var hex := ""
-	if _pending_tickets.has(ticket_id):
-		hex = str(_pending_tickets[ticket_id].get("hex", ""))
-		_pending_tickets.erase(ticket_id)
-	return hex
 
 
 func _on_ticket_for_web_api_response(auth_ticket: int, result: int, ticket_buffer: PackedByteArray) -> void:

@@ -4,8 +4,8 @@
   "description": "The cold gets into you too. Frost you inflict spreads to whatever stands near it.",
   "maxStacks": 1,
   "stats": {
-    "frostDamage": 3,
-    "resistFrost": -0.05
+    "resistFrost": -0.05,
+    "physicalDamage": 3
   },
   "tags": [
     "frost"

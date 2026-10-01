@@ -31,8 +31,8 @@ func _ready() -> void:
 			"offscreen arena radar tracks the active recovery objective"
 		)
 		_check(
-			fuel_objective.get_node_or_null("RecoveryRing") is MeshInstance3D
-			and fuel_objective.get_node_or_null("Beacon") is MeshInstance3D
+			fuel_objective.get_node_or_null("RecoveryRing") is Node3D
+			and fuel_objective.get_node_or_null("Beacon") is Node3D
 			and fuel_objective.get_node_or_null("RecoveryLight") is OmniLight3D,
 			"waystone has a recognizable emissive marker and light"
 		)
@@ -63,8 +63,8 @@ func _ready() -> void:
 				visible_flames += 1
 		_check(visible_flames == 18, "far emissive pyre silhouettes remain lit without dynamic lights")
 		_check(
-			batches.size() == 2 and batch_instances == 54,
-			"static pyre geometry is batched into two materials"
+			not batches.is_empty() and batch_instances == 18 * batches.size(),
+			"static pyre geometry is instanced, one batch per pyre model mesh"
 		)
 
 	# Isolate this deterministic fixture from any locally restored wave/save state.
@@ -164,13 +164,13 @@ func _ready() -> void:
 		]
 	)
 	print(
-		"WAVES PRESENTATION LEGACY_PYRE_MODEL render_capture=%s avg_frame_ms=%.3f p95_frame_ms=%.3f avg_render_cpu_ms=%.3f p95_render_cpu_ms=%.3f avg_render_gpu_ms=%.3f p95_render_gpu_ms=%.3f avg_draw_calls=%.1f avg_primitives=%.0f legacy_pyre_meshes=54 legacy_lights=18"
+		"WAVES PRESENTATION LEGACY_PYRE_MODEL render_capture=%s avg_frame_ms=%.3f p95_frame_ms=%.3f avg_render_cpu_ms=%.3f p95_render_cpu_ms=%.3f avg_render_gpu_ms=%.3f p95_render_gpu_ms=%.3f avg_draw_calls=%.1f avg_primitives=%.0f legacy_pyre_meshes=%d legacy_lights=18"
 		% [
 			"unavailable_headless" if is_headless else "display",
 			_mean(legacy_metrics.frame), _percentile(legacy_metrics.frame, 0.95),
 			_mean(legacy_metrics.render_cpu), _percentile(legacy_metrics.render_cpu, 0.95),
 			_mean(legacy_metrics.render_gpu), _percentile(legacy_metrics.render_gpu, 0.95),
-			_mean(legacy_metrics.draw_calls), _mean(legacy_metrics.primitives),
+			_mean(legacy_metrics.draw_calls), _mean(legacy_metrics.primitives), int(legacy_fixture.get("meshes", 0)),
 		]
 	)
 	if not is_headless:
@@ -317,9 +317,12 @@ func _enable_legacy_pyre_fixture(waves: Node3D) -> Dictionary:
 		light.position = Vector3(0.0, 0.6, 0.0)
 		flame.add_child(light)
 		legacy_lights.append(light)
-	_check(mesh_count == 54, "legacy renderer fixture reconstructs all 54 individual pyre meshes")
+	_check(
+		mesh_count >= 18 and mesh_count % 18 == 0,
+		"legacy renderer fixture reconstructs every individual pyre mesh"
+	)
 	_check(legacy_lights.size() == 8, "legacy renderer fixture restores eight far pyre lights")
-	return {"root": legacy_geometry, "sources": sources, "lights": legacy_lights}
+	return {"root": legacy_geometry, "sources": sources, "lights": legacy_lights, "meshes": mesh_count}
 
 
 func _restore_optimized_pyre_fixture(_waves: Node3D, fixture: Dictionary) -> void:

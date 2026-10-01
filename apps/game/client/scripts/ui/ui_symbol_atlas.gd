@@ -99,9 +99,8 @@ func _rect_from_cell(col: int, row: int) -> Rect2:
 	return Rect2(float(col) * size, float(row) * size, size, size)
 
 
-## Manifest-keyed cache behind the four `*_icon_atlas` facades. Each of them used to carry its own
-## copy of the same lazy-load pair (`_atlas` + `_loaded` + `_ensure_loaded` + `reload`), which is
-## three pieces of state per facade to express "load this manifest once".
+## Manifest-keyed cache behind the four `*_icon_atlas` facades, so each facade does not carry its own
+## copy of the same lazy-load state to express "load this manifest once".
 ##
 ## The texture override is part of the key, so the status atlas's colourblind variant is a separate
 ## entry rather than something a caller has to remember to invalidate.

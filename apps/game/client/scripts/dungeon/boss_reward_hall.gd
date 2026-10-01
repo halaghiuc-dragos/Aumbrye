@@ -21,11 +21,12 @@ const HALL_NAME := "BossRewardHall"
 
 const MERCHANT_OFFSET := Vector3(-4.5, 0.0, 4.0)
 const PORTAL_OFFSET := Vector3(4.5, 0.0, 4.0)
-const INTERACT_EXTENTS := Vector3(3.0, 2.5, 3.0)
+const INTERACT_RANGE := 3.2
+const PROMPT_OFFSET := Vector3(0.0, 2.8, 0.0)
 
 var _biome_id := "forgotten_castle"
-var _near_merchant := false
-var _near_portal := false
+var _merchant_prompt: InteractPrompt
+var _portal_prompt: InteractPrompt
 
 
 ## Whether `room` already has a hall in it.
@@ -48,63 +49,46 @@ func _build() -> void:
 	merchant.position = MERCHANT_OFFSET
 	add_child(merchant)
 	DioramaSkin.build_merchant_stall(merchant, _biome_id)
-	_add_interact_area(merchant, _on_merchant_entered, _on_merchant_exited)
+	_merchant_prompt = InteractPrompt.build(merchant, PROMPT_OFFSET)
+	DungeonInteractionService.register_candidate(
+		merchant,
+		merchant,
+		INTERACT_RANGE,
+		3,
+		Callable(self, "_open_merchant"),
+		Callable(),
+		Callable(self, "_set_merchant_prompt")
+	)
 
 	var portal := Node3D.new()
 	portal.name = "ReturnPortal"
 	portal.position = PORTAL_OFFSET
 	add_child(portal)
 	DioramaSkin.build_exit_portal(portal, _biome_id)
-	_add_interact_area(portal, _on_portal_entered, _on_portal_exited)
+	_portal_prompt = InteractPrompt.build(portal, PROMPT_OFFSET)
+	DungeonInteractionService.register_candidate(
+		portal,
+		portal,
+		INTERACT_RANGE,
+		4,
+		Callable(self, "_ask_return_to_hub"),
+		Callable(),
+		Callable(self, "_set_portal_prompt")
+	)
 
 
-func _add_interact_area(host: Node3D, entered: Callable, exited: Callable) -> void:
-	var area := Area3D.new()
-	area.name = "InteractArea"
-	# Layer 0, mask 2: the area detects the player without being something the world collides with.
-	area.collision_layer = 0
-	area.collision_mask = 2
-	area.monitoring = true
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = INTERACT_EXTENTS
-	shape.shape = box
-	area.add_child(shape)
-	host.add_child(area)
-	area.body_entered.connect(entered)
-	area.body_exited.connect(exited)
+func _set_merchant_prompt(active: bool) -> void:
+	if active:
+		_merchant_prompt.show_action(tr("BOSS_HALL_TRADE"))
+	else:
+		_merchant_prompt.hide_prompt()
 
 
-func _on_merchant_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_merchant = true
-
-
-func _on_merchant_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_merchant = false
-
-
-func _on_portal_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_portal = true
-
-
-func _on_portal_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		_near_portal = false
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if not PlayerInput.interact_just_pressed(event):
-		return
-	if _near_merchant:
-		_open_merchant()
-		get_viewport().set_input_as_handled()
-		return
-	if _near_portal:
-		_return_to_hub()
-		get_viewport().set_input_as_handled()
+func _set_portal_prompt(active: bool) -> void:
+	if active:
+		_portal_prompt.show_action(tr("BOSS_HALL_RETURN"))
+	else:
+		_portal_prompt.hide_prompt()
 
 
 func _open_merchant() -> void:
@@ -120,9 +104,19 @@ func _open_merchant() -> void:
 		existing.call("open_for_merchant", MERCHANT_ID)
 
 
-func _return_to_hub() -> void:
-	if RunFlow and RunFlow.can_retreat_to_hub():
+## Leaving the run is a decision, so it asks the same question the exit portal does.
+func _ask_return_to_hub() -> void:
+	if not (RunFlow and RunFlow.can_retreat_to_hub()):
+		return
+	var spec := ConfirmSpec.new()
+	spec.title_key = &"EXIT_PORTAL_TITLE"
+	spec.message_key = &"EXIT_PORTAL_MESSAGE"
+	spec.confirm_key = &"EXIT_PORTAL_LEAVE"
+	spec.cancel_key = &"EXIT_PORTAL_STAY"
+	spec.pause_game = true
+	spec.on_confirm = func() -> void:
 		RunFlow.retreat_to_hub()
+	MenuStack.confirm(spec)
 
 
 ## Gives the boss merchant its stock back for a new floor.

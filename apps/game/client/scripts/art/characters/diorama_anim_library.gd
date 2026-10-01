@@ -9,23 +9,10 @@ const FOOTSTEP := &"anim_footstep"
 const HEAL_GULP := &"anim_heal_gulp"
 const HEAL_COMMIT := &"anim_heal_commit"
 
-const AUTHORED_LIBRARY_PATHS := {
-	"player": "res://assets/animations/diorama/player_locomotion.res",
-	"melee": "res://assets/animations/diorama/melee_locomotion.res",
-	"hound": "res://assets/animations/diorama/hound_locomotion.res",
-	"shield": "res://assets/animations/diorama/shield_locomotion.res",
-	"brute": "res://assets/animations/diorama/brute_locomotion.res",
-	"ranged": "res://assets/animations/diorama/ranged_locomotion.res",
-}
-
-const POSE_MARKER := &"__pose__"
-const DIGESTS_PATH := "res://assets/animations/diorama/digests.json"
-
+const FOOTSTEP_CLIPS := [&"walk", &"run", &"walk_b", &"walk_l", &"walk_r", &"run_b", &"run_l", &"run_r", &"block_walk"]
 const ATTACK_CACHE_LIMIT := 192
 
 static var _attack_cache: Dictionary = {}
-const COMPILER_STYLE_REVISION := 3
-const FOOTSTEP_CLIPS := [&"walk", &"run", &"walk_b", &"walk_l", &"walk_r", &"run_b", &"run_l", &"run_r", &"block_walk"]
 
 const CLIPS := {
 	&"idle":
@@ -1049,46 +1036,6 @@ const CLIPS := {
 	},
 }
 
-const ADDITIVE_CLIPS := {
-	&"breathe":
-	{
-		"length": 3.4,
-		"loop": true,
-		"tracks":
-		{
-			"Torso":
-			{
-				"rot":
-				[
-					[0.0, 0.0, 0.0, 0.0],
-					[1.7, 0.015, 0.0, 0.0],
-					[3.4, 0.0, 0.0, 0.0]
-				],
-				"pos": [[0.0, 0.0, 0.0, 0.0], [1.7, 0.0, 0.008, 0.0], [3.4, 0.0, 0.0, 0.0]],
-			},
-			"Head":
-			{
-				"rot":
-				[
-					[0.0, 0.0, 0.0, 0.0],
-					[1.1, 0.0, 0.04, 0.0],
-					[2.2, 0.0, -0.03, 0.0],
-					[3.4, 0.0, 0.0, 0.0]
-				],
-			},
-		},
-	},
-	&"head_look":
-	{
-		"length": 0.1,
-		"loop": true,
-		"tracks":
-		{
-			"Head": {"rot": [[0.0, 0.0, 0.0, 0.0], [0.1, 0.0, 0.0, 0.0]]},
-		},
-	},
-}
-
 const ATTACKS := {
 	&"attack_light_1":
 	{
@@ -1825,6 +1772,252 @@ const ATTACKS := {
 		},
 		"methods": [[0.43, SWING_VFX]],
 	},
+	&"attack_slam":
+	{
+		"startup_end": 0.5,
+		"active_end": 0.66,
+		"tracks":
+		{
+			"Root":
+			{
+				"pos":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, 0.0, 0.1, -0.1],
+					[0.5, 0.0, 0.18, -0.12],
+					[0.62, 0.0, -0.22, 0.2],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Torso":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, -0.3, 0.0, 0.0],
+					[0.5, -0.45, 0.0, 0.0],
+					[0.62, 0.6, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Head":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.5, -0.3, 0.0, 0.0],
+					[0.62, 0.35, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"ArmR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, -0.05],
+					[0.4, -2.4, -0.2, -0.5],
+					[0.5, -3.0, -0.2, -0.6],
+					[0.62, 0.9, 0.1, 0.2],
+					[0.8, 0.6, 0.1, 0.1],
+					[1.0, 0.0, 0.0, -0.05]
+				]
+			},
+			"ArmL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.05],
+					[0.4, -2.4, 0.2, 0.5],
+					[0.5, -3.0, 0.2, 0.6],
+					[0.62, 0.9, -0.1, -0.2],
+					[0.8, 0.6, -0.1, -0.1],
+					[1.0, 0.0, 0.0, 0.05]
+				]
+			},
+			"LegL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.5, -0.3, 0.0, 0.1],
+					[0.62, 0.45, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"LegR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.5, -0.3, 0.0, -0.1],
+					[0.62, 0.45, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+		},
+		"methods": [[0.62, SWING_VFX]],
+	},
+	&"attack_sweep":
+	{
+		"startup_end": 0.4,
+		"active_end": 0.62,
+		"tracks":
+		{
+			"Root":
+			{
+				"pos":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, 0.0, 0.0, -0.08],
+					[0.52, 0.0, 0.0, 0.2],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Torso":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, -0.05, -1.1, 0.0],
+					[0.55, 0.08, 1.2, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Head":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, 0.0, 0.5, 0.0],
+					[0.55, 0.0, -0.5, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"ArmR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, -0.05],
+					[0.4, -1.3, -1.0, -1.1],
+					[0.55, -1.3, 0.9, 0.9],
+					[0.75, 0.3, 0.3, 0.2],
+					[1.0, 0.0, 0.0, -0.05]
+				]
+			},
+			"ArmL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.05],
+					[0.4, -0.9, -0.5, 0.6],
+					[0.55, -0.9, 0.5, -0.4],
+					[1.0, 0.0, 0.0, 0.05]
+				]
+			},
+			"LegL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, -0.25, 0.0, 0.0],
+					[0.55, 0.3, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"LegR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.4, 0.3, 0.0, 0.0],
+					[0.55, -0.25, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+		},
+		"methods": [[0.42, SWING_VFX]],
+	},
+	&"attack_grab":
+	{
+		"startup_end": 0.45,
+		"active_end": 0.65,
+		"tracks":
+		{
+			"Root":
+			{
+				"pos":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.45, 0.0, 0.02, -0.15],
+					[0.58, 0.0, 0.0, 0.4],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Torso":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.45, 0.25, 0.0, 0.0],
+					[0.58, -0.2, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"Head":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.45, -0.2, 0.0, 0.0],
+					[0.58, 0.15, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"ArmR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, -0.05],
+					[0.45, -0.6, 0.35, -0.9],
+					[0.58, -1.45, -0.3, -0.2],
+					[0.75, -1.2, -0.4, 0.0],
+					[1.0, 0.0, 0.0, -0.05]
+				]
+			},
+			"ArmL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.05],
+					[0.45, -0.6, -0.35, 0.9],
+					[0.58, -1.45, 0.3, 0.2],
+					[0.75, -1.2, 0.4, 0.0],
+					[1.0, 0.0, 0.0, 0.05]
+				]
+			},
+			"LegL":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.45, 0.2, 0.0, 0.0],
+					[0.58, -0.45, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+			"LegR":
+			{
+				"rot":
+				[
+					[0.0, 0.0, 0.0, 0.0],
+					[0.45, -0.25, 0.0, 0.0],
+					[0.58, 0.4, 0.0, 0.0],
+					[1.0, 0.0, 0.0, 0.0]
+				]
+			},
+		},
+		"methods": [[0.5, SWING_VFX]],
+	},
 }
 
 const PROFILE_ATTACKS := {
@@ -1834,6 +2027,15 @@ const PROFILE_ATTACKS := {
 	"shield": [&"attack_shield_bash"],
 	"ranged": [&"attack_shoot"],
 	"hound": [&"attack_bite"],
+}
+
+## The clip an attack plays when its data names no `anim`: one per attack class, so a grab, a
+## crushing blow and an ordinary swing never look alike.
+const CLASS_ATTACKS := {
+	"blockable": &"attack_light_1",
+	"parryable": &"attack_thrust",
+	"unblockable": &"attack_heavy",
+	"grab": &"attack_grab",
 }
 
 const WEAPON_ATTACKS := {
@@ -1853,6 +2055,13 @@ static func attack_clips_for(profile: String, weapon_archetype: String = "") -> 
 	return PROFILE_ATTACKS.get(profile, PROFILE_ATTACKS["melee"])
 
 
+static func clip_for_attack(attack_data: Dictionary) -> StringName:
+	var authored := StringName(str(attack_data.get("anim", "")))
+	if authored != &"" and ATTACKS.has(authored):
+		return authored
+	return StringName(CLASS_ATTACKS.get(str(attack_data.get("attackClass", "")), &""))
+
+
 static func heavy_clip_for(weapon_archetype: String) -> StringName:
 	match weapon_archetype:
 		"spear":
@@ -1865,47 +2074,6 @@ static func heavy_clip_for(weapon_archetype: String) -> StringName:
 			return &"attack_heavy"
 		_:
 			return &"attack_heavy"
-
-
-static func build_additive_library(rest_pose: Dictionary) -> AnimationLibrary:
-	var library := AnimationLibrary.new()
-	for clip_name in ADDITIVE_CLIPS:
-		var anim := _compile_additive(ADDITIVE_CLIPS[clip_name], rest_pose)
-		if anim:
-			library.add_animation(clip_name, anim)
-	return library
-
-
-## `AN-01`: additive clips (head_look and friends) stay continuous -- a stepped head-track reads
-## as a glitch, not a pixel-art choice.
-static func _compile_additive(spec: Dictionary, rest_pose: Dictionary) -> Animation:
-	return _compile(spec, rest_pose, "", 1.0, {}, false)
-
-
-static func _authored_missing_footstep_markers(
-	library: AnimationLibrary, events_path: String
-) -> Array[StringName]:
-	var missing: Array[StringName] = []
-	for clip_name in FOOTSTEP_CLIPS:
-		if not library.has_animation(clip_name):
-			missing.append(clip_name)
-			continue
-		var anim := library.get_animation(clip_name)
-		var footstep_keys := 0
-		if anim != null:
-			for track_idx in anim.get_track_count():
-				if anim.track_get_type(track_idx) != Animation.TYPE_METHOD:
-					continue
-				# A marker on another target is not a usable locomotion event for this rig.
-				if anim.track_get_path(track_idx) != NodePath(events_path):
-					continue
-				for key_idx in anim.track_get_key_count(track_idx):
-					var method_data: Dictionary = anim.track_get_key_value(track_idx, key_idx)
-					if String(method_data.get("method", "")) == "anim_footstep":
-						footstep_keys += 1
-		if footstep_keys < 2:
-			missing.append(clip_name)
-	return missing
 
 
 static func events_path_for_profile(profile: String) -> String:
@@ -1936,32 +2104,16 @@ static func select_locomotion_clip(speed: float) -> StringName:
 	return &"run"
 
 
-static func library_digest(library: AnimationLibrary) -> String:
-	var lines: PackedStringArray = []
-	var names := library.get_animation_list()
-	names.sort()
-	for anim_name in names:
-		var anim: Animation = library.get_animation(anim_name)
-		lines.append("%s len=%.4f loop=%d" % [anim_name, anim.length, anim.loop_mode])
-		for track_idx in anim.get_track_count():
-			lines.append("  %s type=%d" % [anim.track_get_path(track_idx), anim.track_get_type(track_idx)])
-			for key_idx in anim.track_get_key_count(track_idx):
-				lines.append(
-					"    %.4f %s"
-					% [anim.track_get_key_time(track_idx, key_idx), anim.track_get_key_value(track_idx, key_idx)]
-				)
-	return "\n".join(lines).sha256_text()
+static var _compiled_libraries: Dictionary = {}
 
 
-static func expected_exported_clip_count(rest_pose: Dictionary) -> int:
-	var count := 0
-	for clip_name in CLIPS:
-		if _compile(CLIPS[clip_name], rest_pose, "", 1.0) != null:
-			count += 1
-	return count + 2
-
-
-static func compile_authored_library(rest_pose: Dictionary, events_path: String, _profile: String) -> AnimationLibrary:
+## Every clip compiled once for a (profile, events node, rest pose, step rate) and shared read-only
+## by every rig that matches.
+static func build_library(rest_pose: Dictionary, events_path: String, profile: String = "player") -> AnimationLibrary:
+	var key := "%s|%s|%d|%.3f" % [profile, events_path, rest_pose.hash(), PixelDioramaSettings.animation_steps_per_second]
+	var cached: Variant = _compiled_libraries.get(key)
+	if cached is AnimationLibrary:
+		return cached as AnimationLibrary
 	var library := AnimationLibrary.new()
 	for clip_name in CLIPS:
 		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
@@ -1970,63 +2122,8 @@ static func compile_authored_library(rest_pose: Dictionary, events_path: String,
 	var reset := _compile_reset(rest_pose)
 	if reset:
 		library.add_animation(&"RESET", reset)
-	var pose_marker := _compile_pose_marker(rest_pose)
-	if pose_marker:
-		library.add_animation(POSE_MARKER, pose_marker)
+	_compiled_libraries[key] = library
 	return library
-
-
-static func can_use_authored_library(rest_pose: Dictionary, profile: String) -> bool:
-	if not rest_pose.has("Root"):
-		return false
-	var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
-	if authored_path == "" or not ResourceLoader.exists(authored_path):
-		return false
-	var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
-	if loaded == null or not loaded.has_animation(POSE_MARKER):
-		return false
-	var marker := loaded.get_animation(POSE_MARKER)
-	if str(marker.get_meta("compiler_identity", "")) != _compiler_identity():
-		return false
-	return _pose_hash(rest_pose) == _pose_hash_from_marker(marker)
-
-
-static func build_library(
-	rest_pose: Dictionary,
-	events_path: String,
-	profile: String = "player",
-	force_compile: bool = false
-) -> AnimationLibrary:
-	if not force_compile and can_use_authored_library(rest_pose, profile):
-		var authored_path: String = AUTHORED_LIBRARY_PATHS.get(profile, "")
-		var loaded := ResourceLoader.load(authored_path) as AnimationLibrary
-		if loaded != null:
-			var contextual := loaded.duplicate(true) as AnimationLibrary
-			_supplement_authored_library(contextual, rest_pose, events_path)
-			return contextual
-	return compile_authored_library(rest_pose, events_path, profile)
-
-
-static func _supplement_authored_library(
-	library: AnimationLibrary, rest_pose: Dictionary, events_path: String
-) -> void:
-	for clip_name in CLIPS:
-		if library.has_animation(clip_name):
-			continue
-		var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
-		if anim:
-			library.add_animation(clip_name, anim)
-	if not library.has_animation(&"RESET"):
-		var reset := _compile_reset(rest_pose)
-		if reset:
-			library.add_animation(&"RESET", reset)
-	if events_path != "":
-		for clip_name in _authored_missing_footstep_markers(library, events_path):
-			if not CLIPS.has(clip_name):
-				continue
-			var anim := _compile(CLIPS[clip_name], rest_pose, events_path, 1.0)
-			if anim:
-				library.add_animation(clip_name, anim)
 
 
 static func build_attack(
@@ -2077,9 +2174,9 @@ static func _attack_cache_key(
 	active: float,
 	recovery: float
 ) -> String:
-	return "%s|%s|%s|%d|%d|%d|%d" % [
+	return "%s|%d|%s|%d|%d|%d|%d" % [
 		clip_name,
-		_pose_hash(rest_pose),
+		rest_pose.hash(),
 		events_path,
 		roundi(startup * 1000.0),
 		roundi(active * 1000.0),
@@ -2145,7 +2242,7 @@ static func _compile(
 	return anim
 
 
-## `AN-01`: characters are voxel meshes seen through a pixel post-process, but they moved on a
+## Characters are voxel meshes seen through a pixel post-process, but they moved on a
 ## continuous curve -- the one thing that gave away "this is 3D" every single frame, on the
 ## character the player looks at 100% of the time. `PixelDioramaSettings.animation_steps_per_second`
 ## (0 = off) resamples the authored linear curve onto a fixed grid and keys it with
@@ -2180,7 +2277,7 @@ static func _add_vector_track(
 			anim.track_insert_key(track, time, rest_value + offset)
 
 
-## `AN-02`: an attack clip's authored curve gave the wind-back a single key at the end of
+## An attack clip's authored curve gave the wind-back a single key at the end of
 ## startup, so the limb travelled there linearly across the *whole* startup with no snap -- the
 ## swing read as a smooth sweep rather than a strike. This reshapes any authored attack track
 ## (worked out generically from whichever keys the animator already placed, not re-authored by
@@ -2190,7 +2287,7 @@ static func _add_vector_track(
 ## clip to the attack's real phase durations against those exact boundaries) -- only the shape of
 ## the curve between them changes.
 ##
-## Proportions (see PH-02's sibling plan item, "Solution"): anticipation lands at 15% of startup,
+## Proportions (see sibling plan item, "Solution"): anticipation lands at 15% of startup,
 ## the wound pose holds from 85% of startup to startup itself, the follow-through overshoots the
 ## authored swing peak by 20%, keyed at `active_end`.
 static func _shape_attack_keys(keys: Array, startup_end: float, active_end: float) -> Array:
@@ -2329,71 +2426,6 @@ static func _segment(
 	if span <= 0.0001:
 		return out_min
 	return out_min + (value - in_min) / span * (out_max - out_min)
-
-
-static func _pose_hash(rest_pose: Dictionary) -> String:
-	var lines: PackedStringArray = []
-	var names := rest_pose.keys()
-	names.sort()
-	for part_name in names:
-		var rest: Dictionary = rest_pose[part_name]
-		var pos: Vector3 = rest.get("position", Vector3.ZERO)
-		var rot: Vector3 = rest.get("rotation", Vector3.ZERO)
-		lines.append(
-			"%s path=%s pos=%s rot=%s"
-			% [part_name, str(rest.get("path", part_name)), _vec3_digest(pos), _vec3_digest(rot)]
-		)
-	return "\n".join(lines).sha256_text()
-
-
-static func _compiler_identity() -> String:
-	return "revision=%d;steps=%.4f" % [
-		COMPILER_STYLE_REVISION,
-		PixelDioramaSettings.animation_steps_per_second,
-	]
-
-
-static func _vec3_digest(value: Vector3) -> String:
-	return "%.4f,%.4f,%.4f" % [value.x, value.y, value.z]
-
-
-static func _compile_pose_marker(rest_pose: Dictionary) -> Animation:
-	var anim := Animation.new()
-	anim.set_meta("compiler_identity", _compiler_identity())
-	anim.length = 0.0
-	anim.loop_mode = Animation.LOOP_NONE
-	var wrote_any := false
-	for part_name in rest_pose:
-		var rest: Dictionary = rest_pose[part_name]
-		var node_path: String = rest.get("path", part_name)
-		var pos_track := anim.add_track(Animation.TYPE_VALUE)
-		anim.track_set_path(pos_track, NodePath("%s:position" % node_path))
-		anim.track_insert_key(pos_track, 0.0, rest.get("position", Vector3.ZERO))
-		var rot_track := anim.add_track(Animation.TYPE_VALUE)
-		anim.track_set_path(rot_track, NodePath("%s:rotation" % node_path))
-		anim.track_insert_key(rot_track, 0.0, rest.get("rotation", Vector3.ZERO))
-		wrote_any = true
-	return anim if wrote_any else null
-
-
-static func _pose_hash_from_marker(marker: Animation) -> String:
-	var pose: Dictionary = {}
-	for track_idx in marker.get_track_count():
-		var path := String(marker.track_get_path(track_idx))
-		var separator := path.rfind(":")
-		if separator < 0:
-			continue
-		var node_path := path.substr(0, separator)
-		var property_name := path.substr(separator + 1)
-		var part_name := node_path.get_file()
-		if not pose.has(part_name):
-			pose[part_name] = {"path": node_path, "position": Vector3.ZERO, "rotation": Vector3.ZERO}
-		var value: Variant = marker.track_get_key_value(track_idx, 0)
-		if property_name == "position":
-			pose[part_name]["position"] = value
-		elif property_name == "rotation":
-			pose[part_name]["rotation"] = value
-	return _pose_hash(pose)
 
 
 static func _compile_reset(rest_pose: Dictionary) -> Animation:

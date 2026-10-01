@@ -7,6 +7,7 @@ signal offer_taken(relic_id: String)
 const RULE_SOURCE_PREFIX := "relic/"
 const SYNERGY_MULTIPLIER := 1.75
 const SYNERGY_CAP := 4.0
+const SYNERGIES_PATH := "content/progression/relic_synergies.json"
 ## These are intentionally broad build families.  They translate a relic's existing event rules
 ## into offer relevance, so authored flavour tags need not carry every mechanical responsibility.
 const EVENT_FAMILY := {
@@ -30,6 +31,9 @@ var _offers_taken := 0
 var _pending_offer_ids: Array[String] = []
 var _offer_tag_history: Array[String] = []
 var _hooked := false
+## Synergy ids already announced this run, so a set bonus is celebrated once.
+var _announced_synergies: Array[String] = []
+static var _synergy_defs: Array = []
 
 
 func _ready() -> void:
@@ -76,6 +80,7 @@ func add_relic(relic_id: String) -> bool:
 				break
 	_ensure_event_hookup()
 	_sync_relic_rules()
+	_announce_new_synergies()
 	buffs_changed.emit()
 	if CombatEvents:
 		CombatEvents.dispatch(
@@ -264,6 +269,7 @@ func clear_all() -> void:
 	_offers_taken = 0
 	_pending_offer_ids.clear()
 	_offer_tag_history.clear()
+	_announced_synergies.clear()
 	_best_hit = {}
 	_unregister_all()
 	if had_entries:
@@ -384,6 +390,9 @@ func from_save_array(data: Variant) -> void:
 				_active.append({"relicId": relic_id, "stacks": mini(max_stacks, stacks)})
 	_ensure_event_hookup()
 	_sync_relic_rules()
+	_announced_synergies.clear()
+	for synergy in active_synergies():
+		_announced_synergies.append(str(synergy.get("id", "")))
 	buffs_changed.emit()
 
 
@@ -571,6 +580,37 @@ func _stacks_of(relic_id: String) -> int:
 	return 0
 
 
+## Set bonuses (`content/progression/relic_synergies.json`): carrying `count` relics that share a build tag
+## switches on a rule of its own, so a build is something the run assembles rather than a list of
+## stats. Tags are the authored ones plus the families derived from each relic's rules.
+func active_synergies() -> Array[Dictionary]:
+	var counts: Dictionary = {}
+	for entry in _active:
+		var stacks := maxi(1, int(entry.get("stacks", 1)))
+		for tag in _build_tags(RelicCatalog.get_definition(str(entry.get("relicId", "")))):
+			counts[tag] = int(counts.get(tag, 0)) + stacks
+	var active: Array[Dictionary] = []
+	for synergy in _synergy_definitions():
+		if int(counts.get(str(synergy.get("tag", "")), 0)) >= int(synergy.get("count", 3)):
+			active.append(synergy)
+	return active
+
+
+static func _synergy_definitions() -> Array:
+	if _synergy_defs.is_empty():
+		_synergy_defs = ContentLoader.load_json(SYNERGIES_PATH).get("synergies", [])
+	return _synergy_defs
+
+
+func _announce_new_synergies() -> void:
+	for synergy in active_synergies():
+		var synergy_id := str(synergy.get("id", ""))
+		if synergy_id in _announced_synergies:
+			continue
+		_announced_synergies.append(synergy_id)
+		RunFlow.run_warning.emit(tr("RELIC_SYNERGY_ACTIVE") % ContentText.name(synergy, synergy_id))
+
+
 func _rule_source_id(relic_id: String, stack_index: int = 0) -> String:
 	if stack_index <= 0:
 		return "%s%s" % [RULE_SOURCE_PREFIX, relic_id]
@@ -592,6 +632,10 @@ func _sync_relic_rules() -> void:
 		var stacks: int = maxi(1, int(entry.get("stacks", 1)))
 		for stack_index in stacks:
 			wanted[_rule_source_id(relic_id, stack_index)] = rules
+	for synergy in active_synergies():
+		var synergy_rules: Variant = synergy.get("rules", [])
+		if synergy_rules is Array and not (synergy_rules as Array).is_empty():
+			wanted["synergy/%s" % str(synergy.get("id", ""))] = synergy_rules
 	for source_id in _registered_sources:
 		if not wanted.has(source_id):
 			CombatEvents.unregister(str(source_id))

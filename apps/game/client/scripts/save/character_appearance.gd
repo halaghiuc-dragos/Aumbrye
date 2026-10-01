@@ -3,7 +3,6 @@ extends RefCounted
 
 
 const PixelStyle := preload("res://scripts/art/style/pixel_diorama_style.gd")
-const DungeonCatalogScript := preload("res://scripts/dungeon/dungeon_catalog.gd")
 
 const PROFILE_VERSION := 1
 const THEME_MIN := 0
@@ -43,14 +42,9 @@ static func frame_from_legacy(height_variant: String, bulk_variant: String) -> S
 	return FRAME_STANDARD
 
 
-const SKIN_TONE_WARM := "warm"
 const SKIN_TONE_NEUTRAL := "neutral"
-const SKIN_TONE_COOL := "cool"
-const SKIN_TONE_PALE := "pale"
 const SKIN_TONE_TAN := "tan"
 const SKIN_TONE_UMBER := "umber"
-const SKIN_TONE_ASHEN := "ashen"
-const SKIN_TONE_RUDDY := "ruddy"
 const SKIN_TONE_TABLE: Array = [
 	["pale", "Pale", Color(0.94, 0.82, 0.75)],
 	["porcelain", "Porcelain", Color(0.96, 0.88, 0.83)],
@@ -190,31 +184,16 @@ static var SKIN_TONE_LABELS: Array = _labels(SKIN_TONE_TABLE)
 
 const HAIR_NONE := "none"
 const HAIR_SHORT := "short"
-const HAIR_LONG := "long"
-const HAIR_SHAVEN := "shaven"
-const HAIR_BRAIDED := "braided"
-const HAIR_TIED := "tied"
-const HAIR_WILD := "wild"
 static var HAIR_STYLES: Array = _ids(HAIR_STYLE_TABLE)
 static var HAIR_LABELS: Array = _labels(HAIR_STYLE_TABLE)
 
 const FACE_OPEN := "open"
 const FACE_STERN := "stern"
-const FACE_KIND := "kind"
-const FACE_WEARY := "weary"
-const FACE_SCARRED := "scarred"
-const FACE_HOLLOW := "hollow"
 static var FACE_STYLES: Array = _ids(FACE_STYLE_TABLE)
 static var FACE_LABELS: Array = _labels(FACE_STYLE_TABLE)
 
-const HAIR_COLOR_BLACK := "black"
-const HAIR_COLOR_ASH := "ash"
 const HAIR_COLOR_BROWN := "brown"
-const HAIR_COLOR_AUBURN := "auburn"
 const HAIR_COLOR_COPPER := "copper"
-const HAIR_COLOR_BLOND := "blond"
-const HAIR_COLOR_SILVER := "silver"
-const HAIR_COLOR_TEAL := "teal"
 static var HAIR_COLORS: Array = _ids(HAIR_COLOR_TABLE)
 static var HAIR_COLOR_LABELS: Array = _labels(HAIR_COLOR_TABLE)
 
@@ -222,8 +201,6 @@ const HEAD_LABELS := ["Open face", "Visor helm", "Hooded"]
 
 const TRIM_LABELS := ["Plain", "Trimmed", "Pauldrons"]
 
-const HEIGHT_PRESETS := [0.9, 1.0, 1.1]
-const BULK_PRESETS := [0.88, 1.0, 1.14]
 
 const HEIGHT_MIN := 0.92
 const HEIGHT_MAX := 1.08
@@ -434,26 +411,6 @@ static func hair_color_rgb(hair_color: String) -> Color:
 
 static func skin_color_rgb(skin_tone: String) -> Color:
 	return _color_for(SKIN_TONE_TABLE, skin_tone, Color(0.80, 0.62, 0.48))
-
-
-static func skin_tint_vector(skin_tone: String) -> Vector3:
-	match skin_tone:
-		SKIN_TONE_WARM:
-			return Vector3(1.06, 0.98, 0.92)
-		SKIN_TONE_COOL:
-			return Vector3(0.94, 0.98, 1.04)
-		SKIN_TONE_PALE:
-			return Vector3(1.09, 1.05, 1.02)
-		SKIN_TONE_TAN:
-			return Vector3(0.98, 0.88, 0.74)
-		SKIN_TONE_UMBER:
-			return Vector3(0.74, 0.62, 0.52)
-		SKIN_TONE_ASHEN:
-			return Vector3(0.86, 0.87, 0.88)
-		SKIN_TONE_RUDDY:
-			return Vector3(1.08, 0.9, 0.85)
-		_:
-			return Vector3.ONE
 
 
 static func apply_to_service(profile: Dictionary) -> void:

@@ -1,11 +1,10 @@
 extends Control
 
 
-## UX-01: the talent tree used to be a flat ItemList of "[Branch] Name (rank/max)" rows -- no way
-## to see build shape or where a node leads. This draws the actual ten-branch tree via
-## `TalentTreeGraph` (requires-edges, keystone forks) and adds a detail/preview pane.
+## The talent screen draws the actual ten-branch tree via `TalentTreeGraph` (requires-edges,
+## keystone forks) and adds a detail/preview pane, so build shape and where a node leads are visible.
 ##
-## UX-02: adds a preview-before-spending workflow. Hovering/focusing a node shows the stat delta
+## It has a preview-before-spending workflow. Hovering/focusing a node shows the stat delta
 ## it would add. Nodes can be queued ("planned") without spending a point, and the queue is only
 ## committed to real talent points on an explicit confirm -- see `ProgressionService.plan_talent`
 ## / `commit_planned_talents`. A free respec is offered inside the grace window opened by
@@ -27,6 +26,7 @@ var _preview_label: Label
 var _plan_button: Button
 var _clear_plan_button: Button
 var _free_respec_button: Button
+var _paid_respec_button: Button
 var _by_id: Dictionary = {}
 
 
@@ -47,7 +47,7 @@ func open_talents() -> void:
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	if MenuStack:
-		MenuStack.push(self)
+		MenuStack.push(self, true)
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_reload_nodes()
@@ -67,8 +67,36 @@ func close_talents() -> void:
 	closed.emit()
 
 
+## Closing with talents still queued asks what to do with them: commit, discard, or keep editing.
 func _on_cancel_requested() -> void:
-	close_talents()
+	var queued := ProgressionService.get_planned_talents().size()
+	if queued == 0:
+		close_talents()
+		return
+	var spec := ConfirmSpec.new()
+	spec.title_key = &"TALENTS_CLOSE_TITLE"
+	spec.message_key = &"TALENTS_CLOSE_COMMIT"
+	spec.message_args = [queued]
+	spec.confirm_key = &"TALENTS_COMMIT_NOW"
+	spec.cancel_key = &"TALENTS_NOT_NOW"
+	spec.on_confirm = func() -> void:
+		_on_commit_pressed()
+		close_talents()
+	spec.on_cancel = func() -> void: _ask_discard_or_keep.call_deferred()
+	MenuStack.confirm(spec)
+
+
+func _ask_discard_or_keep() -> void:
+	var spec := ConfirmSpec.new()
+	spec.title_key = &"TALENTS_CLOSE_TITLE"
+	spec.message_key = &"TALENTS_CLOSE_DISCARD"
+	spec.confirm_key = &"TALENTS_DISCARD"
+	spec.cancel_key = &"TALENTS_KEEP_EDITING"
+	spec.destructive = true
+	spec.on_confirm = func() -> void:
+		ProgressionService.clear_planned_talents()
+		close_talents()
+	MenuStack.confirm(spec)
 
 
 func _build_ui_if_needed() -> void:
@@ -143,11 +171,14 @@ func _build_ui_if_needed() -> void:
 		tr("TALENTS_FREE_RESPEC"), _on_free_respec_pressed
 	)
 	button_row.add_child(_free_respec_button)
-	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), close_talents)
+	_paid_respec_button = MenuShellScript.make_menu_button(
+		tr("SMITH_RESPEC") % BlacksmithService.RESPEC_COST, _on_paid_respec_pressed
+	)
+	button_row.add_child(_paid_respec_button)
+	var close_btn := MenuShellScript.make_menu_button(tr("UI_CLOSE"), _on_cancel_requested)
 	button_row.add_child(close_btn)
 
 	MenuShellScript.add_hint(vbox, tr("TALENTS_HINT"))
-	GameUISkinScript.apply_pixel_theme(self)
 	if ProgressionService and not ProgressionService.progression_changed.is_connected(_refresh):
 		ProgressionService.progression_changed.connect(_refresh)
 	if ProgressionService and not ProgressionService.talent_plan_changed.is_connected(_refresh):
@@ -156,13 +187,18 @@ func _build_ui_if_needed() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("talents") and not _open:
-		open_talents()
-		get_viewport().set_input_as_handled()
+		# Talents open where a screen may open and hold the game still, so nothing keeps attacking.
+		if PlayerControls.allows_player_ui() and MenuStack.depth() == 0:
+			open_talents()
+			get_viewport().set_input_as_handled()
 		return
 	if not _open or (MenuStack != null and not MenuStack.handles_cancel(self)):
 		return
 	if event.is_action_pressed("ui_accept"):
 		_on_node_activated(_graph.focused_node_id())
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("talents_commit"):
+		_on_commit_pressed()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_up"):
 		_graph.move_focus(Vector2i(0, -1))
@@ -226,6 +262,9 @@ func _refresh() -> void:
 		_points_label.text = text
 	if _free_respec_button:
 		_free_respec_button.visible = ProgressionService.is_talent_respec_free()
+	if _paid_respec_button:
+		_paid_respec_button.visible = not ProgressionService.is_talent_respec_free()
+		_paid_respec_button.disabled = not BlacksmithService.can_respec_talents()
 	if _clear_plan_button:
 		_clear_plan_button.disabled = ProgressionService.get_planned_talents().is_empty()
 	_update_detail(_graph.focused_node_id())
@@ -240,9 +279,10 @@ func _on_node_activated(node_id: String) -> void:
 		return
 	_graph.focus_node(node_id)
 	_update_detail(node_id)
+	_on_plan_pressed()
 
 
-## UX-02: queues (or unqueues, if already queued) the focused node without spending anything.
+## Queues (or unqueues, if already queued) the focused node without spending anything.
 func _on_plan_pressed() -> void:
 	var node_id := _graph.focused_node_id() if _graph else ""
 	if node_id == "":
@@ -253,7 +293,7 @@ func _on_plan_pressed() -> void:
 		ProgressionService.plan_talent(node_id)
 
 
-## UX-02: spends real talent points for everything queued. Nothing before this point touched
+## Spends real talent points for everything queued. Nothing before this point touched
 ## `talent_points_spent`.
 func _on_commit_pressed() -> void:
 	var result := ProgressionService.commit_planned_talents()
@@ -267,6 +307,21 @@ func _on_clear_plan_pressed() -> void:
 
 func _on_free_respec_pressed() -> void:
 	ProgressionService.free_respec_talents()
+
+
+## Respec spends real gold and throws away a whole build, so it asks first.
+func _on_paid_respec_pressed() -> void:
+	MenuStack.confirm(
+		ConfirmSpec.texts(
+			tr("SMITH_RESPEC_CONFIRM_TITLE"),
+			tr("SMITH_RESPEC_CONFIRM_MESSAGE") % BlacksmithService.RESPEC_COST,
+			tr("SMITH_RESPEC_CONFIRM_BUTTON"),
+			tr("UI_CANCEL"),
+			func() -> void: BlacksmithService.respec_talents(),
+			Callable(),
+			true
+		)
+	)
 
 
 func _locked_reason(node_id: String, node: Dictionary) -> String:
@@ -325,7 +380,7 @@ func _update_detail(node_id: String) -> void:
 	_update_preview(node_id)
 
 
-## UX-02: the stat delta the node would add if taken right now, diffed against the active build
+## The stat delta the node would add if taken right now, diffed against the active build
 ## by `ProgressionService.preview_talent_delta` -- rendered as +X/-Y so the player can weigh a
 ## node before spending (or even queuing) a point on it.
 func _update_preview(node_id: String) -> void:

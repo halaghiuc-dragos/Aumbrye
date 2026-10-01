@@ -31,21 +31,13 @@ func _build_choice(choice_id: String, local_position: Vector3, tint: Color) -> v
 	root.add_child(pedestal)
 	_pedestals[choice_id] = pedestal
 	var base := MeshInstance3D.new()
-	var base_mesh := BoxMesh.new()
-	base_mesh.size = Vector3(1.05, 0.6, 1.05)
-	base.mesh = base_mesh
-	base.position.y = 0.3
+	base.mesh = PropLibrary.bare_mesh("fx/pact_base")
 	base.material_override = PixelStyleScript.make_prop_material(
 		PixelStyleScript.theme_from_biome(str(get_meta("biome_id", BiomeRegistry.BIOME_CASTLE))), true
 	)
 	pedestal.add_child(base)
 	var rune := MeshInstance3D.new()
-	var rune_mesh := CylinderMesh.new()
-	rune_mesh.top_radius = 0.34
-	rune_mesh.bottom_radius = 0.52
-	rune_mesh.height = 1.55
-	rune_mesh.radial_segments = 4
-	rune.mesh = rune_mesh
+	rune.mesh = PropLibrary.bare_mesh("fx/pact_rune")
 	rune.position.y = 1.25
 	rune.material_override = PixelStyleScript.make_glow_material(tint, tint * 0.35, 1.45)
 	pedestal.add_child(rune)
@@ -54,12 +46,7 @@ func _build_choice(choice_id: String, local_position: Vector3, tint: Color) -> v
 	for offset in [Vector3(-0.36, 1.82, 0.0), Vector3(0.0, 2.06, 0.04), Vector3(0.36, 1.82, 0.0)]:
 		var shard := MeshInstance3D.new()
 		shard.name = "PactCrestShard"
-		var shard_mesh := CylinderMesh.new()
-		shard_mesh.top_radius = 0.015
-		shard_mesh.bottom_radius = 0.1
-		shard_mesh.height = 0.3
-		shard_mesh.radial_segments = 4
-		shard.mesh = shard_mesh
+		shard.mesh = PropLibrary.bare_mesh("fx/pact_shard")
 		shard.position = offset
 		shard.rotation.y = deg_to_rad(45.0)
 		shard.material_override = PixelStyleScript.make_glow_material(tint.lightened(0.12), tint.darkened(0.3), 1.7)
@@ -153,4 +140,4 @@ func _grant_pact() -> void:
 	if VfxService:
 		VfxService.play_rune_flare(_player.global_position + Vector3(0.0, 1.0, 0.0))
 	if AudioDirector:
-		AudioDirector.play_stinger("rare_found")
+		AudioDirector.play_stinger("rare_drop")

@@ -41,9 +41,8 @@ func _build_at_socket() -> void:
 	add_child(_barrier)
 
 	var mesh := MeshInstance3D.new()
-	var door_mesh := BoxMesh.new()
-	door_mesh.size = box.size
-	mesh.mesh = door_mesh
+	mesh.mesh = PropLibrary.bare_mesh("fx/gate_rune_door")
+	mesh.scale = box.size
 	mesh.position = shape_node.position
 	mesh.material_override = DIORAMA_SKIN.make_telegraph_material(Color(0.35, 0.55, 0.85, 0.85))
 	_barrier.add_child(mesh)
